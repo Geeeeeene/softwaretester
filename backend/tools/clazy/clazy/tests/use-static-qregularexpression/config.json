@@ -1,0 +1,12 @@
+{
+    "tests": [
+        {
+            "filename": "main.cpp",
+            "minimum_qt_version": 51400
+        },
+        {
+            "filename": "splitref.qt5.cpp",
+            "qt_major_versions": [5]
+        }
+    ]
+}

@@ -1,0 +1,34 @@
+#include <QtCore/QList>
+#include <QtCore/QMap>
+#include <QtCore/QMultiMap>
+
+QList<int> getList() {return {};}
+
+void test()
+{
+    QList<int> list;
+    if (!list.isEmpty()) {}   // Warning
+    if (list.isEmpty()) {}   // Warning
+    bool b1 = !list.isEmpty(); // Warning
+    bool b2 = !list.isEmpty(); // Warning
+    if (list.indexOf(1)) {} // OK
+
+    QMap<int, int> map;
+    if (!map.isEmpty()) {} // Warning
+    if (map.contains(2)) {} // Warning
+
+    QMultiMap<int, int> multiMap;
+    if (!multiMap.isEmpty()) {} // Warning
+    if (multiMap.contains(2)) {} // Warning
+    if (multiMap.contains(2)) {} // Warning
+
+    if (!getList().isEmpty()) {} // Warning
+}
+
+void testExplicitConversion()
+{
+    if (getList().isEmpty()) {} // Warning
+    if (getList().isEmpty()) {} // Warning
+    if (!getList().isEmpty()) {} // Warning
+    const bool myCheck = !getList().isEmpty();
+}

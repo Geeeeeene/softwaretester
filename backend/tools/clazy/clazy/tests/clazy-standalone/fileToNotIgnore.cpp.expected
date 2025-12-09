@@ -1,0 +1,1 @@
+clazy-standalone/fileToNotIgnore.cpp:5:5: warning: Use QDateTime::currentSecsSinceEpoch() instead. It is significantly faster [-Wclazy-qdatetime-utc]

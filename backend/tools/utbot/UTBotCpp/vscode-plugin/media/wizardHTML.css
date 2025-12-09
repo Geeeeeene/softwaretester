@@ -1,0 +1,323 @@
+.utbot-form {
+    background-color: var(--vscode-welcomePage-background);
+    margin: auto auto;
+    margin-top: 15px;
+    vertical-align: middle;
+    padding: 40px;
+    width: 70%;
+    min-width: 310px;
+    max-width: 700px;
+}
+
+/* Hide all steps by default: */
+.utbot-form__tab {
+    display: none;
+    min-height: 280px;
+}
+
+.utbot-form__tab.active {
+    display: block;
+}
+
+.utbot-form__steps {
+    text-align: center;
+    margin-top: 60px;
+}
+
+/* Make circles that indicate the steps of the form: */
+.utbot-form__steps_step {
+    height: 10px;
+    width: 10px;
+    margin: 0 2px;
+
+    background-color: var(--vscode-titleBar-activeForeground);
+    /* background-color: #bbbbbb; */
+    border: none;
+    border-radius: 50%;
+    display: inline-block;
+
+    opacity: 50%;
+}
+
+/* Mark the active step: */
+.utbot-form__steps_step.active {
+    opacity: 100%;
+}
+
+.utbot-form__tab_label {
+    text-align: right;
+    margin-top: 10px;
+    margin-right: 15px;
+    float:left;
+}
+
+.utbot-form__tab_input {
+    margin-top: 5px;
+}
+
+.utbot-form__tab_item {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+/* By default turn off connection status */
+#GRPC_connection_loader,
+#GRPC_connection_success,
+#GRPC_connection_warning,
+#GRPC_connection_failure,
+#SFTP_connection_loader,
+#SFTP_connection_success,
+#SFTP_connection_warning,
+#SFTP_connection_failure {
+    display: none;
+}
+
+#GRPC_connection_loader.active,
+#GRPC_connection_success.active,
+#GRPC_connection_warning.active,
+#GRPC_connection_failure.active,
+#SFTP_connection_loader.active,
+#SFTP_connection_success.active,
+#SFTP_connection_warning.active,
+#SFTP_connection_failure.active {
+    display: inline-block;
+}
+
+/* plugin status */
+#SFTP_installed,
+#SFTP_not_installed,
+#SARIF_installed,
+#SARIF_not_installed {
+    display: none;
+}
+
+#SFTP_installed.active,
+#SFTP_not_installed.active,
+#SARIF_installed.active,
+#SARIF_not_installed.active {
+    display: inline-block;
+}
+
+
+.utbot-form__steps_step.finish {
+    background-color: var(--vscode-editorInfo-foreground);
+}
+
+.utbot-form__navigation {
+    display: flex;
+    flex-direction: row;
+    width: 40%;
+    float: right;
+    justify-content: flex-end;
+}
+
+.button_next {
+    display: inline-block;
+}
+
+.button_previous {
+    display: none;
+}
+
+.button_previous.active {
+    display: inline-block;
+}
+
+.utbot-form__navigation_button {
+    flex-basis: 0;
+    flex-grow: 1;
+    margin-left: 5px;
+    margin-right: 5px;
+    max-width: 50%;
+    box-sizing: border-box;
+}
+
+.utbot-form__navigation_button:first-child {
+    margin-left: 0;
+}
+
+.utbot-form__navigation_button:last-child {
+    margin-right: 0;
+}
+
+.utbot-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 0;
+    overflow: hidden;
+    transition: background-color 0.25s ease;
+    z-index: 9999;
+}
+
+.utbot-modal.active {
+    position: fixed;
+    width: 100%;
+    height: 100vh;
+    background-color: var(--custom-shaded-backgroud);
+    transition: background-color 0.25s;
+}
+
+.utbot-modal.active > .content-wrapper {
+    transform: scale(1);
+}
+
+.utbot-modal .content-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    max-width: 50%;
+    min-width: 450px;
+    margin: 0;
+    padding: 1.5rem 1.0rem;
+    background-color: var(--vscode-activityBar-background);
+    border: var(--vscode-activityBar-border);
+    transform: scale(0);
+    transition: transform 0.25s;
+    transition-delay: 0.15s;
+}
+
+.utbot-modal__header {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0;
+}
+
+.utbot-modal__header h2 {
+    margin-bottom: 0;
+    margin-top: 0.5rem;
+}
+
+.utbot-modal__content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.utbot-modal__content p {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    margin-left: 5px;
+    margin-right: 0px;
+}
+
+.utbot-modal__footer {
+    margin-top: 0.4rem;
+    margin-left: auto;
+    margin-right: 0;
+    display: flex;
+    flex-direction: row;
+    width: 60%;
+    max-width: 300px;
+    float: right;
+    justify-content: flex-end;
+}
+
+.utbot-modal__footer_action-button {
+    flex-basis: 0;
+    flex-grow: 1;
+    margin-right: 5px;
+    width: 50%;
+    box-sizing: border-box;
+}
+
+.utbot-modal__footer_action-button:first-child {
+    margin-left: 0;
+}
+
+.utbot-modal__footer_action-button:last-child {
+    margin-right: 0;
+}
+
+.continue-button {
+    background-color: var(--vscode-debugIcon-breakpointForeground);
+}
+
+.continue-button:hover {
+    background: var(--vscode-testing-iconFailed);
+}
+
+.utbot-modal__close-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.0rem;
+    height: 1.0rem;
+    border: none;
+    background-color: transparent;
+}
+
+.utbot-modal__close-button:hover {
+    cursor: pointer;
+}
+
+.utbot-modal__close-button:hover::before,
+.utbot-modal__close-button:hover::after {
+    background: var(--vscode-diffEditor-diagonalFill);
+}
+
+.utbot-modal__close-button::before,
+.utbot-modal__close-button::after {
+    content: "";
+    position: absolute;
+    height: 2px;
+    width: 100%;
+    top: 50%;
+    left: 0;
+    margin-top: -1px;
+    background: var(--vscode-editorGroupHeader-tabsBackground);
+}
+
+.utbot-modal__close-button::before {
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    -o-transform: rotate(45deg);
+    transform: rotate(45deg);
+}
+
+.utbot-modal__close-button::after {
+    -webkit-transform: rotate(-45deg);
+    -moz-transform: rotate(-45deg);
+    -ms-transform: rotate(-45deg);
+    -o-transform: rotate(-45deg);
+    transform: rotate(-45deg);
+}
+
+.utbot-modal__close-button.thick::before,
+.utbot-modal__close-button.thick::after {
+    height: 4px;
+    margin-top: -2px;
+}
+
+.utbot-form__tab_installer_message {
+    display: none;
+}
+
+.utbot-form__tab_installer_message.active {
+    display: block;
+}
+
+.utbot-vars {
+    display: none;
+}
+
+a.invalid,
+input.invalid,
+textarea.invalid{
+    outline-style: solid;
+    outline-width: thin;
+    outline-color: #FF4136
+}

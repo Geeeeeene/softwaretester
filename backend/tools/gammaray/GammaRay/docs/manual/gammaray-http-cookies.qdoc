@@ -1,0 +1,34 @@
+/*
+  gammaray-http-cookies.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage{Problem Reporter}
+    \previouspage{Application Attributes}
+    \page gammaray-http-cookies.html
+
+    \title HTTP Cookies
+
+    \section1 Overview
+
+    The HTTP cookie view shows a list of cookies held by a cookie store associated with the
+    currently selected object. In particular these can be:
+
+    \list
+        \li A QNetworkCookieJar instance.
+        \li A QNetworkAccessManager instance.
+    \endlist
+
+    \image gammaray-http-cookies.png
+
+    The information shown in the HTTP cookie view correspond to the properties of QNetworkCookie.
+*/

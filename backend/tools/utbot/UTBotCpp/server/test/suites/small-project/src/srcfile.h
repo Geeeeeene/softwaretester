@@ -1,0 +1,6 @@
+#ifndef UNITTESTBOT_SRCFILE_H
+#define UNITTESTBOT_SRCFILE_H
+
+int f(int x);
+
+#endif //UNITTESTBOT_SRCFILE_H

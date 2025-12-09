@@ -1,0 +1,33 @@
+/*
+  gammaray-codec-browser.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \previouspage {Network}
+    \nextpage {System Information}
+    \page gammaray-codec-browser.html
+
+    \title Text Codecs
+
+    \section1 Overview
+
+    The text codec browser allows you to inspect QTextCodec instances available on the target system, and to see
+    how a specific code converts a given QString.
+
+    This information is usually independent of the target application, but rather depend on the system.
+
+    \image gammaray-codec-browser.png
+
+    The list on the left side contains all codecs known by QTextCodec, as well as their aliases. You can select
+    one or more of these codecs for looking at their encoding results on the test string at the upper-right side.
+    Encoding results are shown for all selected codecs on the right side.
+*/

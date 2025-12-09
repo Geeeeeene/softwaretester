@@ -1,0 +1,19 @@
+{
+    "tests": [
+        {
+            "filename": "main.cpp"
+        },
+        {
+            "filename": "qhash.cpp"
+        },
+        {
+            "filename": "qmap.cpp"
+        },
+        {
+            "filename": "qlist.cpp"
+        },
+        {
+            "filename": "qspinbox_crash.cpp"
+        }
+    ]
+}

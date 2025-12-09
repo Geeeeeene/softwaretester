@@ -1,0 +1,8 @@
+{
+    "blacklist_platforms": ["darwin"],
+    "tests": [
+        {
+            "filename": "main.cpp"
+        }
+    ]
+}

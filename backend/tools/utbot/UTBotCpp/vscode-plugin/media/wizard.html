@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        const GRPC_TIMEOUT = 500;
+        const SFTP_TIMEOUT = 500;
+        const GRPC_PREFIX = "GRPC_";
+        const SFTP_PREFIX = "SFTP_";
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="{{vscodeUri}}" rel="stylesheet">
+    <link href="{{stylesUri}}" rel="stylesheet">
+
+    <title>UTBot: Quickstart</title>
+</head>
+<body>
+<div class="utbot-vars"
+     os="{{os}}"
+     projectDir="{{projectDir}}"
+     defaultGRPCPort="{{defaultGRPCPort}}"
+     defaultSFTPPort="{{defaultSFTPPort}}"
+     serverHost="{{serverHost}}"
+     serverDir="{{serverDir}}">
+</div>
+
+<form id="utbotForm" class="utbot-form" action="">
+    <h1>UTBot: Quickstart</h1>
+
+    <div class="utbot-form__tab start-tab">
+        <h2>👋 Welcome to "UTBot: Quickstart" Wizard! </h2>
+        <p> UTBot discovered that this is the first time you use it with this project.
+            The Wizard will help you to configure the extension appropriately.
+            In case you don't wish to proceed, you can close this wizard at any time. </p>
+        <p> In order to learn more about UTBot C/C++, please, refer to this
+            <a href="https://github.com/UnitTestBot/UTBotCpp/wiki">manual</a>.</p>
+        <p> To work correctly, UTBot need the external plugins
+            <table>
+                <tr style="display: grid; grid-template-columns: auto 1fr">
+                    <td>
+                        <a id="SFTP_ref" href="https://marketplace.visualstudio.com/items?itemName=Natizyskunk.sftp">SFTP </a>
+                    </td>
+                    <td>
+                        <span id="SFTP_installed"> ✔️SFTP plugin is configured</span>
+                        <span id="SFTP_not_installed"> ❌ Please, install or enable the SFTP plugin and restart the wizard!</span>
+                    </td>
+                </tr>
+                <tr style="display: grid; grid-template-columns: auto 1fr">
+                    <td>
+                        <a id="SARIF_ref" href="https://marketplace.visualstudio.com/items?itemName=MS-SarifVSCode.sarif-viewer">Sarif Viewer </a>
+                    </td>
+                    <td>
+                        <span id="SARIF_installed"> ✔️SARIF plugin is configured</span>
+                        <span id="SARIF_not_installed"> ❌ Please, install or enable the SARIF plugin and restart the wizard!</span>
+                    </td>
+                </tr>
+            </table>
+            Please, install or activate the plugins before continuing.
+        </p>
+    </div>
+
+    <div class="utbot-form__tab installer-tab">
+        <div><b>🖥️ Server Installation</b></div>
+        <div>
+            If you are working on remote machine you can start UTBot Server installation
+            right from here. Otherwise, please do it manually. <br>
+            In order to learn more about UTBot Server Installation process, please, refer to the
+            <a href="https://github.com/UnitTestBot/UTBotCpp/wiki/install-server">installation manual</a>.
+        </div>
+        <div class="utbot-form__tab_item utbot-form__tab_installer">
+            <button type="button"
+                    class="utbot-form__tab_installer_button"
+                    id="runInstallerBtn"
+                    onclick="this.blur();runInstallator();">Install
+            </button>
+            <div class="utbot-form__tab_installer_message">Please, continue the process in the opened terminal below.
+                When you are finished, return here.
+            </div>
+        </div>
+    </div>
+
+    <div class="utbot-form__tab connection-tab" vs-message-callback="sendServerSetup()">
+        <h2>🖥️  Server Setup</h2>
+        <div id="useLocalHostSetup">
+            <input type="checkbox" id="useLocalHost" onclick="handleOnOffDefaultConfigurationOnLocalhost();">
+            <label for="useLocalHost">Default server configuration on <b><code>localhost</code></b> (or WSL2)</label>
+        </div>
+        <br>
+
+        <span style="display: grid; grid-template-columns: auto auto">
+            <b>📶  Connection</b>
+        </span>
+        <div>
+            Fill the parameters below accordingly to the ones specified during the
+            <a href="https://github.com/UnitTestBot/UTBotCpp/wiki/install-server">UTBot Server installation</a>. <br/>
+        </div>
+        <div class="utbot-form__tab_item" style="display: grid; grid-template-columns: auto 1fr">
+            <label class="utbot-form__tab_label"
+                   for="hostInput">Host</label>
+            <input class="utbot-form__tab_input"
+                   id="hostInput"
+                   value="{{predictedHost}}"
+                   placeholder="Ex. localhost"
+                   oninput="restartCheckingConnection(GRPC_PREFIX, GRPC_TIMEOUT);restartCheckingConnection(SFTP_PREFIX, SFTP_TIMEOUT);"
+                   onchange="restartCheckingConnection(GRPC_PREFIX, GRPC_TIMEOUT);restartCheckingConnection(SFTP_PREFIX, SFTP_TIMEOUT);"/>
+        </div>
+        <table>
+            <tr style="display: grid; grid-template-columns: auto 1fr">
+                <td>
+                    <label
+                        class="utbot-form__tab_label"
+                        style="width: 10ex; display: inline;"
+                        for="portGRPCInput">GRPC port</label>
+                    <input class="utbot-form__tab_input"
+                        style="width: auto; display: inline;"
+                        type="number"
+                        width="5"
+                        min="0" max="65535"
+                        id="portGRPCInput"
+                        value="{{predictedGRPCPort}}"
+                        placeholder="Ex. 2121"
+                        oninput="restartCheckingConnection(GRPC_PREFIX, GRPC_TIMEOUT);"
+                        onchange="restartCheckingConnection(GRPC_PREFIX, GRPC_TIMEOUT);"/>
+                </td>
+                <td>
+                    <span id="GRPC_connection_loader">⏳ Connecting...</span>
+                    <span id="GRPC_connection_success">✔️ Successfully pinged GRPC server!</span>
+                    <span id="GRPC_connection_warning" format="⚠️ Warning! Versions are different: "></span>
+                    <span id="GRPC_connection_failure">❌ Failed to establish GRPC connection!</span>
+                </td>
+            </tr>
+            <tr style="display: grid; grid-template-columns: auto 1fr">
+                <td>
+                    <label class="utbot-form__tab_label"
+                        style="width: 10ex; display: inline;"
+                        for="portSFTPInput">SFTP port</label>
+                    <input class="utbot-form__tab_input"
+                        style="width: auto; display: inline;"
+                        type="number"
+                        width="5"
+                        min="0" max="65535"
+                        id="portSFTPInput"
+                        value="{{predictedSFTPPort}}"
+                        placeholder="Ex. 2020"
+                        oninput="restartCheckingConnection(SFTP_PREFIX, SFTP_TIMEOUT);"
+                        onchange="restartCheckingConnection(SFTP_PREFIX, SFTP_TIMEOUT);"/>
+                </td>
+                <td>
+                    <span id="SFTP_connection_loader">⏳ Connecting SFTP...</span>
+                    <span id="SFTP_connection_success">✔️ Successfully pinged SFTP server!</span>
+                    <span id="SFTP_connection_warning">ⓘ SFTP synchronization is not used.</span>
+                    <span id="SFTP_connection_failure">❌ Failed to establish SFTP connection!</span>
+                </td>
+            </tr>
+        </table>
+        <div>
+            <b>ATTENTION!</b>  Please leave the <b>SFTP port field empty</b> if you do not want to synchronize
+            the project file system between client and server. By clicking the <b>"Next"</b> button with
+            the SFTP port field filled in, you will start the synchronization of the project file system
+            between the client and the server.
+        </div>
+        <br>
+
+        <div>
+            <label class="utbot-form__tab_label" for="serverPath">Project Path On Server</label>
+            <input class="utbot-form__tab_input"
+                   id="serverPath"
+                   value="{{predictedRemotePath}}"
+                   placeholder="Ex. /tmp/XXXX">
+            Project path on server specifies the path to the project's copy on the server host.
+            May point to a directory shared by the client and server. In this case, SFTP synchronization
+            must be disabled by leaving the <b>SFTP port field empty</b>.
+        </div>
+    </div>
+
+    <div class="utbot-form__tab" vs-message-callback="sendBuildInfo()">
+        <h2>📑️ Project Setup</h2>
+        <div><b>🏗️ Build Directory</b></div>
+        <div>Relative path to the build directory. Files compile_commands.json and link_commands.json should be located
+            in this directory.
+        </div>
+        <div>
+            <label class="utbot-form__tab_label" for="buildDirectory">Build Directory</label>
+            <input class="utbot-form__tab_input" id="buildDirectory" value="{{predictedBuildDirectory}}"
+             placeholder="build">
+        </div>
+        <br>
+
+        <div><b>🎌 CMake Options</b></div>
+        <div>Options passed to CMake command.</div>
+        <div>
+            <label class="utbot-form__tab_label" for="cmakeOptions">CMake options</label>
+            <textarea class="utbot-form__tab_input" id="cmakeOptions"
+             placeholder="{{cmakeOptions}}">{{cmakeOptions}}</textarea>
+        </div>
+    </div>
+
+    <div class="utbot-form__tab">
+        <div><b>🎉 Success!</b></div>
+        <div>
+            UTBot extension was successfully configured, and now you are ready to use all its functionality.<br>
+            If you want to learn more about UTBot C/C++ or you have ay questions related to its usage, please,
+            refer to this
+            <a href="https://github.com/UnitTestBot/UTBotCpp/wiki">manual</a>.
+        </div>
+    </div>
+
+    <div class="utbot-form__navigation">
+        <button type="button"
+                class="button_previous utbot-form__navigation_button"
+                id="prevBtn"
+                onclick="prevStep();this.blur();">Previous
+        </button>
+        <button type="button"
+                class="button_next utbot-form__navigation_button"
+                id="nextBtn"
+                onclick="nextStep();this.blur();">Next
+        </button>
+    </div>
+
+    <div class="utbot-form__steps">
+        <span class="utbot-form__steps_step"></span>
+        <span class="utbot-form__steps_step installer-step"></span>
+        <span class="utbot-form__steps_step"></span>
+        <span class="utbot-form__steps_step"></span>
+        <span class="utbot-form__steps_step"></span>
+    </div>
+</form>
+</body>
+<script src="{{scriptUri}}"></script>
+</html>

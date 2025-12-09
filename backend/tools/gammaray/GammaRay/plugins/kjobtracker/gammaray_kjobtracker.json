@@ -1,0 +1,7 @@
+{
+    "id": "gammaray_kjobtracker",
+    "name": "KJobs",
+    "types": [
+        "KJob"
+    ]
+}

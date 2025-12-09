@@ -1,0 +1,81 @@
+/*
+  gammaray-tools.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage {Qt Quick 2 Inspector}
+    \previouspage {Command Line Interface}
+    \page gammaray-tools.html
+
+    \title Tools
+
+    \section1 Overview
+
+    GammaRay consists of a number of specialized tools to inspect various aspects of Qt. You can select these using the tool selector on the left of the GammaRay window.
+
+    \section2 User Interface Inspection
+
+    The following tools can be used for inspecting graphical user interface issues, such as layouting, rendering, or event handling.
+
+    \list
+        \li \l{Qt Quick 2 Inspector}
+        \li \l{Widget Inspector}
+        \li \l{Graphics Scene Inspector}
+        \li \l{Qt3D Inspector}
+        \li \l{Styles}
+        \li \l{Web Inspector}
+    \endlist
+
+    \section2 Application Behavior Inspection
+
+    The following tools can be used to observe application behavior at runtime.
+
+    \list
+        \li \l{State Machine Debugger}
+        \li \l{Network}
+        \li \l{Messages}
+        \li \l{Signal Plotter}
+        \li \l{Timers}
+        \li \l{Events}
+        \li \l{Wayland Compositors}
+        \li Script Engine Debugger
+    \endlist
+
+    \section2 Model and Data Structure Inspection
+
+    The following tools allow you to inspect and manipulate models and data structures of your application at runtime.
+
+    \list
+        \li \l{Object Browser}
+        \li \l{Actions}
+        \li \l{Models}
+        \li \l{Text Documents}
+        \li \l{Resources}
+        \li \l{Translations}
+        \li \l{Meta Object Browser}
+        \li \l{Meta Type Browser}
+        \li \l{Geo Positioning}
+    \endlist
+
+    \section2 System Information
+
+    The following tools allow you to inspect information of the Qt installation and the system it's deployed on.
+
+    \list
+        \li \l{Font Browser}
+        \li \l{Locales}
+        \li \l{Mime Types}
+        \li \l{Network}
+        \li \l{Text Codecs}
+        \li \l{System Information}
+    \endlist
+*/

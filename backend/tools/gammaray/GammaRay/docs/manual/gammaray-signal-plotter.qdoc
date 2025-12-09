@@ -1,0 +1,37 @@
+/*
+  gammaray-signal-plotter.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage {Timers}
+    \previouspage {Messages}
+    \page gammaray-signal-plotter.html
+
+    \title Signal Plotter
+
+    \section1 Overview
+
+    The signal plotter visualizes the lifetime of all QObject instances on the target (gray horizontal bars), and shows the emission
+    of every signal on the target (vertical black bar on the emitting sender QObject).
+
+    \image gammaray-signal-plotter.png
+
+    Tooltips on each signal emission show information about the signal, including the signal name and the time of the emission.
+
+    \section1 Examples
+
+    The following examples make use of the signal plotter:
+    \list
+        \li \l{signal-slot}
+        \li \l{timer}
+    \endlist
+*/

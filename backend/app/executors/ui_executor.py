@@ -11,7 +11,8 @@ class UIExecutor(BaseExecutor):
     """UI测试执行器（Spix）"""
     
     def __init__(self):
-        self.spix_path = settings.SPIX_EXECUTOR_PATH
+        from pathlib import Path
+        self.spix_path = Path(settings.SPIX_EXECUTOR_PATH).resolve()
     
     async def execute(self, test_ir: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
         """执行UI测试"""

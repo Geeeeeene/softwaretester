@@ -1,7 +1,10 @@
 """Spix执行器适配器"""
 import time
+import os
+from pathlib import Path
 from typing import Dict, Any
 from app.executors.base import BaseExecutor
+from app.core.config import settings
 
 
 class SpixAdapter(BaseExecutor):
@@ -9,7 +12,14 @@ class SpixAdapter(BaseExecutor):
     
     def __init__(self):
         self.name = "Spix"
+        self.spix_path = Path(settings.SPIX_PATH).resolve()
+        self.spix_build_path = Path(settings.SPIX_BUILD_PATH).resolve() if settings.SPIX_BUILD_PATH else None
         print(f"🔧 初始化 {self.name} 执行器")
+        print(f"   Spix 路径: {self.spix_path}")
+        
+        # 检查 Spix 路径是否存在
+        if not self.spix_path.exists():
+            print(f"   ⚠️  警告: Spix 路径不存在: {self.spix_path}")
     
     def validate_ir(self, test_ir: Dict[str, Any]) -> bool:
         """验证UI Test IR"""

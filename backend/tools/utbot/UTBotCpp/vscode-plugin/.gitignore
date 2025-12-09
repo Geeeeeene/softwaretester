@@ -1,0 +1,7 @@
+out
+node_modules
+.vscode-test/
+.vscode/
+*.vsix
+src/proto-ts/
+package-lock.json

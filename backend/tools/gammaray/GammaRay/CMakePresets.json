@@ -1,0 +1,175 @@
+{
+    "version": 2,
+    "configurePresets": [
+        {
+            "name": "base",
+            "generator": "Ninja",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build-${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            },
+            "warnings": {
+                "uninitialized": true
+            }
+        },
+        {
+            "name": "dev",
+            "inherits": "base",
+            "displayName": "dev",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "GAMMARAY_USE_PCH": "ON"
+            }
+        },
+        {
+            "name": "dev-asan",
+            "displayName": "dev-asan",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-dev-asan",
+            "cacheVariables": {
+                "ECM_ENABLE_SANITIZERS": "address,undefined",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "GAMMARAY_USE_PCH": "ON",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "dev-ftime-trace",
+            "displayName": "dev-ftime-trace",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-dev-ftime-trace",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "GAMMARAY_USE_PCH": "ON",
+                "CMAKE_C_FLAGS_INIT": "-ftime-trace",
+                "CMAKE_CXX_FLAGS_INIT": "-ftime-trace"
+            },
+            "environment": {
+                "CC": "/usr/bin/clang",
+                "CXX": "/usr/bin/clang++",
+                "CCACHE_DISABLE": "ON"
+            }
+        },
+        {
+            "name": "dev-clang",
+            "displayName": "dev-clang",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-dev-clang",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "GAMMARAY_USE_PCH": "ON",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            },
+            "environment": {
+                "CXX": "clang++",
+                "CCACHE_DISABLE": "ON"
+            }
+        },
+        {
+            "name": "clazy",
+            "displayName": "clazy",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-clazy",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            },
+            "environment": {
+                "CXX": "clazy",
+                "CCACHE_DISABLE": "ON"
+            }
+        },
+        {
+            "name": "ci-dev-client-only",
+            "inherits": "dev",
+            "displayName": "ci-dev-client-only",
+            "description": "Qt6 client-only build",
+            "binaryDir": "${sourceDir}/build-ci-dev-client-only",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "GAMMARAY_CLIENT_ONLY_BUILD": "ON",
+                "GAMMARAY_INSTALL_QT_LAYOUT": "ON",
+                "GAMMARAY_MULTI_BUILD": "OFF",
+                "WARNINGS_ARE_ERRORS": "ON"
+            }
+        },
+        {
+            "name": "ci-dev-client-and-ui",
+            "inherits": "dev",
+            "displayName": "ci-dev-client-and-ui",
+            "description": "Qt6 client and ui build",
+            "cacheVariables": {
+                "GAMMARAY_CLIENT_ONLY_BUILD": "OFF",
+                "GAMMARAY_INSTALL_QT_LAYOUT": "ON",
+                "GAMMARAY_MULTI_BUILD": "OFF",
+                "WARNINGS_ARE_ERRORS": "ON"
+            }
+        },
+        {
+            "name": "ci-dev-probe-only",
+            "inherits": "dev",
+            "description": "Qt6 PROBE_ONLY build",
+            "cacheVariables": {
+                "GAMMARAY_PROBE_ONLY_BUILD": "ON",
+                "GAMMARAY_INSTALL_QT_LAYOUT": "ON",
+                "GAMMARAY_BUILD_UI": "OFF",
+                "GAMMARAY_BUILD_DOCS": "OFF",
+                "GAMMARAY_MULTI_BUILD": "OFF",
+                "WARNINGS_ARE_ERRORS": "ON"
+            }
+        },
+        {
+            "name": "ci-dev-clang-tidy",
+            "displayName": "ci-dev-clang-tidy",
+            "description": "Qt6 clang-tidy build",
+            "binaryDir": "${sourceDir}/build-ci-dev-clang-tidy",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_CLANG_TIDY": "clang-tidy",
+                "ECM_ENABLE_SANITIZERS": "address",
+                "GAMMARAY_BUILD_DOCS": "OFF",
+                "GAMMARAY_MULTI_BUILD": "OFF",
+                "GAMMARAY_DISABLE_FEEDBACK": "ON",
+                "GAMMARAY_USE_PCH": "OFF"
+            },
+            "inherits": [
+                "dev"
+            ]
+        },
+        {
+            "name": "ci-dev-clazy",
+            "displayName": "ci-dev-clazy",
+            "description": "Qt6 clazy build",
+            "binaryDir": "${sourceDir}/build-ci-dev-clazy",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "clazy",
+                "ECM_ENABLE_SANITIZERS": "address",
+                "GAMMARAY_BUILD_DOCS": "ON",
+                "GAMMARAY_MULTI_BUILD": "ON",
+                "GAMMARAY_DISABLE_FEEDBACK": "ON",
+                "GAMMARAY_USE_PCH": "OFF"
+            },
+            "inherits": [
+                "dev"
+            ]
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "dev-gammaray",
+            "configurePreset": "dev",
+            "targets": [
+                "all"
+            ]
+        },
+        {
+            "name": "clazy",
+            "configurePreset": "clazy",
+            "environment": {
+                "CLAZY_CHECKS": "level2,detaching-member,heap-allocated-small-trivial-type,isempty-vs-count,qstring-varargs,qvariant-template-instantiation,raw-environment-function,reserve-candidates,signal-with-return-value,thread-with-slots,no-ctor-missing-parent-argument,no-missing-typeinfo",
+                "CCACHE_DISABLE": "ON"
+            }
+        }
+    ]
+}

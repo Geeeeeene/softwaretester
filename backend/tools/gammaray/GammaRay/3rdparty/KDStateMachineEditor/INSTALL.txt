@@ -1,0 +1,79 @@
+The KDAB State Machine Editor Library uses the CMake buildsystem.
+
+Please see the comments at the top of CMakeLists.txt for
+the available configuration options you can pass to cmake.
+
+The installation directory defaults to /usr/local on UNIX
+c:/Program Files on Windows and /Applications on MacOS.
+You can change this location by passing the option
+-DCMAKE_INSTALL_PREFIX=/install/path to cmake.
+
+To build a debug version pass -DCMAKE_BUILD_TYPE=Debug to cmake.
+
+To build this library you will need:
+ - CMake 3.3
+ - Qt 5.3 or higher
+
+Also note that Qt6 builds require a C++17 compliant compiler,
+whereas Qt5 builds can get by with C++11 compliance.
+
+Optional FOSS packages (eg. Graphviz, etc) provide extra functionality.
+See the "Optional Dependencies" section below for more details.
+
+Building on Unix with gcc or clang:
+% mkdir build
+% cd build
+% cmake ..
+% make
+% make install
+
+Building on Windows with Microsoft Visual Studio:
+% mkdir build
+% cd build
+% cmake -G "NMake Makefiles" ..
+% nmake
+% nmake install
+
+Building on Windows with mingw:
+% mkdir build
+% cd build
+% cmake -G "MinGW Makefiles" ..
+% mingw32-make
+% mingw32-make install
+
+== Testing ==
+To build the testing harness, pass -DBUILD_TESTING=true to CMake, like so:
+  % cmake -DBUILD_TESTING=true
+
+Then run 'make test' to run the unit tests.
+
+== Using ==
+From your CMake project, add
+
+    find_package(KDSME CONFIG REQUIRED)
+
+or for Qt6
+
+    find_package(KDSME-qt6 CONFIG REQUIRED)
+
+== Optional Dependencies ==
+The KDAB State Machine Editor Library relies on optional (FOSS) dependencies
+to provide some of its functionality.  For example, you'll need the Graphviz
+visualization software (https://www.graphviz.org) for the state chart automatic
+layout feature.
+
+On some systems you may need to tell the buildsystem where to find the graphviz
+installation by setting the GRAPHVIZ_ROOT environment variable.  For example,
+on Windows you might want set "GRAPHVIZ_ROOT=C:\Program Files\Graphviz".
+
+When you run cmake it will inform you about missing dependencies.
+
+Graphviz can be built for you by passing the -DKDSME_INTERNAL_GRAPHVIZ=True
+option to CMake.  Be advised that Graphviz may have different minimum
+requirements for CMake, compiler, etc. than this software.
+
+You can also force CMake to ignore any or all of the optional dependencies
+by passing the option -DCMAKE_DISABLE_FIND_PACKAGE_<PACKAGE>=True.
+For instance:
+# tell cmake to ignore Graphiz
+  % cmake -DCMAKE_DISABLE_FIND_PACKAGE_Graphviz=True

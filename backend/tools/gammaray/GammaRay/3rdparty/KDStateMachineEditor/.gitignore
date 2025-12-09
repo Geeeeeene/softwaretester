@@ -1,0 +1,20 @@
+# general
+build*/
+*.kdev4
+*~
+*.rej
+*.orig
+*.out
+CMakeLists.txt.user*
+/compile_commands.json
+
+# from kdiff3
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+*.REMOTE.*
+*_BACKUP_*
+*_BASE_*
+*_LOCAL_*
+*_REMOTE_*
+.cache

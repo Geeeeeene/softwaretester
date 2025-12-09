@@ -1,0 +1,65 @@
+{
+    "runs": [
+        {
+            "tool": {
+                "driver": {
+                    "name": "SecB"
+                }
+            },
+            "results": [
+                {
+                    "codeFlows": [
+                        {
+                            "threadFlows": [
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "physicalLocation": {
+                                                    "artifactLocation": {
+                                                        "uri": "/mnt/d/wsl-ubuntu/test2/forward_null/SecB_ForwardNull.c"
+                                                    },
+                                                    "region": {
+                                                        "startLine": 128,
+                                                        "startColumn": null
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "location": {
+                                                "physicalLocation": {
+                                                    "artifactLocation": {
+                                                        "uri": "/mnt/d/wsl-ubuntu/test2/forward_null/SecB_ForwardNull.c"
+                                                    },
+                                                    "region": {
+                                                        "startLine": 129,
+                                                        "startColumn": null
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ],
+                    "ruleId": "NullDereference",
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "/mnt/d/wsl-ubuntu/test2/forward_null/SecB_ForwardNull.c"
+                                },
+                                "region": {
+                                    "startLine": 129,
+                                    "startColumn": null
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

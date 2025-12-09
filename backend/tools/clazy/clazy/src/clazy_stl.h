@@ -1,0 +1,176 @@
+/*
+    SPDX-FileCopyrightText: 2016 Sergio Martins <smartins@kde.org>
+
+    SPDX-License-Identifier: LGPL-2.0-or-later
+*/
+
+#ifndef CLAZY_STL_H
+#define CLAZY_STL_H
+
+#include <clang/AST/Stmt.h>
+
+#include <algorithm>
+#include <cctype>
+#include <sstream>
+#include <string_view>
+
+namespace clazy
+{
+// Don't use .begin() or cend(), clang's ranges don't have them
+// Don't use .size(), clang's ranges doesn't have it
+
+template<typename C>
+bool contains(const C &container, const typename C::value_type &value)
+{
+    return std::ranges::find(container, value) != container.end();
+}
+
+inline bool contains(const std::string &haystack, const std::string &needle)
+{
+    return haystack.find(needle) != std::string::npos;
+}
+
+template<typename Range, typename Pred>
+bool any_of(const Range &r, Pred pred)
+{
+    return std::any_of(r.begin(), r.end(), pred);
+}
+
+inline bool hasChildren(clang::Stmt *s)
+{
+    return s && !s->children().empty();
+}
+
+inline clang::Stmt *childAt(clang::Stmt *s, int index)
+{
+    int count = s ? std::distance(s->child_begin(), s->child_end()) : 0;
+    if (count > index) {
+        auto it = s->child_begin();
+        while (index > 0) {
+            ++it;
+            --index;
+        }
+        return *it;
+    }
+
+    return nullptr;
+}
+
+/**
+ * Returns true if the string target starts with maybeBeginning
+ */
+inline bool startsWith(std::string_view target, std::string_view maybeBeginning)
+{
+    return target.compare(0, maybeBeginning.length(), maybeBeginning) == 0;
+}
+
+/**
+ * Returns true if the string target starts with any of the strings in beginningCandidates
+ */
+inline bool startsWithAny(std::string_view target, const std::vector<std::string> &beginningCandidates)
+{
+    return std::ranges::any_of(beginningCandidates, [target](const std::string &maybeBeginning) {
+        return clazy::startsWith(target, maybeBeginning);
+    });
+}
+
+/**
+ * Returns true if the target equals any of the candidate strings
+ */
+inline bool equalsAny(const std::string &target, const std::vector<std::string> &candidates)
+{
+    return std::ranges::any_of(candidates, [target](const std::string &candidate) {
+        return candidate == target;
+    });
+}
+
+/**
+ * Returns true if the string target ends with maybeEnding
+ */
+inline bool endsWith(std::string_view target, std::string_view maybeEnding)
+{
+    return target.size() >= maybeEnding.size() && target.compare(target.size() - maybeEnding.size(), maybeEnding.size(), maybeEnding) == 0;
+}
+
+/**
+ * Returns true if the string target ends with any of the strings in endingCandidates
+ */
+inline bool endsWithAny(const std::string &target, const std::vector<std::string> &endingCandidates)
+{
+    return std::ranges::any_of(endingCandidates, [target](const std::string &maybeEnding) {
+        return clazy::endsWith(target, maybeEnding);
+    });
+}
+
+inline std::string toLower(const std::string &s)
+{
+    std::string result(s.size(), 0);
+    std::transform(s.begin(), s.end(), result.begin(), ::tolower);
+    return result;
+}
+
+inline void rtrim(std::string &s)
+{
+    while (!s.empty() && std::isspace(s.back())) {
+        s.pop_back();
+    }
+}
+
+inline std::vector<std::string_view> splitStringBySpaces(std::string_view str)
+{
+    auto nextWord = [str](decltype(str)::const_iterator i) {
+        auto isSpace = [](char c) {
+            return std::isspace(c);
+        };
+        auto first = std::find_if_not(i, str.cend(), isSpace);
+        return std::make_pair(first, std::find_if(first, str.cend(), isSpace));
+    };
+
+    std::vector<std::string_view> result;
+    for (auto w = nextWord(str.cbegin()); w.first != str.cend(); w = nextWord(w.second)) {
+        // TODO[C++20] Use string_view(begin, end) constructor instead
+        result.emplace_back(std::addressof(*w.first), std::distance(w.first, w.second));
+    }
+    return result;
+}
+
+inline std::vector<std::string> splitString(const std::string &str, char separator)
+{
+    std::string token;
+    std::vector<std::string> result;
+    std::istringstream istream(str);
+    while (std::getline(istream, token, separator)) {
+        result.push_back(token);
+    }
+
+    return result;
+}
+
+inline std::vector<std::string> splitString(const char *str, char separator)
+{
+    if (!str) {
+        return {};
+    }
+
+    return clazy::splitString(std::string(str), separator);
+}
+
+template<typename Container, typename LessThan>
+void sort_and_remove_dups(Container &c, LessThan lessThan)
+{
+    std::ranges::sort(c, lessThan);
+    c.erase(std::unique(c.begin(), c.end()), c.end());
+}
+
+inline std::string unquoteString(const std::string &str)
+{
+    // If first and last are ", return what's in between quotes:
+    if (str.size() >= 3 && str[0] == '"' && str.at(str.size() - 1) == '"') {
+        return str.substr(1, str.size() - 2);
+    }
+
+    return str;
+}
+}
+
+#endif

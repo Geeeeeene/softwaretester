@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2023 Johnny Jazeix <jazeix@gmail.com>
+# SPDX-License-Identifier: CC0-1.0
+
+include:
+  - project: sysadmin/ci-utilities
+    file:
+      - /gitlab-templates/linux-qt6.yml
+      - /gitlab-templates/freebsd-qt6.yml
+
+build-with-qt-namespace:
+  extends: suse_tumbleweed_qt610
+  script:
+    - git config --global --add safe.directory $CI_PROJECT_DIR
+    - python3 -u ci-utilities/run-ci-build.py --project $CI_PROJECT_NAME --branch $CI_COMMIT_REF_NAME --platform Linux/Qt6/Shared --extra-cmake-args=-DBUILD_WITH_QT6=ON --extra-cmake-args=-DQT_MAJOR_VERSION=6 --extra-cmake-args=-DCLAZY_QTNAMESPACE_TEST=ON --extra-cmake-args=-DCLAZY_BUILD_CLANG_TIDY=OFF
+
+# Copied from sysadmin/ci-utilities/templates/clang-format.yaml
+formatting-and-codegen:
+  stage: build
+  image: invent-registry.kde.org/sysadmin/ci-images/suse-qt69:latest
+  tags:
+    - Linux
+  script:
+    - git config --global --add safe.directory $CI_PROJECT_DIR
+    - ./dev-scripts/generate.py --generate
+    - git diff --exit-code
+    - find . \( -name "*.cpp" -or -name "*.h"  -or -name "*.c"  -or -name "*.cc" \) | xargs clang-format -i
+    - git diff --exit-code

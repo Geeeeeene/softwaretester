@@ -1,0 +1,17 @@
+{
+    "minimum_qt_version": 50800,
+    "tests": [
+        {
+            "filename": "main.cpp",
+            "has_fixits": true,
+            "skip_qtnamespaced": true
+        },
+        {
+            "filename": "bug_expression_in_generic.cpp"
+        },
+        {
+            "filename": "enums.cpp",
+            "has_fixits": true
+        }
+    ]
+}

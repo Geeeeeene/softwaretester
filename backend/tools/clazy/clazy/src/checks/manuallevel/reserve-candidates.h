@@ -1,0 +1,53 @@
+/*
+    SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB a KDAB Group company info@kdab.com
+    SPDX-FileContributor: Sérgio Martins <sergio.martins@kdab.com>
+
+    SPDX-FileCopyrightText: 2015 Sergio Martins <smartins@kde.org>
+
+    SPDX-License-Identifier: LGPL-2.0-or-later
+*/
+
+#ifndef CLAZY_RESERVE_CANDIDATES
+#define CLAZY_RESERVE_CANDIDATES
+
+#include "checkbase.h"
+
+#include <vector>
+
+namespace clang
+{
+class ValueDecl;
+class Expr;
+class CallExpr;
+class SourceLocation;
+}
+
+/**
+ * Recommends places that are missing QList::reserve() or QVector::reserve().
+ *
+ * Only local variables are contemplated, containers that are members of a class are ignored due to
+ * high false-positive rate.
+ *
+ * There some chance of false-positives.
+ */
+class ReserveCandidates : public CheckBase
+{
+public:
+    using CheckBase::CheckBase;
+    void VisitStmt(clang::Stmt *stm) override;
+
+private:
+    bool registerReserveStatement(clang::Stmt *stmt);
+    bool containerWasReserved(clang::ValueDecl *) const;
+    bool acceptsValueDecl(clang::ValueDecl *valueDecl) const;
+    bool expressionIsComplex(clang::Expr *) const;
+    bool loopIsComplex(clang::Stmt *, bool &isLoop) const;
+    bool isInComplexLoop(clang::Stmt *, clang::SourceLocation declLocation, bool isMemberVariable) const;
+    bool isReserveCandidate(clang::ValueDecl *valueDecl, clang::Stmt *loopBody, clang::CallExpr *callExpr) const;
+    bool isCandidateMethod(clang::CXXMethodDecl *methodDecl);
+    bool isCandidate(clang::CallExpr *oper);
+
+    std::vector<clang::ValueDecl *> m_foundReserves;
+};
+
+#endif

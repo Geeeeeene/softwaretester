@@ -1,0 +1,34 @@
+/*
+  gammaray-qsgmaterial.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \previouspage{QML Type}
+    \nextpage{Scene Graph Geometry}
+    \page gammaray-qsgmaterial.html
+
+    \title Scene Graph Material
+
+    \section1 Overview
+
+    When having a scene graph node with an attached material selected (such as a QSGGeometryNode instance),
+    the scene graph material view shows details about the material property and the used shader code. This
+    is primarily accessible via the scene graph browser in the \l{Qt Quick 2 Inspector} tool.
+
+    \image gammaray-qsgmaterial.png
+
+    The upper half of the material view shows the properties of the QSGMaterial instance. This works similarly
+    to the generic \l{Properties} view.
+
+    On the lower left a list of associated OpenGL shaders is displayed, the lower right side shows the source
+    code of the currently selected shader.
+*/

@@ -1,0 +1,145 @@
+# This file is part of GammaRay, the Qt application inspection and manipulation tool.
+#
+# SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Contact KDAB at <info@kdab.com> for commercial licensing options.
+#
+
+set(gammaray_clientlib_srcs
+    classesiconsrepositoryclient.cpp
+    classesiconsrepositoryclient.h
+    client.cpp
+    client.h
+    clientconnectionmanager.cpp
+    clientconnectionmanager.h
+    clientdevice.cpp
+    clientdevice.h
+    enumrepositoryclient.cpp
+    enumrepositoryclient.h
+    favoriteobjectclient.cpp
+    favoriteobjectclient.h
+    localclientdevice.cpp
+    localclientdevice.h
+    messagestatisticsmodel.cpp
+    messagestatisticsmodel.h
+    paintanalyzerclient.cpp
+    paintanalyzerclient.h
+    probecontrollerclient.cpp
+    probecontrollerclient.h
+    processtracker.cpp
+    processtracker.h
+    propertycontrollerclient.cpp
+    propertycontrollerclient.h
+    remotemodel.cpp
+    remotemodel.h
+    remoteviewclient.cpp
+    remoteviewclient.h
+    selectionmodelclient.cpp
+    selectionmodelclient.h
+    tcpclientdevice.cpp
+    tcpclientdevice.h
+    toolmanagerclient.cpp
+    toolmanagerclient.h
+    ${CMAKE_SOURCE_DIR}/resources/gammaray.qrc
+)
+
+if(APPLE)
+    list(APPEND gammaray_clientlib_srcs processtracker_macos.cpp)
+elseif(UNIX)
+    list(APPEND gammaray_clientlib_srcs processtracker_linux.cpp)
+elseif(WIN32)
+    list(APPEND gammaray_clientlib_srcs processtracker_windows.cpp)
+endif()
+
+add_library(
+    gammaray_client SHARED
+    ${gammaray_clientlib_srcs}
+)
+generate_export_header(gammaray_client)
+# cmake-lint: disable=E1120
+set_target_properties(gammaray_client PROPERTIES ${GAMMARAY_DEFAULT_LIBRARY_PROPERTIES})
+gammaray_set_rpath(gammaray_client ${LIB_INSTALL_DIR})
+target_compile_features(gammaray_client PUBLIC ${GAMMARAY_REQUIRED_CXX_FEATURES})
+
+gammaray_target_relocatable_interfaces(gammaray_client_ipaths)
+target_include_directories(
+    gammaray_client
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> $<INSTALL_INTERFACE:${gammaray_client_ipaths}>
+)
+target_link_libraries(
+    gammaray_client
+    PUBLIC Qt::Core
+    PRIVATE gammaray_ui
+            gammaray_ui_internal
+            gammaray_common
+            Qt::Gui
+            Qt::Widgets
+            Qt::Network
+)
+if(GAMMARAY_USE_PCH)
+    target_precompile_headers(gammaray_client REUSE_FROM gammaray_pch_core_gui)
+endif()
+
+set(gammaray_client_srcs main.cpp)
+gammaray_add_win_icon(gammaray_client_srcs)
+
+add_executable(
+    gammaray-client WIN32
+    ${gammaray_client_srcs}
+)
+
+target_link_libraries(
+    gammaray-client
+    gammaray_client
+    gammaray_common
+    Qt::Gui
+    Qt::Widgets
+)
+
+gammaray_embed_info_plist(gammaray-client ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in)
+set_target_properties(
+    gammaray-client PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${LIBEXEC_INSTALL_DIR}"
+)
+gammaray_set_rpath(gammaray-client ${LIBEXEC_INSTALL_DIR})
+
+install(
+    TARGETS gammaray_client
+    EXPORT GammaRayTargets
+    ${INSTALL_TARGETS_DEFAULT_ARGS}
+)
+
+gammaray_install_headers(
+    ${CMAKE_CURRENT_BINARY_DIR}/gammaray_client_export.h clientconnectionmanager.h processtracker.h
+)
+
+ecm_generate_pri_file(
+    BASE_NAME
+    GammaRayClient
+    LIB_NAME
+    gammaray_client
+    DEPS
+    "core gui widgets network GammaRayCommon GammaRayUi"
+    FILENAME_VAR
+    PRI_FILENAME
+    INCLUDE_INSTALL_DIR
+    ${INCLUDE_INSTALL_DIR}
+)
+
+install(
+    FILES ${PRI_FILENAME}
+    DESTINATION ${ECM_MKSPECS_INSTALL_DIR}
+)
+if(MSVC)
+    install(
+        FILES "$<TARGET_PDB_FILE_DIR:gammaray_client>/$<TARGET_PDB_FILE_NAME:gammaray_client>"
+        DESTINATION ${BIN_INSTALL_DIR}
+        CONFIGURATIONS Debug RelWithDebInfo
+    )
+endif()
+
+install(
+    TARGETS gammaray-client
+    DESTINATION ${LIBEXEC_INSTALL_DIR}
+)

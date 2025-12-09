@@ -1,0 +1,13 @@
+{
+    "tests": [
+        {
+            "filename": "main.cpp",
+            "has_fixits": true,
+            "minimum_qt_version": 50500
+        },
+        {
+            "filename": "multi_containers.cpp",
+            "minimum_qt_version": 50500
+        }
+    ]
+}

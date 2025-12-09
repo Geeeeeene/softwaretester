@@ -1,0 +1,38 @@
+/*
+  classesiconsindex_data.cpp.in
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Filipe Azevedo <filipe.azevedo@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+#include <QHash>
+#include <QString>
+
+namespace GammaRay {
+namespace ClassesIconsIndex {
+static QHash<int, QString> s_numberToKey;
+static QHash<QString, int> s_keyToNumber;
+
+static void initializeClassesIconsIndex()
+{
+    Q_ASSERT(s_numberToKey.isEmpty());
+    Q_ASSERT(s_keyToNumber.isEmpty());
+    int i = 0;
+
+#define ADD_ICON(x) \
+    s_numberToKey[i] = QLatin1String(":/gammaray/icons/ui/classes/" x); \
+    s_keyToNumber[s_numberToKey[i]] = i; \
+    ++i;
+
+    @CLASS_ICON_INDEX_CODE@
+
+#undef ADD_ICON
+}
+}
+}

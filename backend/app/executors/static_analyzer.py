@@ -1,7 +1,11 @@
 """静态分析执行器"""
 import time
+import os
+import shutil
+from pathlib import Path
 from typing import Dict, Any
 from app.executors.base import BaseExecutor
+from app.core.config import settings
 
 
 class StaticAnalyzer(BaseExecutor):
@@ -9,7 +13,29 @@ class StaticAnalyzer(BaseExecutor):
     
     def __init__(self):
         self.name = "StaticAnalyzer"
+        self.clazy_path = Path(settings.CLAZY_PATH).resolve()
+        self.clazy_executable = settings.CLAZY_EXECUTABLE
+        self.cppcheck_path = Path(settings.CPPCHECK_PATH).resolve()
+        self.cppcheck_executable = settings.CPPCHECK_EXECUTABLE
         print(f"🔧 初始化 {self.name} 执行器")
+        print(f"   Clazy 路径: {self.clazy_path}")
+        print(f"   Cppcheck 路径: {self.cppcheck_path}")
+        
+        # 检查可执行文件
+        self.clazy_available = self._check_executable(self.clazy_executable)
+        self.cppcheck_available = self._check_executable(self.cppcheck_executable)
+        
+        if not self.clazy_available:
+            print(f"   ⚠️  警告: Clazy 不可用")
+        if not self.cppcheck_available:
+            print(f"   ⚠️  警告: Cppcheck 不可用")
+    
+    def _check_executable(self, executable_name: str) -> bool:
+        """检查可执行文件是否可用"""
+        if not executable_name:
+            return False
+        # 检查系统 PATH
+        return shutil.which(executable_name) is not None
     
     def validate_ir(self, test_ir: Dict[str, Any]) -> bool:
         """验证Static Analysis IR"""

@@ -1,0 +1,27 @@
+/*
+  gammaray-licenses-and-attribtions.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \page gammaray-licenses-and-attributions.html
+
+    \title Licenses and Attributions
+
+    \section1 Overview
+
+    GammaRay is available under commercial Qt Automotive Suite licenses.
+    In addition, it is available under the GNU General Public License, version 2.
+
+    Furthermore GammaRay contains third party modules under following licenses:
+
+    \generatelist{groupsbymodule attributions-gammaray-manual}
+*/

@@ -1,0 +1,98 @@
+#---------------------------------#
+#      general configuration      #
+#---------------------------------#
+
+# version format
+version: 1.0.{build}-{branch}
+
+# branches to build
+branches:
+  except:
+    - gh-pages
+
+# Do not build on tags (GitHub and BitBucket)
+skip_tags: false
+
+#---------------------------------#
+#    environment configuration    #
+#---------------------------------#
+
+# Build worker image
+image:
+  - Ubuntu2004
+  - macos-monterey
+  - Visual Studio 2019
+
+# scripts that are called at very beginning, before repo cloning
+init:
+  - git config --global core.autocrlf input
+
+#---------------------------------#
+#       build configuration       #
+#---------------------------------#
+
+# build platform, i.e. x86, x64, Any CPU. This setting is optional.
+platform:
+  - x64
+
+# build Configuration, i.e. Debug, Release, etc.
+configuration:
+  - Release
+  - Debug
+
+environment:
+  matrix:
+    - useqt6: False
+    - useqt6: True
+
+install:
+  - cmd: choco install winflexbison graphviz
+  - sh: if [ "`uname -s`" = "Darwin" ]; then rm -f /usr/local/include/X11; brew install ninja; brew install graphviz --ignore-dependencies cmake; else sudo apt-get -y update; sudo apt-get -y install libgraphviz-dev qt5-default qtbase5-dev qtbase5-dev-tools qtbase5-private-dev qttools5-dev qttools5-dev-tools qtdeclarative5-dev qtdeclarative5-dev-tools libqt5xmlpatterns5-dev libqt5xmlpatterns5 qtxmlpatterns5-dev-tools mesa-common-dev libglu1-mesa-dev; fi
+
+before_build:
+  - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+  - cmd: set PATH=C:\Qt\6.2\msvc2019_64\bin;C:\Qt\5.15\msvc2019_64\bin;%PATH%
+  - sh: if [ "`uname -s`" = "Darwin" ]; then export PATH=$HOME/Qt/6.3/macos/bin:$HOME/Qt/5.15/clang_64/bin:$PATH; else export PATH=$HOME/Qt/6.2/gcc_64/bin:$HOME/Qt/5.15/gcc_64/bin:$PATH; fi
+  - cmd: set GRAPHVIZ_ROOT=c:\Program Files\Graphviz
+  - cmd: set PATH=%QTDIR%\bin;C:\Python39-x64;%GRAPHVIZ_ROOT%\bin;%PATH%
+
+build_script:
+  - mkdir build
+  - cd build
+  - cmd: cmake -G Ninja -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DKDSME_QT6=%useqt6% -DBUILD_TESTING=True -DKDSME_EXAMPLES=True ..
+  - sh: cmake -G Ninja -DCMAKE_BUILD_TYPE=$CONFIGURATION -DKDSME_QT6=$useqt6 -DBUILD_TESTING=True -DKDSME_EXAMPLES=True ..
+  - cmake --build .
+  - cmd: cmake --build . --target install
+  - sh: sudo cmake --build . --target install
+  - cmd: set PATH=.\bin;%PATH%
+  - sh: if [ "`uname -s`" != "Darwin" ]; then export LD_LIBRARY_PATH=./lib:./lib64:$HOME/Qt/6.2/gcc_64/lib:$HOME/Qt/5.15/gcc_64/lib; fi
+  - cmd: ctest --test-dir .
+  - sh: if [ "`uname -s`" = "Darwin" ]; then ctest --test-dir .; else echo "temporarily disable testing on Ubuntu (due to Subprocess aborted)"; fi
+
+  # to disable automatic builds
+#build: off
+
+#---------------------------------#
+#       tests configuration       #
+#---------------------------------#
+
+# to disable automatic tests
+test: off
+
+#---------------------------------#
+#     deployment configuration    #
+#---------------------------------#
+
+deploy: off
+
+#---------------------------------#
+#         notifications           #
+#---------------------------------#
+notifications:
+  # Email
+  - provider: Email
+    to:
+      - allen.winter@kdab.com
+      - kevin.funk@kdab.com
+    on_build_success: false
+    on_build_failure: true

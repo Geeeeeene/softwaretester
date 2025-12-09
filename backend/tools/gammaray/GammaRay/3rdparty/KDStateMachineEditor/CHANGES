@@ -1,0 +1,89 @@
+Version 2.3.0:
+--------------
+* Bump to Graphviz 14.0.5
+
+Version 2.2.0:
+--------------
+ * Bump to Graphviz 13.1.0
+ * Remove Qt 5 support to simplify maintenance
+ * Fix build with Qt 6.10
+
+Version 2.1.0:
+--------------
+ * KDStateMachineEditor now looks for Qt6 by default, rather than Qt5. If your Qt5
+   build broke, pass -DKDStateMachineEditor_QT6=OFF to CMake.
+ * Bump to Graphviz 12.2.1
+ * Fix build with Qt 6.9
+
+Version 2.0.0:
+--------------
+ * Supports Qt6 in addition to Qt5 (co-installable)
+ * Buildsystem: increase CMake min version to 3.16.0
+ * Buildsystem: add uninstall target
+ * Buildsystem: generate and install kdsme-version.h
+ * Use official Graphviz from upstream with -DWITH_INTERNAL_GRAPHVIZ=True
+   (Bad side-effect: allows dynamic builds only, but external graphviz still supported)
+ * Fixed build with more recent graphviz versions
+ * Buildsystem: new Option BUILD_SHARED_LIBS to select between shared or static libraries
+ * Renamed the following CMake options
+   * BUILD_DOCS -> KDSME_DOCS
+   * BUILD_EXAMPLES -> KDSME_EXAMPLES
+   * BUILD_QT6 -> KDSME_QT6
+   * WITH_INTERNAL_GRAPHVIZ -> KDSME_INTERNAL_GRAPHVIZ
+   * WITH_STATIC_GRAPHVIZ -> KDSME_STATIC_GRAPHVIZ
+ * Use standard cmake options instead of custom ones:
+   * BUILD_TESTS -> BUILD_TESTING
+
+Version 1.2.8:
+--------------
+ * Support for Qt5.15
+ * REUSE compliant licensing
+
+Version 1.2.7:
+--------------
+ * Small buildsystem fixes for rpath and static builds
+
+Version 1.2.6:
+--------------
+ * New EULA (see LICENSE.txt)
+ * New CMake option BUILD_TESTS to disable building the tests
+ * Comes with an installing file for Conan (see conan folder)
+ * Small cleanups
+
+Version 1.2.5:
+--------------
+ * Keeping up with Qt5, CMake and QNX
+
+Version 1.2.4:
+--------------
+ * Fix minor compile error
+
+Version 1.2.3:
+--------------
+ * minor syncing with externals
+
+Version 1.2.2:
+--------------
+ * Fix build issue with Qt 5.10 on windows+MSVC
+ * Update graphviz SHA1 (fixes issues regarding sort.exe lookup)
+ * Minor CMake improvements
+
+Version 1.2:
+------------
+ * Introduce adapter for QtSCXML (requires Qt 5.8 or higher)
+ * Build system: Generate and install pdb files on Windows
+
+Version 1.1:
+------------
+ * View: Added button to show/hide transition labels
+ * View: Now using native text rendering
+ * View: Status bar got removed
+ * API: Added API for context menu handling (cf. StateMachineView class)
+ * Build system: Added toolchain files for cross-compiling (QNX, Android, etc.)
+ * Build system: Enabled compilation with namespaced Qt
+ * Build system: Allow to build with an external graphviz build (-DWITH_INTERNAL_GRAPHVIZ=ON)
+   Works on all major platforms (tested on Linux, OS X, Windows)
+
+Version 1.0:
+------------
+ * Initial Release

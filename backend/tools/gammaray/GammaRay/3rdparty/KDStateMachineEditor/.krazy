@@ -1,0 +1,32 @@
+CHECKSETS qt5,c++,foss
+
+#KDAB-specific checks
+EXTRA kdabcopyright-reuse,kdabcommercial-reuse,fosslicense-reuse
+
+#additional checks
+EXTRA defines,null,camelcase,crud
+
+#exclude checks now being done by clazy or clang-tools
+EXCLUDE strings,explicit,normalize,passbyvalue,operators,nullstrcompare,nullstrassign,doublequote_chars,qobject,sigsandslots,staticobjects,inline,postfixop
+#exclude more checks
+EXCLUDE style
+
+#skip fwd_headers
+SKIP /fwd_headers/
+#no need to check 3rdparty stuff
+SKIP /3rdparty/graphviz
+#nor examples
+SKIP /examples/
+#nor Digia'stuff
+SKIP /codeeditor.cpp|/codeeditor_p.h
+SKIP /qopengl2pexvertexarray.cpp|/qopengl2pexvertexarray_p.h
+#skip the borrowed code in the cmake subdir
+SKIP /cmake/Toolchain-
+
+#if you have a build subdir, skip it
+SKIP /build-
+#skip other cmake
+SKIP Doxyfile.cmake
+SKIP \.cmake-format\.py
+#skip the borrowed code in the cmake subdir
+SKIP /cmake/InstallLocation.cmake|/cmake/ECM/|/cmake/KDAB/

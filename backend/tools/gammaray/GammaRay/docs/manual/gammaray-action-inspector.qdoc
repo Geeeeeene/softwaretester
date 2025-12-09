@@ -1,0 +1,32 @@
+/*
+  gammaray-action-inspector.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage {Models}
+    \previouspage {Object Browser}
+    \page gammaray-action-inspector.html
+
+    \title Actions
+
+    \section1 Overview
+
+    The action inspector shows all QAction instances that exist in the target application. Information about
+    the display name, checkable states, and shortcuts with their priorities are displayed.
+
+    \image gammaray-action-inspector.png
+
+    The action inspector warns about shortcut conflicts (that is, two QAction instances using the same
+    shortcut sequence and thus making it ambiguous) with a warning icon in its shortcut column.
+
+    Actions can also be activated remotely by double-clicking the corresponding entry.
+*/

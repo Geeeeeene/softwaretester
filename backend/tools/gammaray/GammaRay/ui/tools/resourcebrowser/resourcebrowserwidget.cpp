@@ -1,0 +1,255 @@
+/*
+  resourcebrowserwidget.cpp
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Stephen Kelly <stephen.kelly@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+#include "resourcebrowserwidget.h"
+
+#include "ui_resourcebrowserwidget.h"
+#include "resourcebrowserclient.h"
+#include "clientresourcemodel.h"
+
+#include <ui/searchlinecontroller.h>
+#include <3rdparty/qt/resourcemodel.h>
+#include <common/objectbroker.h>
+
+#include <QBuffer>
+#include <QDebug>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QFontDatabase>
+#include <QImageReader>
+#include <QMenu>
+#include <QScrollBar>
+#include <QTimer>
+#include <QTextBlock>
+#include <QClipboard>
+
+using namespace GammaRay;
+
+static QObject *createResourceBrowserClient(const QString & /*name*/, QObject *parent)
+{
+    return new ResourceBrowserClient(parent);
+}
+
+ResourceBrowserWidget::ResourceBrowserWidget(QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::ResourceBrowserWidget)
+    , m_stateManager(this)
+    , m_interface(nullptr)
+{
+    ObjectBroker::registerClientObjectFactoryCallback<ResourceBrowserInterface *>(
+        createResourceBrowserClient);
+    m_interface = ObjectBroker::object<ResourceBrowserInterface *>();
+    connect(m_interface, &ResourceBrowserInterface::resourceDeselected, this, &ResourceBrowserWidget::resourceDeselected);
+    connect(m_interface, &ResourceBrowserInterface::resourceSelected, this,
+            &ResourceBrowserWidget::resourceSelected);
+    connect(m_interface, &ResourceBrowserInterface::resourceDownloaded, this,
+            &ResourceBrowserWidget::resourceDownloaded);
+
+    ui->setupUi(this);
+    auto resModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.ResourceModel"));
+    auto *model = new ClientResourceModel(this);
+    model->setSourceModel(resModel);
+    ui->treeView->header()->setObjectName("resourceTreeViewHeader");
+    ui->treeView->setExpandNewContent(true);
+    ui->treeView->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
+    ui->treeView->setDeferredResizeMode(1, QHeaderView::ResizeToContents);
+    ui->treeView->setDeferredResizeMode(2, QHeaderView::ResizeToContents);
+    ui->treeView->setDeferredHidden(3, true);
+    ui->treeView->setModel(model);
+    ui->treeView->setSelectionModel(ObjectBroker::selectionModel(ui->treeView->model()));
+    new SearchLineController(ui->searchLine, model);
+
+    connect(ui->treeView, &DeferredTreeView::newContentExpanded, this, &ResourceBrowserWidget::setupLayout);
+
+    ui->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->treeView, &QWidget::customContextMenuRequested, this,
+            &ResourceBrowserWidget::handleCustomContextMenu);
+
+    ui->resourceLabel->setText(tr("Select a Resource to Preview"));
+    ui->stackedWidget->setCurrentWidget(ui->contentLabelPage);
+    ui->textBrowser->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+}
+
+ResourceBrowserWidget::~ResourceBrowserWidget() = default;
+
+void ResourceBrowserWidget::selectResource(const QString &sourceFilePath, int line, int column)
+{
+    m_interface->selectResource(sourceFilePath, line, column);
+}
+
+void ResourceBrowserWidget::setupLayout()
+{
+    // now the view was setup properly and we can mess with the splitter to resize
+    // the widgets for nicer display
+
+    int viewWidth = ui->treeView->columnWidth(0)
+        + ui->treeView->columnWidth(1)
+        + ui->treeView->columnWidth(2)
+        + ui->treeView->contentsMargins().left()
+        + ui->treeView->contentsMargins().right()
+        + ui->treeView->verticalScrollBar()->width();
+    const int totalWidth = ui->mainSplitter->width();
+    const int minPreviewWidth = 150;
+    if (totalWidth > viewWidth + minPreviewWidth) {
+        m_stateManager.setDefaultSizes(ui->mainSplitter,
+                                       UISizeVector() << viewWidth
+                                                      << (totalWidth - viewWidth
+                                                          - ui->mainSplitter->handleWidth()));
+        m_stateManager.restoreState();
+    }
+}
+
+void ResourceBrowserWidget::resourceDeselected()
+{
+    ui->resourceLabel->setText(tr("Select a Resource to Preview"));
+    ui->stackedWidget->setCurrentWidget(ui->contentLabelPage);
+}
+
+void ResourceBrowserWidget::resourceSelected(const QByteArray &contents, int line, int column)
+{
+    // try to decode as an image first, fall back to text otherwise
+    auto rawData = contents;
+    QBuffer buffer(&rawData);
+    buffer.open(QBuffer::ReadOnly);
+    QImageReader reader(&buffer);
+    const auto img = reader.read();
+    if (!img.isNull()) {
+        ui->resourceLabel->setPixmap(QPixmap::fromImage(img));
+        ui->stackedWidget->setCurrentWidget(ui->contentLabelPage);
+        return;
+    }
+
+    // avoid re-highlighting the existing content when switching the syntax
+    ui->textBrowser->clear();
+
+    // get the file name for syntax highlighting
+    QString fileName;
+    const auto selection = ui->treeView->selectionModel()->selectedRows();
+    if (!selection.isEmpty())
+        fileName = selection.at(0).data().toString();
+    ui->textBrowser->setFileName(fileName);
+
+    // TODO: make encoding configurable
+    ui->textBrowser->setPlainText(contents);
+
+    QTextDocument *document = ui->textBrowser->document();
+    QTextCursor cursor(document->findBlockByLineNumber(line - 1));
+    if (!cursor.isNull()) {
+        if (column >= 1)
+            cursor.setPosition(cursor.position() + column - 1);
+        ui->textBrowser->setTextCursor(cursor);
+    }
+    ui->textBrowser->setFocus();
+
+    ui->stackedWidget->setCurrentWidget(ui->contentTextPage);
+}
+
+void ResourceBrowserWidget::resourceDownloaded(const QString &targetFilePath,
+                                               const QByteArray &contents)
+{
+    QFile file(targetFilePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning("Unable to write resource content to %s", qPrintable(targetFilePath));
+        return;
+    }
+
+    file.write(contents);
+    file.close();
+}
+
+static QStringList collectDirectories(const QModelIndex &index, const QString &baseDirectory)
+{
+    QStringList result;
+
+    const QAbstractItemModel *model = index.model();
+    const QString directoryPath = index.data(ResourceModel::FilePathRole).toString();
+
+    const QString relativeDirectory = directoryPath.mid(baseDirectory.size());
+    result << relativeDirectory;
+
+    for (int row = 0; row < model->rowCount(index); ++row) {
+        const QModelIndex childIndex = model->index(row, 0, index);
+        if (model->hasChildren(childIndex))
+            result += collectDirectories(childIndex, baseDirectory);
+    }
+
+    return result;
+}
+
+static QStringList collectFiles(const QModelIndex &index, const QString &baseDirectory)
+{
+    QStringList result;
+
+    const QAbstractItemModel *model = index.model();
+    for (int row = 0; row < model->rowCount(index); ++row) {
+        const QModelIndex childIndex = model->index(row, 0, index);
+        if (model->hasChildren(childIndex)) {
+            result += collectFiles(childIndex, baseDirectory);
+        } else {
+            const QString filePath = childIndex.data(ResourceModel::FilePathRole).toString();
+            const QString relativeFilePath = filePath.mid(baseDirectory.size());
+            result << relativeFilePath;
+        }
+    }
+
+    return result;
+}
+
+void ResourceBrowserWidget::handleCustomContextMenu(const QPoint &pos)
+{
+    const QModelIndex selectedIndex = ui->treeView->indexAt(pos);
+    if (!selectedIndex.isValid())
+        return;
+
+    QMenu menu;
+    auto saveAsAction = new QAction(style()->standardIcon(QStyle::SP_DialogSaveButton), tr("Save As..."));
+    auto copyUriAction = new QAction(style()->standardIcon(QStyle::SP_DirLinkIcon), tr("Copy URI"));
+    menu.addAction(saveAsAction);
+    menu.addAction(copyUriAction);
+    auto selectedAction = menu.exec(ui->treeView->viewport()->mapToGlobal(pos));
+
+    if (!selectedAction)
+        return;
+    else if (selectedAction == saveAsAction) {
+        if (selectedIndex.model()->hasChildren(selectedIndex)) {
+            const QString sourceDirectory = selectedIndex.data(ResourceModel::FilePathRole).toString();
+            const QString targetDirectory = QFileDialog::getExistingDirectory(this, tr("Save As"));
+
+            // create local target directory tree
+            foreach (const QString &directoryPath, collectDirectories(selectedIndex, sourceDirectory)) {
+                if (directoryPath.isEmpty())
+                    continue;
+
+                QDir dir(targetDirectory + '/' + directoryPath);
+                dir.mkpath(QStringLiteral("."));
+            }
+
+            // request all resource files
+            foreach (const QString &filePath, collectFiles(selectedIndex, sourceDirectory))
+                m_interface->downloadResource(sourceDirectory + filePath, targetDirectory + filePath);
+
+        } else {
+            const QString sourceFilePath = selectedIndex.data(ResourceModel::FilePathRole).toString();
+            const QString sourceFileName = sourceFilePath.mid(sourceFilePath.lastIndexOf('/') + 1);
+
+            const QString targetFilePath = QFileDialog::getSaveFileName(this, tr("Save As"), sourceFileName);
+            if (targetFilePath.isEmpty())
+                return;
+
+            m_interface->downloadResource(sourceFilePath, targetFilePath);
+        }
+    } else if (selectedAction == copyUriAction) {
+        const QString sourceFilePath = selectedIndex.data(ResourceModel::FilePathRole).toString();
+        QApplication::clipboard()->setText(sourceFilePath, QClipboard::Clipboard);
+    }
+}

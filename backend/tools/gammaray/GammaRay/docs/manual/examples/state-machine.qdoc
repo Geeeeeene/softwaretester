@@ -1,0 +1,41 @@
+/*
+  state-machine.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \example state-machine
+    \title State Machines
+    \brief Debug state machine runtime behavior.
+    \ingroup examples-gammaray
+
+    This examples shows GammaRay's capabilities in analyzing state machine behavior at runtime.
+
+    \section1 Problem
+
+    The example application shows a simple traffic light with an on/off switch that is driven
+    by a declarative StateMachine.
+
+    We can observe that during its normal cycle it transitions from green directly to red, rather
+    than going via yellow as one would expect.
+
+    \section1 Investigation
+
+    While the target application is running, open the \l{State Machine Debugger} view in GammaRay
+    to observe the state machine layout, active configuration and configuration changes. It is
+    easily visible that the green state is not transitioning to the greenToRed state as it is
+    supposed to, but the red state directly.
+
+    In order to fix this, right click on the green state, and select "Go to creation", which
+    will open your code editor at the right spot in the corresponding source file.
+
+    \snippet state-machine/state-machine.qml Wrong transition
+*/

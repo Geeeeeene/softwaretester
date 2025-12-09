@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component type="console-application">
+  <id>org.kde.clazy</id>
+  <!--
+  SPDX-License-Identifier: CC0-1.0
+  SPDX-FileCopyrightText: KDE Community
+ -->
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LGPL-2.1-or-later</project_license>
+  <name>Clazy</name>
+  <name xml:lang="ar">كلازي</name>
+  <name xml:lang="az">Clazy</name>
+  <name xml:lang="ca">Clazy</name>
+  <name xml:lang="ca-valencia">Clazy</name>
+  <name xml:lang="cs">Clazy</name>
+  <name xml:lang="de">Clazy</name>
+  <name xml:lang="el">Clazy</name>
+  <name xml:lang="en-GB">Clazy</name>
+  <name xml:lang="eo">Clazy</name>
+  <name xml:lang="es">Clazy</name>
+  <name xml:lang="et">Clazy</name>
+  <name xml:lang="eu">Clazy</name>
+  <name xml:lang="fi">Clazy</name>
+  <name xml:lang="fr">Clazy</name>
+  <name xml:lang="gl">Clazy</name>
+  <name xml:lang="he">Clazy</name>
+  <name xml:lang="hi">क्लेज़ी</name>
+  <name xml:lang="hu">Clazy</name>
+  <name xml:lang="it">Clazy</name>
+  <name xml:lang="ka">Clazy</name>
+  <name xml:lang="ko">Clazy</name>
+  <name xml:lang="lt">Clazy</name>
+  <name xml:lang="nl">Clazy</name>
+  <name xml:lang="nn">Clazy</name>
+  <name xml:lang="pl">Clazy</name>
+  <name xml:lang="pt">Clazy</name>
+  <name xml:lang="pt-BR">Clazy</name>
+  <name xml:lang="ro">Clazy</name>
+  <name xml:lang="ru">Clazy</name>
+  <name xml:lang="sk">Clazy</name>
+  <name xml:lang="sl">Clazy</name>
+  <name xml:lang="sv">Clazy</name>
+  <name xml:lang="tr">Clazy</name>
+  <name xml:lang="uk">Clazy</name>
+  <name xml:lang="vi">Clazy</name>
+  <name xml:lang="zh-CN">Clazy</name>
+  <name xml:lang="zh-TW">Clazy</name>
+  <summary>A Clang compiler plugin which emits warnings related to Qt best practices</summary>
+  <summary xml:lang="ar">كلازي هو مكون إضافي لمترجم Clang يصدر تحذيرات تتعلق بأفضل الممارسات في كيو تي</summary>
+  <summary xml:lang="az">Ən yaxşı Qt təcrübələri ilə əlaqəli xəbərdarlıqları bildirən Clang komplilyatoru qoşması</summary>
+  <summary xml:lang="ca">Un connector del compilador Clang que emet avisos relacionats amb les millors pràctiques de les Qt</summary>
+  <summary xml:lang="ca-valencia">Un connector del compilador Clang que emet avisos relacionats amb les millors pràctiques de les Qt</summary>
+  <summary xml:lang="de">Ein Clang-Compiler-Modul, das Warnungen in Bezug auf bewährte Techniken für Qt ausgibt</summary>
+  <summary xml:lang="el">Ένα πρόσθετο μεταγλωττιστή Clang με προειδοποιήσεις σχετικές με τις βέλτιστες πρακτικές σε Qt</summary>
+  <summary xml:lang="en-GB">A Clang compiler plugin which emits warnings related to Qt best practices</summary>
+  <summary xml:lang="eo">Clang-kompilila kromprogramo kiu elmetas avertojn rilatajn al plej konsilindaj praktikoj de Qt</summary>
+  <summary xml:lang="es">Un complemento del compilador Clang que emite advertencias relacionadas con las prácticas adecuadas de Qt</summary>
+  <summary xml:lang="et">Clangi kompilaatori plugin, mis väljastab Qt parima praktikaga seonduvaid hoiatusi</summary>
+  <summary xml:lang="eu">Clang konpilatzailearen plugin bat, Qt-ren gaineko praktika onenen abisuak igortzen dituena</summary>
+  <summary xml:lang="fi">Clang-kääntäjäliitännäinen, joka esittää varoituksia hyvistä Qt-käytänteistä</summary>
+  <summary xml:lang="fr">Un module externe pour le compilateur Clang émettant des avertissements concernant les bonnes pratiques Qt.</summary>
+  <summary xml:lang="gl">Un complemento do compilador Clang que emite avisos relacionados con boas prácticas de Qt</summary>
+  <summary xml:lang="he">מהדר Clang שפולט אזהרות שקשורות להמלצות הטובות ביותר של Qt</summary>
+  <summary xml:lang="hi">एक सीलैंग कंपाइलर प्लगिन जो क्यूट के सर्वोत्तम विधिओं के सम्बन्ध में चेतावनीसंदेश देता है.</summary>
+  <summary xml:lang="hu">A Clang fordítóprogram bővítménye, amely a Qt legjobb gyakorlataihoz kapcsolódó figyelmeztetéseket ad</summary>
+  <summary xml:lang="it">Un'estensione per il compilatore Clang che emette avvisi relativi alle migliori pratiche per Qt</summary>
+  <summary xml:lang="ka">Clang კომპილატორის დამატება, რომელიც Qt-ის საუკეთესო პრაქტიკის გათვალისწინებით გაჩვენებთ გაფრთხილებებს</summary>
+  <summary xml:lang="ko">Qt 권고 사항과 관련된 경고를 출력하는 Clang 컴파일러 플러그인</summary>
+  <summary xml:lang="lt">Clang kompiliatoriaus papildinys, kuris parodo įspėjimus, susijusius su Qt gerąja patirtimi</summary>
+  <summary xml:lang="nl">Een Clang-compilerplug-in die waarschuwingen uitstuurt gerelateerd aan de beste praktijken van Qt</summary>
+  <summary xml:lang="nn">Kompilatortillegg for Clang som viser åtvaringar knytte til mønsterpraksis for Qt-utvikling</summary>
+  <summary xml:lang="pl">Wtyczka do kompilatora Clang, która wydaje ostrzeżenia powiązane z najlepszymi praktykami Qt</summary>
+  <summary xml:lang="pt">Um 'plugin' do compilador Clang que emite avisos relacionados com as boas práticas do Qt</summary>
+  <summary xml:lang="pt-BR">Um plugin do compilador Clang que emite avisos relacionados às melhores práticas do Qt</summary>
+  <summary xml:lang="ro">Extensie de compilator Clang ce emite avertizări legate de practicile recomandate Qt</summary>
+  <summary xml:lang="sk">Plugin prekladač Clang, ktorý generuje upozornenia súvisiace s najlepšími praktikami Qt</summary>
+  <summary xml:lang="sl">Vtičnik za prevajalnik Clang, ki oddaja opozorila, povezana z najboljšimi praksami Qt</summary>
+  <summary xml:lang="sv">Ett insticksprogram för Clang-kompilatorn som producerar varningar relaterade till bästa praxis för Qt</summary>
+  <summary xml:lang="tr">Qt için Kod Düzenleyicisi</summary>
+  <summary xml:lang="uk">Додаток до компілятора Clang, який попереджає про порушення правил правильного програмування з використанням Qt</summary>
+  <summary xml:lang="vi">Một phần cài cắm trình biên dịch Clang, đưa ra các cảnh báo liên quan đến các thực hành Qt tốt nhất</summary>
+  <summary xml:lang="zh-CN">一个 Clang 编译器插件，发出与 Qt 最佳实践相关的警告</summary>
+  <summary xml:lang="zh-TW">一個會發出與 Qt 最佳實踐相關警告的 Clang 編譯器外掛程式</summary>
+  <description>
+    <p>Clazy is a clang compiler plugin which emits warnings related to Qt best practices.</p>
+    <p xml:lang="ar">كلازي هو مكون إضافي لمترجم Clang يصدر تحذيرات تتعلق بأفضل الممارسات في كيو تي.</p>
+    <p xml:lang="az">Clazy, ən yaxşı Qt təcrübələri ilə əlaqəli xəbərdarlıqları bildirən bir clang kompilyatorudur.</p>
+    <p xml:lang="ca">El Clazy és un connector del compilador Clang que emet avisos relacionats amb les millors pràctiques de les Qt.</p>
+    <p xml:lang="ca-valencia">Clazy és un connector del compilador Clang que emet avisos relacionats amb les millors pràctiques de les Qt.</p>
+    <p xml:lang="de">Clazy ist ein Compiler-Modul, das Warnungen in Bezug auf bewährte Techniken für Qt ausgibt.</p>
+    <p xml:lang="el">Το Clazy είναι ένα πρόσθετο μεταγλωττιστή clang το οποίο στέλνει προειδοποιήσεις σχετικές με τις βέλτιστες πρακτικές σε Qt.</p>
+    <p xml:lang="en-GB">Clazy is a clang compiler plugin which emits warnings related to Qt best practices.</p>
+    <p xml:lang="eo">Clazy estas clang-kompilila kromaô kiu donas avertojn rilatajn al plej konsilindaj praktikoj de Qt.</p>
+    <p xml:lang="es">Clazy es un complemento del compilador clang que emite advertencias relacionadas con las prácticas adecuadas de Qt.</p>
+    <p xml:lang="et">Clazy on Clangi kompilaatori plugin, mis väljastab Qt parima praktikaga seonduvaid hoiatusi.</p>
+    <p xml:lang="eu">Clazy Clang konpilatzailearen plugin bat da, Qt-ren gaineko praktika onenen abisuak igortzen dituena.</p>
+    <p xml:lang="fi">Clazy on on Clang-kääntäjäliitännäinen, joka näyttää varoituksia hyvistä Qt-käytänteistä.</p>
+    <p xml:lang="fr">Clazy est un module externe « Clang », émettant des avertissements concernant les bonnes pratiques pour Qt.</p>
+    <p xml:lang="gl">Clazy é un complemento do compilador Clang que emite avisos relacionados con boas prácticas de Qt.</p>
+    <p xml:lang="he">Clazy הוא תוסף למהדר clang שפולט אזהרות שקשורות להמלצות הטובות ביותר של Qt.</p>
+    <p xml:lang="hi">क्लेजी एक सीलैंग कंपाइलर प्लगिन है जो क्यूट के सर्वोत्तम सर्वोत्तम विधिओं केसम्बन्ध में चेतावनी संदेश देता है.</p>
+    <p xml:lang="hu">A Clazy egy bővítmény a clang fordítóprogramhoz, amely a Qt legjobb gyakorlataihoz kapcsolódó figyelmeztetéseket ad.</p>
+    <p xml:lang="it">Clazy è un'estensione per il compilatore clang che emette avvisi relativi alle migliori pratiche per Qt</p>
+    <p xml:lang="ka">Clang კომპილატორის დამატება, რომელიც Qt-ის საუკეთესო პრაქტიკის გათვალისწინებით გაჩვენებთ გაფრთხილებებს.</p>
+    <p xml:lang="ko">Clazy는 Qt 권고 사항과 관련된 경고를 출력하는 Clang 컴파일러 플러그인입니다.</p>
+    <p xml:lang="lt">Clang yra clang kompiliatoriaus papildinys, kuris parodo įspėjimus, susijusius su Qt gerąja patirtimi.</p>
+    <p xml:lang="nl">Clazy is een clang-compilerplug-in die waarschuwingen uitstuurt gerelateerd aan de beste praktijken van Qt.</p>
+    <p xml:lang="nn">Clazy er eit kompilatortillegg for Clang som viser åtvaringar knytte til mønsterpraksis for Qt-utvikling.</p>
+    <p xml:lang="pl">Clazy jest wtyczką do kompilatora Clang, która wydaje ostrzeżenia powiązane z najlepszymi praktykami Qt.</p>
+    <p xml:lang="pt">O Clazy é um 'plugin' do compilador Clang que emite avisos relacionados com as boas práticas do Qt.</p>
+    <p xml:lang="pt-BR">O Clazy é um plugin do compilador Clang que emite avisos relacionados às melhores práticas do Qt</p>
+    <p xml:lang="ro">Clazy e o extensie de compilator Clang ce emite avertizări legate de practicile recomandate Qt.</p>
+    <p xml:lang="sk">Clazy je plugin prekladača Clang, ktorý generuje upozornenia súvisiace s najlepšími praktikami Qt.</p>
+    <p xml:lang="sl">Clazy je vtičnik prevajalnika clang, ki oddaja opozorila povezana z najboljšimi praksami Qt.</p>
+    <p xml:lang="sv">Clazy är ett insticksprogram för Clang-kompilatorn som producerar varningar relaterade till bästa praxis för Qt.</p>
+    <p xml:lang="tr">Clazy, Qt kabul görmüş davranışları üzerine uyarılar veren bir Clang derleyici eklentisidir.</p>
+    <p xml:lang="uk">Clazy є додатком до компілятора Clang, який попереджає про порушення правил правильного програмування з використанням Qt.</p>
+    <p xml:lang="vi">Clazy là một phần cài cắm trình biên dịch clang, đưa ra các cảnh báo liên quan đến các thực hành Qt tốt nhất.</p>
+    <p xml:lang="zh-CN">Clazy 是一个 Clang 编译器插件，发出与 Qt 最佳实践相关的警告。</p>
+    <p xml:lang="zh-TW">Clazy 是一個會發出與 Qt 最佳實踐相關警告的 Clang 編譯器外掛程式。</p>
+  </description>
+  <categories>
+    <category>Development</category>
+  </categories>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://cdn.kde.org/screenshots/clazy/clazy.png</image>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://www.kde.org/</url>
+  <url type="bugtracker">https://bugs.kde.org/enter_bug.cgi?format=guided&amp;product=clazy</url>
+  <project_group>KDE</project_group>
+  <provides>
+    <binary>clazy</binary>
+  </provides>
+  <icon type="stock">clazy</icon>
+  <releases>
+    <release type="stable" version="1.16" date="2025-09-03T00:00:00Z">
+      <description>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>unused-result-check: Fix crash when method decleration can not be resolved</li>
+          <li>use-chrono-in-qtimer: Fix crash when using precompiled headers</li>
+          <li>qt6-qhash-signature: Adapt check to use more proper logic for casts and fix crash in edgecases</li>
+          <li>Ensure that clang21 works properly with clazy and produces same line/letter number as before (mismatches with operator calls)</li>
+          <li>non-pod-global-static: Fix false positive with Q_IMPORT_PLUGIN in Qt-6.10</li>
+        </ul>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>Clazy can finally be integrated into clang-tidy - one command to rule</li>
+          <li>them all! All checks can be enabled using "clazy-&lt;checkname&gt;". For example:</li>
+          <li>`clazy-qstring-arg,clazy-qfileinfo-exists`, enabling all checks using</li>
+          <li>`clazy-*` will also enable manual checks. It is recommended to be more granular.</li>
+          <li>The plugin can be loaded using `-load=ClazyClangTidy.so`, for this, the plugin</li>
+          <li>must be in the LD_LIBRARY_PATH. Otherwise, an absolute path may be specified.</li>
+          <li>isempty-vs-count now provides fixits for all scenarios. Also, cases where</li>
+          <li>the length is compared using "== 0", "&lt; 1", "&gt; 0" are now reported and have fixits.</li>
+          <li>qt6-\* Porting checks are considered deprecated now and will be removed in the next release of clazy</li>
+          <li>detaching-temporary and detaching-member checks provide fixits for methods that have const coutnerparts</li>
+          <li>NOLINT/NOLINTNEXTLINE/NOLINTBEGIN/NOLINTEND all work in clazy now as</li>
+          <li>expected. Individual clazy checks can be disabled when using a "clazy-"</li>
+          <li>prefix. For example "NOLINTNEXTLINE(clazy-qfileinfo-exists, clazy-qstring-arg)"</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.15" date="2025-06-12T00:00:00Z">
+      <description>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>install-event-filter: Fix crash when there is no child at the given depth. BUG: 464372</li>
+          <li>fully-qualified-moc-types: Fix enum/enum class not being evaluated. BUG: 423780</li>
+          <li>Fixed crash in qstring-comparison-to-implicit-char. BUG: 502458</li>
+          <li>Fixed crash when fully-qualified-moc-types encounters signals with expressions like "std::bitset&lt;int(8)&gt;"</li>
+          <li>Fixed crash in qvariant-template-instantiation</li>
+        </ul>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New checks:</li>
+          <li>readlock-detaching</li>
+          <li>Update minimum Clang/LLVM to 19</li>
+          <li>`clazy-standalone --version` contains git version ( output of `git describe`) if it is not a tagged commit</li>
+          <li>Added missing methods to checks for detaching temporary/member lists or maps</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.14" date="2025-04-27T00:00:00Z">
+      <description>
+        <p>Clazy warnings for the following line can be disabled, for example: clazy:exclude-next-line=check1,check2</p>
+        <p>Support for compilation against Clang 20</p>
+        <p>increase verbosity of some warning messages</p>
+        <p>checks `function-args-by-value` and `function-args-by-ref`: add function name and parameter name to warning message</p>
+        <p>checks `unused-non-trivial-variable` and `non-pod-global-static`: add variable name to warning message</p>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New checks:</li>
+          <li>qbytearray-conversion-to-c-style</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.13" date="2024-12-28T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>used-qunused-variable</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>qstring-arg check provides a fix-it</li>
+          <li>Fixed unused-non-trivial-variable to not warn when [[maybe_unused]] set</li>
+          <li>Fixed qstring-arg for upcoming Qt 6.9</li>
+          <li>Fixed fully-qualified-moc-types false positive for const modifiers of generic arguments</li>
+          <li>Silence false positive non-pod-global-static warning for QML module initialization</li>
+          <li>Fix function-args-by-value false positive that would cause compile error</li>
+          <li>in copy constructors, assignment operators and equal checks</li>
+          <li>False positives for `Q_EMIT(someSignal())` are now fixed</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.12" date="2024-06-30T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>qt-keyword-emit</li>
+          <li>sanitize-inline-keyword</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.11" date="2022-01-21T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>use-arrow-operator-instead-of-data</li>
+          <li>use-static-qregularexpression</li>
+          <li>unexpected-flag-enumerator-value</li>
+          <li>Removed inefficient-qlist check (Fixed in Qt6)</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.10" date="2021-07-20T00:00:00Z">
+      <description>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Requires C++17</li>
+          <li>Bugfixes:</li>
+          <li>Fixed a -Wclazy-lambda-in-connect false-positive</li>
+          <li>Fixed crash in copyable-polymorphic when PCH was enabled</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.9" date="2021-01-10T00:00:00Z">
+      <description>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Fixed clazy slowdown introduced in 1.8. I can be up to 4x faster now.</li>
+          <li>range-loop was split in range-loop-detach and range-loop-reference</li>
+          <li>Fixed -Wclazy-connect-non-signal false positives</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.8" date="2020-11-22T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>qt6-qhash-signature</li>
+          <li>qt6-header-fixes</li>
+          <li>qt6-deprecated-api-fixes</li>
+          <li>use-chrono-in-qtimer</li>
+          <li>fixit for missing-qobject-macro</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.7" date="2020-06-29T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>overloaded signal</li>
+          <li>invalid JNI signatures</li>
+          <li>qstring-comparison-to-implicit-char</li>
+          <li>qt6-qlatin1string-to-u</li>
+          <li>heap-allocated-small-trivial-type: less false-positives</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>connect-non-signal: Fix case where it didn't find the pmf</li>
+          <li>qstring-arg warns when using QLatin1String::arg(int), as it casts to QChar</li>
+        </ul>
+        <p>Building clazy itself is 30% faster</p>
+      </description>
+    </release>
+    <release type="stable" version="1.6" date="2019-10-12T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>heap-allocated-small-trivial-type</li>
+          <li>signal-with-return-value</li>
+          <li>qproperty-type-mismatch, contributed by Jean-Michaël Celerier</li>
+        </ul>
+        <p>Removed level3. Moved all level3 checks to manual level. Doesn't make sense to enable all of them.</p>
+        <p>Each one must be carefully considered.</p>
+        <p>Minimum LLVM was bumped to 5.0</p>
+        <p>Clazy no longer rewrites files directly, to avoid races when parallel invocations change the same header.</p>
+        <p>Clazy now exports a yaml file with the replacements, to be applied with clang-apply-replacements.</p>
+        <p>The same way other clang tooling does it.</p>
+        <p>The way to enable code rewrite is now: -Xclang -plugin-arg-clazy -Xclang export-fixes for clang</p>
+        <p>or -export-fixes=somefile.yaml for clazy-standalone</p>
+        <p>All other fixit arguments and fixit env variables were removed</p>
+        <p>Thanks to Christian Gagneraud for contributing the fixit yaml exporter!</p>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Fixed regressions with LLVM 9.0</li>
+          <li>Fixit infrastructure was overhauled</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.5" date="2019-01-31T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>ifndef-define-typo</li>
+          <li>lowercase-qml-type-name</li>
+          <li>qrequiredresult-candidates</li>
+          <li>New Fixits:</li>
+          <li>range-loop now supports adding missing refs or const-ref</li>
+          <li>range-loop now supports adding qAsConst()</li>
+          <li>function-args-by-ref now adding missing refs or const-ref (experimental)</li>
+          <li>Introduced CLAZY_FIXIT_SUFFIX env variable</li>
+        </ul>
+        <p>Removed support for the obscure -DCLAZY_BUILD_UTILS_LIB to simplify the CMakeLists.txt</p>
+        <p>Renamed the clazy plugin from ClangLazy.so to ClazyPlugin.so</p>
+        <p>fully-qualified-moc-types now warns for slot/invokable return values too.  They need to be fully qualified for QML.</p>
+        <p>This release fixes the following bug:</p>
+        <ul>
+          <li>Fixed a crash (clang assert) in raw-environment-function</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.4" date="2018-09-23T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New Checks:</li>
+          <li>connect-by-name</li>
+          <li>skipped-base-method</li>
+          <li>qstring-varargs</li>
+          <li>fully-qualified-moc-types</li>
+          <li>qt-keywords, with fixit included</li>
+          <li>qhash-with-char-pointer-key</li>
+          <li>wrong-qevent-cast</li>
+          <li>static-pmf</li>
+          <li>raw-environment-function</li>
+          <li>empty-qstringliteral</li>
+          <li>auto-unexpected-qstringbuilder now also warns for lambdas returning QStringBuilder</li>
+        </ul>
+        <p>performance optimizations</p>
+        <p>Added -header-filter=&lt;regex&gt; option to clazy-standalone. Only headers matching the regexp will</p>
+        <p>have warnings, besides the .cpp file from the translation unit, which is never filtered out.</p>
+        <p>Added -ignore-dirs=&lt;regex&gt; option to clazy-standalone, and its CLAZY_IGNORE_DIRS env variable equivalent.</p>
+        <p>Added CLAZY_HEADER_FILTER env variable which adds above functionality to both clazy and clazy-standalone</p>
+        <p>unused-non-trivial-variable got unused-non-trivial-variable-no-whitelist option</p>
+        <p>unused-non-trivial-variable got user-blacklist and user-whitelist support</p>
+        <p>container-inside-loop is now a manual check instead of level2</p>
+        <p>HiddenLevel was renamed to ManualLevel</p>
+        <p>connect-3arg-lambda now warns when passing a lambda to QTimer::singleShot() or QMenu::addAction()</p>
+        <p>without a context object</p>
+        <p>old-style-connect warns for QMenu::addAction() and QMessageBox::open() too now</p>
+      </description>
+    </release>
+    <release type="stable" version="1.3" date="2017-11-26T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New checks:</li>
+          <li>thread-with-slots</li>
+          <li>connect-3arg-lambda</li>
+          <li>qproperty-without-notify</li>
+          <li>virtual-signal</li>
+          <li>overridden-signal</li>
+          <li>qhash-namespace</li>
+          <li>const-signal-or-slot</li>
+          <li>lambda-unique-connection</li>
+        </ul>
+        <p>missing-qobject-macro is now a level2 check, instead of level1. Because, people can omit Q_OBJECT intentionally.</p>
+        <p>Added -only-qt option, which will make clazy bailout early on non-Qt files. For this purpose, the definition of a Qt file is whenever -DQT_CORE_LIB is passed, which is usually the case in most build systems.</p>
+        <p>Added -qt-developer option, when building Qt with clazy it will honour specific guidelines for Qt, which are not many right now but the list will grow.</p>
+      </description>
+    </release>
+    <release type="stable" version="1.2" date="2017-07-08T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>New checks:</li>
+          <li>install-event-filter</li>
+          <li>qcolor-from-literal</li>
+          <li>strict-iterators</li>
+          <li>connect-not-normalized</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>clazy-standalone executable. Allows to run clazy against a JSON compilation database instead of as a plugin. clang-tidy doesn't support loading external modules (https://github.com/llvm/llvm-project/issues/32086) so this is a good workaround.</li>
+          <li>qt-compat mode. Allows to disable Qt5 specific checks by passing -Xclang -plugin-arg-clazy -Xclang qt4-compat</li>
+          <li>returning-data-from-temporary now checks for temporary QByteArrays casting to char* when returned</li>
+          <li>returning-data-from-temporary now checks for assignment too, not only return statements</li>
+          <li>unused-non-trivial-variable now warns for unused QList, QVector and many more types</li>
+          <li>ASTMatchers based checks are now supported</li>
+          <li>clang 3.7 was dropped due to ASTMatchers source incompatibilities.</li>
+          <li>Use clazy v1.1 for clang &gt;= 3.6 support</li>
+          <li>clazylib.so no longer gets built by default, only the plugin (ClangLazy.so)  gets built. Pass -DCLAZY_BUILD_UTILS_LIB=ON to enable the utils library if  you're developing tools using clazy's convenience functions, which you're  probably not.</li>
+          <li>CLAZY_INSTALL_NO_HEADERS option was removed. Either install the utils library  and headers or nothing at all. By default nothing is installed, except  the plugin and man pages.</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.1" date="2017-02-20T00:00:00Z">
+      <description>
+        <p>This release adds the following features:</p>
+        <ul>
+          <li>macOS and Windows support</li>
+          <li>New checks:</li>
+          <li>child-event-qobject-cast</li>
+          <li>ctor-missing-parent-argument</li>
+          <li>returning-data-from-temporary</li>
+          <li>qt-macros</li>
+          <li>base-class-event</li>
+          <li>connect-non-signal</li>
+          <li>incorrect-emit</li>
+          <li>tr-non-literal</li>
+          <li>Fixes against:</li>
+          <li>clang 4.0</li>
+          <li>Qt 5.9</li>
+          <li>Notes:</li>
+          <li>60% performance improvement</li>
+          <li>Fixed many false positives</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="1.0" date="2016-09-12T00:00:00Z"/>
+    <release type="stable" version="0.0.1" date="2015-06-10T00:00:00Z">
+      <description>
+        <p>First release</p>
+      </description>
+    </release>
+  </releases>
+</component>

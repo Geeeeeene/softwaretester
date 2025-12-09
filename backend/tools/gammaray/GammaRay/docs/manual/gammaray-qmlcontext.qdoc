@@ -1,0 +1,45 @@
+/*
+  gammaray-qmlcontext.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \previouspage{Bindings}
+    \nextpage{QML Type}
+    \page gammaray-qmlcontext.html
+
+    \title QML Context
+
+    \section1 Overview
+
+    The QML context view shows the chain of QQmlContext instances from the root context up to the
+    context in which the current object has been created. The QML context view is available for any
+    QObject instantiated from within QML.
+
+    \image gammaray-qmlcontext.png
+
+    The QML context views consists of two parts, the context chain view on the top, and the context property
+    view at the bottom. The context property view shows the currently selected context from the context chain
+    view.
+
+    \section2 Context Chain
+
+    The context chain view shows the entire chain of QQmlContext instances starting from the root
+    context in the first line. For each context, the corresponding QML file is displayed, as far
+    as that information is known. The context menu allows you to navigate to the source code, opening
+    it in your configured code editor.
+
+    \section2 Context Properties
+
+    For the selected context in the context chain view, the context properties view shows the properties
+    of the corresponding QQmlContext object. This view essentially works like the general \l{Properties}
+    view.
+*/

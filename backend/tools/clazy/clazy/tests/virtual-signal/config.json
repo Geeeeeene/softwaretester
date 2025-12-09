@@ -1,0 +1,10 @@
+{
+    "tests": [
+        {
+            "filename": "main.cpp"
+        },
+        {
+            "filename": "non-qobject-base.cpp"
+        }
+    ]
+}

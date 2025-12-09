@@ -1,0 +1,37 @@
+/*
+  gammaray-wayland-compositors.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage {Object Browser}
+    \previouspage {Events}
+    \page gammaray-wayland-compositors.html
+
+    \title Wayland Compositors
+
+    \section1 Overview
+
+    The Wayland compositor inspector allows you to browser QWaylandClient instances and their associated resources,
+    as well as observe Wayland events. For this tool to be available you need at least Wayland 1.12 on the target.
+
+    \image gammaray-wayland-compositor.png
+
+    Wayland clients are listed in the view on the top left, showing their process id and executable. These correspond
+    to QWaylandClient instances, the context menu allows navigation to other views for these objects.
+
+    Selecting a client object will show its associated Wayland resources in the resource tree on the right side. Selecting
+    a resource will show further information for it, in particular there is a live preview of Wayland surface resources
+    on the center left.
+
+    At the bottom there is a log view and a timeline view of Wayland events for the selected client. Hovering over the timeline
+    shows further information for the event under the mouse cursor in a tooltip.
+*/

@@ -1,0 +1,5 @@
+#ifndef SIMPLE_TEST_PROJECT_FPA_PLAIN_H
+#define SIMPLE_TEST_PROJECT_FPA_PLAIN_H
+
+int plain_isnan(float x);
+#endif //SIMPLE_TEST_PROJECT_FPA_PLAIN_H

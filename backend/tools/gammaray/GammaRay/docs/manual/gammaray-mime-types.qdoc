@@ -1,0 +1,37 @@
+/*
+  gammaray-mime-types.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage {Network}
+    \previouspage {Locales}
+    \page gammaray-mime-types.html
+
+    \title Mime Types
+
+    \section1 Overview
+
+    The mime type browser allows you to inspect the details of every QMimeType instance available via QMimeDatabase on the target system. This information is usually independent of the
+    target application, but rather depend on the system.
+
+    \image gammaray-mime-types.png
+
+    The tree view shows the entire hierarchy of all known mime types. The hierarchy matches the specified inheritance of a mime type. In the subsequent columns,
+    additional information for each mime type is shown, including:
+
+    \list
+        \li file extensions,
+        \li human readable description,
+        \li icons,
+        \li and alias mime types.
+    \endlist
+*/

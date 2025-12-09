@@ -1,0 +1,9 @@
+{
+    "tests": [
+        {
+            "filename": "main.cpp",
+            "flags": "-Wno-non-pod-varargs",
+            "blacklist_platforms": ["win32"]
+        }
+    ]
+}

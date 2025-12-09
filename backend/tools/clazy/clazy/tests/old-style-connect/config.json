@@ -1,0 +1,24 @@
+{
+    "minimum_qt_version": 50500,
+    "tests": [
+        {
+            "filename": "main.cpp",
+            "has_fixits": true
+        },
+        {
+            "filename": "usingnamespace.cpp",
+            "has_fixits": true,
+            "blacklist_platforms": ["darwin", "win32"]
+        },
+        {
+            "filename": "namespaces.cpp",
+            "has_fixits": true
+        },
+        {
+            "filename": "q_private_slot.cpp"
+        },
+        {
+            "filename": "port_qsignalspy.cpp"
+        }
+    ]
+}

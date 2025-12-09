@@ -1,0 +1,16 @@
+#include <QtCore/qglobal.h>
+#include <QtCore/qbytearray.h>
+
+int test()
+{
+
+    qEnvironmentVariableIsEmpty("Foo");
+    bool b = qEnvironmentVariableIsSet("Foo");
+    QByteArray ba = qgetenv("Foo");
+    int fixmeWarnAboutBaseChange = qEnvironmentVariableIntValue("Foo");
+    int fixmeWarnAboutBaseChangeAndKeepOk = qEnvironmentVariableIntValue("Foo", &b);
+    int dontfix = qgetenv("Foo").toInt(&b, 16);
+    int fixmeWithoutChangingInternalBase = qEnvironmentVariableIntValue("Foo", &b);
+    int fixmeWithoutChangingInternalBaseAndIgnoringOk = qEnvironmentVariableIntValue("Foo");
+    return 0;
+}

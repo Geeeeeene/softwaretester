@@ -1,0 +1,34 @@
+/*
+  gammaray-classinfo.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2018 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \previouspage {Enums and Flags}
+    \nextpage {Stack Trace}
+    \page gammaray-classinfo.html
+
+    \title Class Info
+
+    \section1 Overview
+
+    The class info view is available for all QObject and QMetaObject instances and shows per-class information defined
+    in the corresponding QMetaClassInfo instance.
+
+    \image gammaray-classinfo.png
+
+    The class info view shows the following information:
+    \list
+        \li The name of the class information.
+        \li The value of the class information.
+        \li The class or namespace in which the class information has been declared.
+    \endlist
+*/

@@ -1,0 +1,13 @@
+/*
+    SPDX-FileCopyrightText: 2019 Nikolai Kosjar <nikolai.kosjar@qt.io>
+
+    SPDX-License-Identifier: LGPL-2.0-or-later
+*/
+
+#ifndef CHECKS_JSON_H
+#define CHECKS_JSON_H
+
+const char SUPPORTED_CHECKS_JSON_STR[] = ${SUPPORTED_CHECKS_JSON_STR};
+
+#endif // CHECKS_JSON_H
+

@@ -1,0 +1,6 @@
+#ifndef SIMPLE_TEST_PROJECT_SIMPLE_STRUCTS_H
+#define SIMPLE_TEST_PROJECT_SIMPLE_STRUCTS_H
+
+int simple_loop_uncovered(unsigned int n);
+
+#endif // SIMPLE_TEST_PROJECT_SIMPLE_STRUCTS_H

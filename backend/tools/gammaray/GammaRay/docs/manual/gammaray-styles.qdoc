@@ -1,0 +1,38 @@
+/*
+  gammaray-styles.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage {Web Inspector}
+    \previouspage {Qt3D Inspector}
+    \page gammaray-styles.html
+
+    \title Styles
+
+    \section1 Overview
+
+    The Styles tool is used for working on and debugging custom QStyle sub-classes.
+
+    \image gammaray-style-controls.png
+
+    This tool allows you to look at:
+
+    \list
+        \li style primitives in all states,
+        \li controls in all states,
+        \li complex controls and their sub-element areas,
+        \li built-in standard pixmaps,
+        \li and the style-defined QPalette.
+    \endlist
+
+    It also lets you view and edit style pixel metrics.
+*/

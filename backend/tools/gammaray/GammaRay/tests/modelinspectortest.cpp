@@ -1,0 +1,344 @@
+/*
+  modelinspectortest.cpp
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+#include "baseprobetest.h"
+#include "testhelpers.h"
+
+#include <plugins/modelinspector/modelinspectorinterface.h>
+#include <plugins/modelinspector/modelcontentproxymodel.h>
+
+#include <ui/clienttoolmanager.h>
+#include <common/objectbroker.h>
+#include <common/objectmodel.h>
+#include <common/objectid.h>
+
+#include <QAbstractItemModelTester>
+#include <QAbstractItemView>
+#include <QItemSelectionModel>
+#include <QSignalSpy>
+#include <QSortFilterProxyModel>
+#include <QStandardItemModel>
+#include <QStringListModel>
+
+using namespace GammaRay;
+using namespace TestHelpers;
+
+class ModelInspectorTest : public BaseProbeTest
+{
+    Q_OBJECT
+private slots:
+    void testModelModel()
+    {
+        createProbe();
+
+        auto targetModel = new QStandardItemModel;
+        targetModel->setObjectName("targetModel");
+        QTest::qWait(1); // trigger model inspector plugin loading
+
+        auto modelModel = ObjectBroker::model("com.kdab.GammaRay.ModelModel");
+        QVERIFY(modelModel);
+        QAbstractItemModelTester modelModelTester(modelModel);
+        QVERIFY(modelModel->rowCount() >= 1); // can contain the QEmptyModel instance too
+        int topRowCount = modelModel->rowCount();
+
+        auto targetModelIdx = searchFixedIndex(modelModel, QLatin1String("targetModel"), Qt::MatchRecursive);
+        QVERIFY(targetModelIdx.isValid());
+        QCOMPARE(targetModelIdx.data(ObjectModel::ObjectIdRole).value<ObjectId>(), ObjectId(targetModel));
+        QCOMPARE(targetModelIdx.sibling(targetModelIdx.row(), 1).data().toString(), QLatin1String("QStandardItemModel"));
+        QVERIFY(!modelModel->hasChildren(targetModelIdx));
+
+        // proxy with source
+        auto targetProxy = new QSortFilterProxyModel;
+        targetProxy->setSourceModel(targetModel);
+        QTest::qWait(1);
+
+        targetModelIdx = searchFixedIndex(modelModel, QLatin1String("targetModel"), Qt::MatchRecursive); // re-lookup, due to model reset
+        QVERIFY(targetModelIdx.isValid());
+        QVERIFY(modelModel->hasChildren(targetModelIdx));
+        QCOMPARE(modelModel->rowCount(), topRowCount);
+
+        delete targetProxy;
+        QTest::qWait(1);
+
+        targetModelIdx = searchFixedIndex(modelModel, QLatin1String("targetModel"), Qt::MatchRecursive); // re-lookup, due to model reset
+        QVERIFY(targetModelIdx.isValid());
+        QVERIFY(!modelModel->hasChildren(targetModelIdx));
+        QCOMPARE(modelModel->rowCount(), topRowCount);
+
+        // proxy with source added/reset later
+        targetProxy = new QSortFilterProxyModel;
+        targetProxy->setObjectName("targetProxy");
+        QTest::qWait(1);
+        QCOMPARE(modelModel->rowCount(), topRowCount + 1);
+        auto proxyIdx = searchFixedIndex(modelModel, "targetProxy", Qt::MatchRecursive);
+        QVERIFY(proxyIdx.isValid());
+        QVERIFY(!proxyIdx.parent().isValid());
+
+        targetProxy->setSourceModel(targetModel);
+        QCOMPARE(modelModel->rowCount(), topRowCount);
+        proxyIdx = searchFixedIndex(modelModel, "targetProxy", Qt::MatchRecursive);
+        QVERIFY(proxyIdx.isValid());
+        QVERIFY(proxyIdx.parent().isValid());
+
+        targetProxy->setSourceModel(nullptr);
+        QCOMPARE(modelModel->rowCount(), topRowCount + 1);
+        proxyIdx = searchFixedIndex(modelModel, "targetProxy", Qt::MatchRecursive);
+        QVERIFY(proxyIdx.isValid());
+        QVERIFY(!proxyIdx.parent().isValid());
+
+        delete targetProxy;
+        QTest::qWait(1);
+        QCOMPARE(modelModel->rowCount(), topRowCount);
+
+        // 2 element proxy chain
+        targetProxy = new QSortFilterProxyModel;
+        targetProxy->setObjectName("targetProxy");
+        QTest::qWait(1);
+        auto targetProxy2 = new QSortFilterProxyModel(targetProxy);
+        targetProxy2->setObjectName("targetProxy2");
+        QTest::qWait(1);
+        targetProxy2->setSourceModel(targetProxy);
+        targetProxy->setSourceModel(targetModel);
+        QCOMPARE(modelModel->rowCount(), topRowCount);
+        proxyIdx = searchFixedIndex(modelModel, "targetProxy2", Qt::MatchRecursive);
+        QVERIFY(proxyIdx.isValid());
+        auto idx = proxyIdx.parent();
+        QVERIFY(idx.isValid());
+        QCOMPARE(modelModel->rowCount(idx), 1);
+        QCOMPARE(idx.data().toString(), QLatin1String("targetProxy"));
+        idx = idx.parent();
+        QVERIFY(idx.isValid());
+        QVERIFY(!idx.parent().isValid());
+        QCOMPARE(modelModel->rowCount(idx), 1);
+        QCOMPARE(idx.data().toString(), QLatin1String("targetModel"));
+
+        delete targetProxy;
+        QTest::qWait(1);
+        QCOMPARE(modelModel->rowCount(), topRowCount);
+
+        // QAIM removal
+        delete targetModel;
+        QTest::qWait(1);
+
+        targetModelIdx = searchFixedIndex(modelModel, QLatin1String("targetModel"), Qt::MatchRecursive);
+        QVERIFY(!targetModelIdx.isValid());
+        QCOMPARE(modelModel->rowCount(), topRowCount - 1);
+    }
+
+    void testSelectionModels()
+    {
+        createProbe();
+
+        auto targetModel = new QStringListModel;
+        targetModel->setObjectName("targetModel");
+        targetModel->setStringList(QStringList() << "item1"
+                                                 << "item2"
+                                                 << "item3");
+        QTest::qWait(1); // trigger model inspector plugin loading
+
+        auto modelModel = ObjectBroker::model("com.kdab.GammaRay.ModelModel");
+        QVERIFY(modelModel);
+
+        auto selectionModels = ObjectBroker::model("com.kdab.GammaRay.SelectionModels");
+        QVERIFY(selectionModels);
+        QAbstractItemModelTester selModelTester(selectionModels);
+        QCOMPARE(selectionModels->rowCount(), 0);
+        QSignalSpy resetSpy(selectionModels, &QAbstractItemModel::modelReset);
+        QVERIFY(resetSpy.isValid());
+
+        auto targetSelModel = new QItemSelectionModel(targetModel);
+        targetSelModel->setObjectName("targetSelModel");
+        QTest::qWait(1);
+        QCOMPARE(selectionModels->rowCount(), 0);
+
+        auto modelSelModel = ObjectBroker::selectionModel(modelModel);
+        QVERIFY(modelSelModel);
+        auto idx = searchFixedIndex(modelModel, "targetModel", Qt::MatchRecursive);
+        QVERIFY(idx.isValid());
+        modelSelModel->select(idx, QItemSelectionModel::ClearAndSelect);
+        QCOMPARE(selectionModels->rowCount(), 1);
+
+        QSignalSpy dataChangeSpy(selectionModels, &QAbstractItemModel::dataChanged);
+        QVERIFY(dataChangeSpy.isValid());
+        QCOMPARE(selectionModels->index(0, 1).data().toInt(), 0);
+        QCOMPARE(selectionModels->index(0, 2).data().toInt(), 0);
+        QCOMPARE(selectionModels->index(0, 3).data().toInt(), 0);
+
+        targetSelModel->select(targetModel->index(1, 0), QItemSelectionModel::ClearAndSelect);
+        QCOMPARE(dataChangeSpy.size(), 1);
+        QCOMPARE(selectionModels->index(0, 1).data().toInt(), 1);
+        QCOMPARE(selectionModels->index(0, 2).data().toInt(), 1); // rows
+        QCOMPARE(selectionModels->index(0, 3).data().toInt(), 0); // cols
+
+        targetSelModel->clear();
+        QCOMPARE(dataChangeSpy.size(), 2);
+
+        delete targetSelModel;
+        QTest::qWait(1);
+        QCOMPARE(selectionModels->rowCount(), 0);
+
+        delete targetModel;
+        QTest::qWait(1);
+        QVERIFY(resetSpy.isEmpty());
+    }
+
+    void testModelContent()
+    {
+        createProbe();
+
+        auto targetModel = new QStandardItemModel;
+        targetModel->setObjectName("targetModel");
+        QTest::qWait(1); // trigger model inspector plugin loading
+
+        auto modelModel = ObjectBroker::model("com.kdab.GammaRay.ModelModel");
+        QVERIFY(modelModel);
+
+        auto contentModel = ObjectBroker::model("com.kdab.GammaRay.ModelContent");
+        QVERIFY(contentModel);
+        QAbstractItemModelTester contentModelTester(contentModel);
+        QCOMPARE(contentModel->rowCount(), 0);
+
+        auto cellModel = ObjectBroker::model("com.kdab.GammaRay.ModelCellModel");
+        QVERIFY(cellModel);
+        QAbstractItemModelTester cellModelTester(cellModel);
+        QCOMPARE(cellModel->rowCount(), 0);
+        QSignalSpy cellContentResetSpy(cellModel, &QAbstractItemModel::modelReset);
+        QVERIFY(cellContentResetSpy.isValid());
+
+        auto targetModelIdx = searchFixedIndex(modelModel, QLatin1String("targetModel"), Qt::MatchRecursive);
+        QVERIFY(targetModelIdx.isValid());
+        auto modelSelModel = ObjectBroker::selectionModel(modelModel);
+        QVERIFY(modelSelModel);
+        QCOMPARE(contentModel->rowCount(), 0);
+
+        auto item = new QStandardItem("item0,0");
+        item->setFlags(Qt::NoItemFlags); // should nevertheless be selectable for inspection
+        targetModel->appendRow(item);
+
+        // TODO remove this when the above select does not assert in QAbstractItemModelTester
+        modelSelModel->select(targetModelIdx, QItemSelectionModel::ClearAndSelect);
+
+        QCOMPARE(contentModel->rowCount(), 1);
+        QCOMPARE(contentModel->columnCount(), 1);
+        auto idx = contentModel->index(0, 0);
+        QVERIFY(idx.isValid());
+        QCOMPARE(idx.data().toString(), QLatin1String("item0,0"));
+        QVERIFY(idx.flags() & Qt::ItemIsEnabled);
+        QVERIFY(idx.flags() & Qt::ItemIsSelectable);
+        QCOMPARE(idx.data(ModelContentProxyModel::DisabledRole).toBool(), true);
+
+        auto cellSelModel = ObjectBroker::selectionModel(contentModel);
+        QVERIFY(cellSelModel);
+        qDebug() << "selecting" << cellSelModel->model();
+        cellSelModel->select(idx, QItemSelectionModel::ClearAndSelect);
+        QVERIFY(cellModel->rowCount() > 0);
+
+        idx = searchFixedIndex(cellModel, QLatin1String("Qt::DisplayRole"), Qt::MatchRecursive);
+        QVERIFY(idx.isValid());
+        QCOMPARE(idx.sibling(idx.row(), 1).data().toString(), QLatin1String("item0,0"));
+
+        auto iface = ObjectBroker::object<ModelInspectorInterface *>();
+        QVERIFY(iface);
+        auto cellData = iface->currentCellData();
+        QCOMPARE(cellData.row, 0);
+        QCOMPARE(cellData.column, 0);
+        QCOMPARE(cellData.flags, Qt::NoItemFlags);
+
+        cellSelModel->clear();
+        QCOMPARE(cellModel->rowCount(), 0);
+        QVERIFY(cellContentResetSpy.isEmpty());
+
+        delete targetModel;
+        QTest::qWait(1);
+    }
+
+    void testSelectionModelSelection()
+    {
+        createProbe();
+
+        auto targetModel = new QStringListModel;
+        targetModel->setObjectName("targetModel");
+        targetModel->setStringList(QStringList() << "item1"
+                                                 << "item2"
+                                                 << "item3");
+        QTest::qWait(1); // trigger model inspector plugin loading
+
+        auto modelModel = ObjectBroker::model("com.kdab.GammaRay.ModelModel");
+        QVERIFY(modelModel);
+
+        auto targetSelModel = new QItemSelectionModel(targetModel);
+        targetSelModel->setObjectName("targetSelModel");
+        QTest::qWait(1);
+
+        auto selectionModels = ObjectBroker::model("com.kdab.GammaRay.SelectionModels");
+        QVERIFY(selectionModels);
+
+        auto modelSelModel = ObjectBroker::selectionModel(modelModel);
+        QVERIFY(modelSelModel);
+        auto idx = searchFixedIndex(modelModel, "targetModel", Qt::MatchRecursive);
+        QVERIFY(idx.isValid());
+        modelSelModel->select(idx, QItemSelectionModel::ClearAndSelect);
+
+        auto selSelModel = ObjectBroker::selectionModel(selectionModels);
+        QVERIFY(selSelModel);
+        idx = searchFixedIndex(selectionModels, "targetSelModel", Qt::MatchRecursive);
+        QVERIFY(idx.isValid());
+        selSelModel->select(idx, QItemSelectionModel::ClearAndSelect);
+
+        auto contentModel = ObjectBroker::model("com.kdab.GammaRay.ModelContent");
+        QVERIFY(contentModel);
+        QCOMPARE(contentModel->rowCount(), targetModel->rowCount());
+        for (int i = 0; i < targetModel->rowCount(); ++i)
+            QVERIFY(contentModel->index(i, 0).data(ModelContentProxyModel::SelectedRole).isNull());
+
+        QSignalSpy contentSpy(contentModel, &QAbstractItemModel::dataChanged);
+        QVERIFY(contentSpy.isValid());
+
+        targetSelModel->select(contentModel->index(1, 0), QItemSelectionModel::ClearAndSelect);
+        QVERIFY(contentModel->index(0, 0).data(ModelContentProxyModel::SelectedRole).isNull());
+        QVERIFY(contentModel->index(1, 0).data(ModelContentProxyModel::SelectedRole).toBool());
+        QVERIFY(contentModel->index(2, 0).data(ModelContentProxyModel::SelectedRole).isNull());
+
+        QVERIFY(!contentSpy.isEmpty());
+
+        delete targetSelModel;
+        delete targetModel;
+    }
+
+    void testWidget()
+    {
+        createProbe();
+
+        std::unique_ptr<QStringListModel> targetModel(new QStringListModel);
+        targetModel->setObjectName("targetModel");
+        targetModel->setStringList(QStringList() << "item1"
+                                                 << "item2"
+                                                 << "item3");
+        QTest::qWait(1); // trigger model inspector plugin loading
+
+        ClientToolManager mgr;
+        mgr.requestAvailableTools();
+        auto widget = mgr.widgetForId("gammaray_modelinspector");
+        QVERIFY(widget);
+        widget->show();
+
+        const auto views = widget->findChildren<QAbstractItemView *>();
+        for (auto view : views) {
+            QVERIFY(view->model());
+        }
+    }
+};
+
+QTEST_MAIN(ModelInspectorTest)
+
+#include "modelinspectortest.moc"

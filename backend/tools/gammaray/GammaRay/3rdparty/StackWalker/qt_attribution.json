@@ -1,0 +1,15 @@
+{
+    "Id": "stackwalker",
+    "Name": "StackWalker",
+    "QDocModule": "gammaray-manual",
+    "QtUsage": "Used by GammaRay for backtraces on Windows targets.",
+
+    "Description": "Callstack access for Windows.",
+    "Homepage": "https://github.com/JochenKalmbach/StackWalker",
+    "Version": "5b0df7a4db8896f6b6dc45d36e383c52577e3c6b",
+
+    "License": "BSD 2-Clause \"Simplified\" License",
+    "LicenseId": "BSD-2-Clause",
+    "LicenseFile": "LICENSE",
+    "Copyright": "Copyright (c) 2005 - 2019, Jochen Kalmbach"
+}

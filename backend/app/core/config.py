@@ -38,6 +38,40 @@ class Settings(BaseSettings):
     ARTIFACT_STORAGE_PATH: str = "./artifacts"
     MAX_UPLOAD_SIZE: int = 104857600  # 100MB
     
+    # 工具路径配置
+    TOOLS_BASE_PATH: str = "backend/tools"  # 工具基础路径（相对于项目根目录）
+    
+    # Spix 配置
+    SPIX_PATH: str = f"{TOOLS_BASE_PATH}/spix/spix"
+    SPIX_BUILD_PATH: str = f"{TOOLS_BASE_PATH}/spix/spix/build"
+    SPIX_EXECUTOR_PATH: str = f"{TOOLS_BASE_PATH}/spix/spix"
+    
+    # UTBotCpp 配置
+    UTBOT_PATH: str = f"{TOOLS_BASE_PATH}/utbot/UTBotCpp"
+    UTBOT_EXECUTABLE: str = ""  # 编译后的可执行文件路径，从系统PATH查找或指定
+    UTBOT_EXECUTOR_PATH: str = f"{TOOLS_BASE_PATH}/utbot/UTBotCpp"
+    
+    # Clazy 配置
+    CLAZY_PATH: str = f"{TOOLS_BASE_PATH}/clazy/clazy"
+    CLAZY_EXECUTABLE: str = "clazy-standalone"  # 系统路径或工具路径
+    
+    # Cppcheck 配置
+    CPPCHECK_PATH: str = f"{TOOLS_BASE_PATH}/cppcheck/cppcheck"
+    CPPCHECK_EXECUTABLE: str = "cppcheck"  # 系统路径或工具路径
+    
+    # 代码覆盖率配置
+    GCOV_PATH: str = ""  # 从系统 PATH 查找，或指定路径
+    LCOV_PATH: str = ""  # 从系统 PATH 查找，或指定路径
+    
+    # 内存调试配置（Windows 使用 Dr. Memory）
+    VALGRIND_PATH: str = ""  # Windows 不支持原生 Valgrind
+    DRMEMORY_PATH: str = f"{TOOLS_BASE_PATH}/valgrind/drmemory"
+    DRMEMORY_EXECUTABLE: str = "drmemory.exe"
+    
+    # GammaRay 配置
+    GAMMARAY_PATH: str = f"{TOOLS_BASE_PATH}/gammaray/GammaRay"
+    GAMMARAY_EXECUTABLE: str = ""  # 编译后的可执行文件路径
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

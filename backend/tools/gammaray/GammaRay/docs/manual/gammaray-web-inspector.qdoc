@@ -1,0 +1,35 @@
+/*
+  gammaray-web-inspector.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \nextpage {State Machine Debugger}
+    \previouspage {Styles}
+    \page gammaray-web-Inspector.html
+
+    \title Web Inspector
+
+    \section1 Overview
+
+    The GammaRay web inspector tool allows you to inspect HTML5 content inside a QWebEngineView.
+
+    \image gammaray-web-inspector.png
+
+    The web inspector enables access to the built-in diagnostics tool, which allows you to:
+
+    \list
+        \li inspect and manipulate the DOM tree,
+        \li debug JavaScript,
+        \li observe network operations,
+        \li and profile the web content for performance issues.
+    \endlist
+*/

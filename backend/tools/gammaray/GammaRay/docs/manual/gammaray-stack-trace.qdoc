@@ -1,0 +1,35 @@
+/*
+  gammaray-stack-trace.qdoc
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2018 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Volker Krause <volker.krause@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
+/*!
+    \previouspage {Class Info}
+    \nextpage {Bindings}
+    \page gammaray-stack-trace.html
+
+    \title Stack Trace
+
+    \section1 Overview
+
+    The stack trace view is available for all QObject instances and shows the call stack leading to the
+    creation of this object.
+
+    \image gammaray-stack-trace.png
+
+    The stack trace view shows the function name and source code location for each call, as far as this
+    information is available. You can navigate directly to the corresponding source code using the context
+    menu.
+
+    Source locations are usually only available if debug information are found for the corresponding executable
+    or library. Object creation stack traces are only gathered on platforms where this is possible with limited
+    runtime cost, and therefore are not available for all target platforms.
+*/
