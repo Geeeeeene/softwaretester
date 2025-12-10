@@ -16,6 +16,7 @@ class ProjectBase(BaseModel):
 class ProjectCreate(ProjectBase):
     """创建项目Schema"""
     source_path: Optional[str] = None
+    build_path: Optional[str] = None
     binary_path: Optional[str] = None
 
 
@@ -25,6 +26,7 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     is_active: Optional[bool] = None
     source_path: Optional[str] = None
+    build_path: Optional[str] = None
     binary_path: Optional[str] = None
 
 
@@ -32,6 +34,7 @@ class ProjectResponse(ProjectBase):
     """项目响应Schema"""
     id: int
     source_path: Optional[str] = None
+    build_path: Optional[str] = None
     binary_path: Optional[str] = None
     is_active: bool
     created_at: datetime

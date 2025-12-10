@@ -7,20 +7,32 @@ REM 检查Docker是否安装
 docker --version >nul 2>&1
 if errorlevel 1 (
     echo ❌ 未检测到Docker，请先安装Docker Desktop
+    echo.
+    echo 请访问 https://www.docker.com/products/docker-desktop 下载并安装
     pause
     exit /b 1
 )
 
-docker-compose --version >nul 2>&1
+REM 检查Docker Compose（支持新旧两种格式）
+docker compose version >nul 2>&1
 if errorlevel 1 (
-    echo ❌ 未检测到Docker Compose，请先安装Docker Desktop
-    pause
-    exit /b 1
+    docker-compose --version >nul 2>&1
+    if errorlevel 1 (
+        echo ❌ 未检测到Docker Compose，请确保Docker Desktop已正确安装
+        pause
+        exit /b 1
+    ) else (
+        REM 使用旧版 docker-compose
+        set DOCKER_COMPOSE_CMD=docker-compose
+    )
+) else (
+    REM 使用新版 docker compose
+    set DOCKER_COMPOSE_CMD=docker compose
 )
 
 REM 启动服务
 echo 📦 启动所有服务...
-docker-compose up -d
+%DOCKER_COMPOSE_CMD% up -d
 
 REM 等待服务启动
 echo ⏳ 等待服务启动...
@@ -29,7 +41,7 @@ timeout /t 5 /nobreak >nul
 REM 检查服务状态
 echo.
 echo 📊 服务状态:
-docker-compose ps
+%DOCKER_COMPOSE_CMD% ps
 
 echo.
 echo ✅ 启动完成！
@@ -40,10 +52,10 @@ echo   API文档:  http://localhost:8000/docs
 echo   Neo4j:    http://localhost:7474
 echo.
 echo 查看日志：
-echo   docker-compose logs -f
+echo   %DOCKER_COMPOSE_CMD% logs -f
 echo.
 echo 停止服务：
-echo   docker-compose down
+echo   %DOCKER_COMPOSE_CMD% down
 echo.
 
 pause

@@ -12,6 +12,11 @@ export const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
+    // 如果是FormData，移除Content-Type让浏览器自动设置（包含boundary）
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+    
     // 可以在这里添加认证token
     // const token = localStorage.getItem('token')
     // if (token) {
@@ -29,7 +34,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // 统一错误处理
-    if (error.response?.status === 401) {
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.error('网络错误：无法连接到后端服务器，请确保后端正在运行')
+      console.error('后端地址:', API_BASE_URL)
+    } else if (error.response?.status === 401) {
       // 处理未授权
       console.error('未授权，请登录')
     } else if (error.response?.status === 404) {
@@ -51,6 +59,7 @@ export interface Project {
   language?: string
   framework?: string
   source_path?: string
+  build_path?: string
   binary_path?: string
   is_active: boolean
   created_at: string
@@ -64,6 +73,7 @@ export interface ProjectCreate {
   language?: string
   framework?: string
   source_path?: string
+  build_path?: string
   binary_path?: string
 }
 
@@ -77,11 +87,36 @@ export const projectsApi = {
   create: (data: ProjectCreate) =>
     api.post<Project>('/api/v1/projects', data),
   
+  // 创建项目（支持文件上传）
+  createWithFile: (formData: FormData) =>
+    api.post<Project>('/api/v1/projects', formData, {
+      // 不要手动设置Content-Type，让axios自动处理FormData的boundary
+    }),
+  
   update: (id: number, data: Partial<ProjectCreate>) =>
     api.put<Project>(`/api/v1/projects/${id}`, data),
   
   delete: (id: number) =>
     api.delete(`/api/v1/projects/${id}`),
+}
+
+// ============ 文件上传API ============
+
+export const uploadApi = {
+  // 上传项目源代码
+  uploadProjectSource: (projectId: number, file: File, extract: boolean = true) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('extract', extract.toString())
+    return api.post<{
+      message: string
+      filename: string
+      path?: string
+      extracted_path?: string
+      size: number
+      extracted: boolean
+    }>(`/api/v1/upload/project/${projectId}/source`, formData)
+  },
 }
 
 // ============ 测试用例API ============
@@ -148,6 +183,38 @@ export interface TestExecution {
   created_at: string
   started_at?: string
   completed_at?: string
+  // 新增字段
+  coverage_data?: {
+    percentage?: number
+    lines_covered?: number
+    lines_total?: number
+    branches_covered?: number
+    branches_total?: number
+    functions_covered?: number
+    functions_total?: number
+  }
+  result?: {
+    issues?: Array<{
+      id: string
+      type: string
+      severity: string
+      message: string
+      stack_trace?: Array<{
+        frame: number
+        function: string
+        file: string
+        line?: number
+      }>
+    }>
+    total_issues?: number
+    error_count?: number
+    warning_count?: number
+  }
+  logs?: string
+  artifacts?: Array<{
+    type: string
+    path: string
+  }>
 }
 
 export interface ExecutionCreate {
