@@ -458,6 +458,64 @@ void test_{func_info.get('name', 'function')}() {{
                     build_path, logs
                 )
             
+            # 6. 运行Dr.Memory内存调试
+            memory_issues = []
+            memory_report_path = None
+            try:
+                from app.executors.memory_executor import MemoryExecutor
+                memory_executor = MemoryExecutor()
+                
+                # 找到编译后的测试可执行文件
+                test_executables = []
+                test_dir = Path(build_path) / "tests"
+                if test_dir.exists():
+                    for test_file in test_dir.glob("*.exe" if os.name == 'nt' else "*"):
+                        if test_file.is_file() and os.access(test_file, os.X_OK):
+                            test_executables.append(test_file)
+                
+                if test_executables:
+                    logs.append(f"\n🔍 运行 Dr. Memory 内存调试 ({len(test_executables)} 个可执行文件)...")
+                    
+                    # 为每个测试可执行文件运行Dr.Memory
+                    all_memory_issues = []
+                    for test_exe in test_executables[:5]:  # 限制数量
+                        test_ir = {
+                            "type": "unit",
+                            "name": f"内存调试 - {test_exe.stem}",
+                        }
+                        config = {
+                            "project_path": str(source_path),
+                            "source_path": str(source_path),
+                            "build_path": build_path,
+                            "binary_path": str(test_exe)
+                        }
+                        
+                        memory_result = await memory_executor.execute(test_ir, config)
+                        if memory_result.get("result") and memory_result["result"].get("issues"):
+                            all_memory_issues.extend(memory_result["result"]["issues"])
+                    
+                    memory_issues = all_memory_issues
+                    
+                    # 生成内存报告
+                    if memory_issues:
+                        import json
+                        memory_report_path = str(Path(build_path) / "memory_report.json")
+                        with open(memory_report_path, 'w', encoding='utf-8') as f:
+                            json.dump({
+                                "total_issues": len(memory_issues),
+                                "error_count": len([i for i in memory_issues if i.get("severity") == "error"]),
+                                "warning_count": len([i for i in memory_issues if i.get("severity") == "warning"]),
+                                "issues": memory_issues
+                            }, f, indent=2, ensure_ascii=False)
+                        
+                        logs.append(f"✅ Dr. Memory 完成: 发现 {len(memory_issues)} 个内存问题")
+                    else:
+                        logs.append("✅ Dr. Memory 完成: 未发现内存问题")
+                else:
+                    logs.append("⚠️  未找到可执行文件，跳过 Dr. Memory 分析")
+            except Exception as e:
+                logs.append(f"⚠️  Dr. Memory 执行失败: {str(e)}")
+            
             # 统计结果
             passed_tests = sum(1 for r in test_results if r.get("passed"))
             failed_tests = len(test_results) - passed_tests
@@ -472,8 +530,11 @@ void test_{func_info.get('name', 'function')}() {{
                 artifacts.append({"type": "test_code", "path": str(Path(build_path) / "tests")})
             if coverage_report_path:
                 artifacts.append({"type": "coverage_report", "path": coverage_report_path})
+            if memory_report_path:
+                artifacts.append({"type": "memory_report", "path": memory_report_path})
             
-            return {
+            # 构建结果，包含内存问题
+            result_data = {
                 "passed": failed_tests == 0,
                 "logs": log_text,
                 "coverage": coverage_data,
@@ -484,6 +545,17 @@ void test_{func_info.get('name', 'function')}() {{
                 "duration": sum(r.get("duration", 0) for r in test_results),
                 "test_results": test_results
             }
+            
+            # 添加内存调试结果
+            if memory_issues:
+                result_data["result"] = {
+                    "issues": memory_issues,
+                    "total_issues": len(memory_issues),
+                    "error_count": len([i for i in memory_issues if i.get("severity") == "error"]),
+                    "warning_count": len([i for i in memory_issues if i.get("severity") == "warning"])
+                }
+            
+            return result_data
             
         except Exception as e:
             error_msg = str(e)

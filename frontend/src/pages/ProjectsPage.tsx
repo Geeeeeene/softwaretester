@@ -105,8 +105,10 @@ export default function ProjectsPage() {
       setCreateDialogOpen(false)
       resetForm()
       
-      // 跳转到项目详情页
-      navigate(`/projects/${newProject.id}`)
+      // 确保localStorage已更新后再跳转
+      setTimeout(() => {
+        navigate(`/projects/${newProject.id}`)
+      }, 100)
     } catch (error) {
       console.error('创建项目失败:', error)
       alert('创建项目失败，请重试')

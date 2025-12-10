@@ -228,7 +228,7 @@ def run_utbot_test(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """使用UTBotCpp对项目进行单元测试并生成报告"""
+    """使用UTBotCpp对项目进行单元测试并生成报告（包含gcov+lcov和Dr.Memory）"""
     from app.db.models.test_execution import TestExecution
     from app.worker.tasks import run_utbot_project_test
     
@@ -258,8 +258,88 @@ def run_utbot_test(
     background_tasks.add_task(run_utbot_project_test, execution.id)
     
     return {
-        "message": "UTBotCpp测试任务已提交",
+        "message": "单元测试任务已提交（UTBotCpp + gcov+lcov + Dr.Memory）",
         "execution_id": execution.id,
         "status": "pending",
         "project_id": project_id
     }
+
+
+@router.post("/local/test/utbot", response_model=dict, status_code=201)
+async def run_local_utbot_test(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """为本地项目（localStorage）执行单元测试"""
+    from app.db.models.test_execution import TestExecution
+    from app.worker.tasks_local import run_local_project_test
+    import tempfile
+    import zipfile
+    import base64
+    from pathlib import Path
+    import json
+    
+    # 获取请求体
+    try:
+        project_data = await request.json()
+    except:
+        raise HTTPException(status_code=400, detail="无效的JSON数据")
+    
+    # 验证必需字段
+    if not project_data.get("id") or not project_data.get("name"):
+        raise HTTPException(status_code=400, detail="项目数据不完整")
+    
+    # 检查是否有源代码文件
+    source_file = project_data.get("source_file")
+    if not source_file:
+        raise HTTPException(
+            status_code=400,
+            detail="项目未上传源代码，请先上传源代码文件"
+        )
+    
+    # 创建临时目录并解压源代码
+    temp_dir = tempfile.mkdtemp(prefix="homemade_tester_")
+    source_path = Path(temp_dir) / "source"
+    source_path.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # 解码base64文件数据
+        file_data = base64.b64decode(source_file["data"])
+        zip_path = source_path / source_file["name"]
+        zip_path.write_bytes(file_data)
+        
+        # 解压ZIP文件
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(source_path)
+        
+        # 创建执行记录
+        execution = TestExecution(
+            project_id=0,  # 本地项目没有后端ID
+            executor_type="unit",
+            status="pending",
+            total_tests=0
+        )
+        db.add(execution)
+        db.commit()
+        db.refresh(execution)
+        
+        # 添加后台任务
+        background_tasks.add_task(
+            run_local_project_test,
+            execution.id,
+            str(source_path),
+            str(Path(temp_dir) / "build")
+        )
+        
+        return {
+            "message": "单元测试任务已提交（UTBotCpp + gcov+lcov + Dr.Memory）",
+            "execution_id": execution.id,
+            "status": "pending",
+            "temp_path": temp_dir
+        }
+        
+    except Exception as e:
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise HTTPException(status_code=500, detail=f"处理源代码失败: {str(e)}")

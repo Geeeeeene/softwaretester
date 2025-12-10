@@ -237,4 +237,31 @@ export const executionsApi = {
   
   create: (data: ExecutionCreate) =>
     api.post<TestExecution>('/api/v1/executions', data),
+  
+  // 执行单元测试（UTBot + gcov + lcov + Dr.Memory）
+  runUnitTest: (projectId: number) =>
+    api.post<{
+      message: string
+      execution_id: number
+      status: string
+      project_id: number
+    }>(`/api/v1/projects/${projectId}/test/utbot`),
+  
+  // 执行本地项目的单元测试（支持localStorage项目）
+  runLocalUnitTest: (projectData: {
+    id: string
+    name: string
+    source_file?: {
+      name: string
+      size: number
+      type: string
+      data: string
+    }
+  }) =>
+    api.post<{
+      message: string
+      execution_id: number
+      status: string
+      temp_path?: string
+    }>('/api/v1/projects/local/test/utbot', projectData),
 }
