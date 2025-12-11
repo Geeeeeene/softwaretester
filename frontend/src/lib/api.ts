@@ -96,7 +96,7 @@ export const projectsApi = {
     }),
   
   update: (id: number, data: Partial<ProjectCreate>) =>
-    api.put<Project>(`/projects/${id}`, data),
+    api.put<Project>(`/api/v1/projects/${id}`, data),
   
   delete: (id: number) =>
     api.delete(`/projects/${id}`),
@@ -268,116 +268,6 @@ export const executionsApi = {
     }>('/projects/local/test/utbot', projectData),
 }
 
-// ============ 上传任务API ============
-
-export interface UploadTask {
-  id: string
-  filename: string
-  target_project_id?: number
-  target_project_name?: string
-  status: 'queued' | 'uploading' | 'processing' | 'success' | 'failed'
-  progress: number
-  error_message?: string
-  created_at: string
-  completed_at?: string
-}
-
-export interface UploadTaskCreate {
-  files: File[]
-  project_type?: string
-  language?: string
-  auto_create_project?: boolean
-}
-
-export const uploadTasksApi = {
-  list: () =>
-    api.get<UploadTask[]>('/upload-tasks'),
-  
-  get: (id: string) =>
-    api.get<UploadTask>(`/upload-tasks/${id}`),
-  
-  create: (data: UploadTaskCreate) => {
-    const formData = new FormData()
-    data.files.forEach((file, index) => {
-      formData.append(`files`, file)
-    })
-    if (data.project_type) formData.append('project_type', data.project_type)
-    if (data.language) formData.append('language', data.language)
-    formData.append('auto_create_project', (data.auto_create_project ?? true).toString())
-    return api.post<{ tasks: UploadTask[] }>('/upload-tasks', formData)
-  },
-  
-  cancel: (id: string) =>
-    api.post(`/upload-tasks/${id}/cancel`),
-  
-  retry: (id: string) =>
-    api.post(`/upload-tasks/${id}/retry`),
-}
-
-// ============ 批量上传API ============
-
-export interface BatchUploadRequest {
-  files: Array<{
-    file: File
-    project_name?: string
-    project_type?: string
-    language?: string
-  }>
-}
-
-export const batchUploadApi = {
-  upload: (data: BatchUploadRequest) => {
-    const formData = new FormData()
-    data.files.forEach((item, index) => {
-      formData.append(`files`, item.file)
-      if (item.project_name) formData.append(`names`, item.project_name)
-      if (item.project_type) formData.append(`types`, item.project_type)
-      if (item.language) formData.append(`languages`, item.language)
-    })
-    return api.post<{ tasks: UploadTask[] }>('/batch-upload', formData)
-  },
-}
-
-// ============ 构建状态API ============
-
-export interface BuildStatus {
-  project_id: number
-  status: 'pending' | 'building' | 'success' | 'failed'
-  build_log?: string
-  build_path?: string
-  binary_path?: string
-  error_message?: string
-  started_at?: string
-  completed_at?: string
-}
-
-export const buildApi = {
-  getStatus: (projectId: number) =>
-    api.get<BuildStatus>(`/projects/${projectId}/build/status`),
-  
-  startBuild: (projectId: number) =>
-    api.post<{ message: string; build_id: string }>(`/projects/${projectId}/build/start`),
-  
-  getLogs: (projectId: number) =>
-    api.get<{ logs: string }>(`/projects/${projectId}/build/logs`),
-}
-
-// ============ 活动日志API ============
-
-export interface Activity {
-  id: string
-  project_id: number
-  type: 'upload' | 'execution' | 'testcase_created' | 'testcase_updated' | 'build'
-  message: string
-  metadata?: Record<string, any>
-  created_at: string
-}
-
-export const activitiesApi = {
-  list: (params?: { project_id?: number; limit?: number }) =>
-    api.get<Activity[]>('/activities', { params }),
-}
-
 // ============ 工具状态API ============
 
 export interface ToolStatus {
@@ -402,4 +292,99 @@ export const toolsApi = {
   
   getToolStatus: (toolName: string) =>
     api.get<ToolStatus>(`/tools/status/${toolName}`),
+}
+
+// ============ 静态分析API ============
+
+export interface StaticAnalysisStatus {
+  has_analysis: boolean
+  latest?: {
+    timestamp: number
+    created_at: string
+    metadata: Record<string, any>
+    summary: {
+      total_files: number
+      total_issues: number
+      severity_count: {
+        HIGH: number
+        MEDIUM: number
+        LOW: number
+      }
+    }
+  }
+  total_count: number
+}
+
+export interface StaticAnalysisResult {
+  project_id: number
+  timestamp: number
+  created_at: string
+  metadata: Record<string, any>
+  results: {
+    project_path: string
+    language?: string
+    files_analyzed: number
+    total_issues: number
+    file_results: Record<string, any>
+    summary: {
+      total_files: number
+      total_issues: number
+      severity_count: {
+        HIGH: number
+        MEDIUM: number
+        LOW: number
+      }
+    }
+  }
+}
+
+export interface FileTreeNode {
+  name: string
+  path: string
+  type: 'file' | 'directory'
+  children?: FileTreeNode[]
+  size?: number
+}
+
+export interface FileContent {
+  path: string
+  content: string
+  encoding: string
+  detected_encoding?: string
+  confidence?: number
+  size: number
+  lines: string[]
+}
+
+export const staticAnalysisApi = {
+  // 启动静态分析
+  run: (projectId: number, useLlm: boolean = true, language?: string) =>
+    api.post<{
+      message: string
+      project_id: number
+      status: string
+    }>(`/projects/${projectId}/static-analysis/run`, {
+      use_llm: useLlm,
+      language,
+    }),
+  
+  // 获取分析状态
+  getStatus: (projectId: number) =>
+    api.get<StaticAnalysisStatus>(`/projects/${projectId}/static-analysis/status`),
+  
+  // 获取分析结果
+  getResults: (projectId: number, timestamp?: number) =>
+    api.get<StaticAnalysisResult>(`/projects/${projectId}/static-analysis/results`, {
+      params: timestamp ? { timestamp } : undefined,
+    }),
+  
+  // 获取项目文件树
+  getFiles: (projectId: number) =>
+    api.get<{ project_id: number; file_tree: FileTreeNode[] }>(`/projects/${projectId}/static-analysis/files`),
+  
+  // 获取文件内容
+  getFileContent: (projectId: number, filePath: string) =>
+    api.get<FileContent>(`/projects/${projectId}/static-analysis/file-content`, {
+      params: { file_path: filePath },
+    }),
 }

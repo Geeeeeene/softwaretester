@@ -1,7 +1,7 @@
 """API v1路由"""
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import projects, test_cases, executions, upload, tools
+from app.api.v1.endpoints import projects, test_cases, executions, upload, tools, static_analysis
 
 api_router = APIRouter()
 
@@ -34,4 +34,10 @@ api_router.include_router(
     tools.router,
     prefix="/tools",
     tags=["tools"]
+)
+
+api_router.include_router(
+    static_analysis.router,
+    prefix="",
+    tags=["static-analysis"]
 )

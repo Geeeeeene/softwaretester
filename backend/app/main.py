@@ -21,15 +21,12 @@ app = FastAPI(
 )
 
 # 配置CORS
-# 将 AnyHttpUrl 列表转换为字符串列表
-cors_origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
 
@@ -41,6 +38,7 @@ async def startup_event():
     from app.db.models.test_case import TestCase  # noqa
     from app.db.models.test_execution import TestExecution  # noqa
     from app.db.models.test_result import TestResult  # noqa
+    from app.db.models.static_analysis import StaticAnalysis  # noqa
     
     # 创建数据库表
     Base.metadata.create_all(bind=engine)

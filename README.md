@@ -33,6 +33,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的统一测�
 - **状态**: TanStack Query
 - **样式**: TailwindCSS + shadcn/ui
 - **HTTP**: Axios
+- **代码高亮**: react-syntax-highlighter
 
 ### 基础设施
 - **容器**: Docker + Docker Compose

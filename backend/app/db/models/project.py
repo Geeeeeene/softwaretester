@@ -36,6 +36,7 @@ class Project(Base):
     # 关系
     test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan")
     test_executions = relationship("TestExecution", back_populates="project", cascade="all, delete-orphan")
+    static_analyses = relationship("StaticAnalysis", back_populates="project", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Project(id={self.id}, name='{self.name}', type='{self.project_type}')>"

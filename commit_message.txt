@@ -1,0 +1,22 @@
+feat: 集成静态分析功能和大模型代码分析
+
+新增功能：
+- 集成静态分析agent，支持传统工具分析和大模型深度分析（qwen-plus）
+- 创建静态分析API端点（run, status, results, files, file-content）
+- 实现文件树浏览、代码预览（支持中文编码）和分析结果展示
+- 在项目详情页添加静态分析结果卡片
+- 集成报告生成功能到执行结果
+
+技术实现：
+- 后端：创建 static_analysis 模块（agent, service, storage）
+- 前端：创建 FileTree、CodeViewer、AnalysisResults 组件
+- 前端：创建 StaticAnalysisPage 页面（三栏布局）
+- 添加 react-syntax-highlighter 依赖用于代码高亮
+- 配置 DASHSCOPE_API_KEY 环境变量支持大模型调用
+
+待验证功能：
+- 静态分析功能需要在实际项目中验证
+- 大模型分析功能需要配置有效的 DASHSCOPE_API_KEY
+- 文件编码检测和中文显示需要测试
+- 静态分析结果存储和加载功能需要验证
+
