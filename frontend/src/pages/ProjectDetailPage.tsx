@@ -1,407 +1,108 @@
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Edit, Trash2, Play, Upload, X, TestTube, BarChart3, FileCode, Settings, AlertCircle, Loader2, CheckCircle2, XCircle, TrendingUp, MemoryStick } from 'lucide-react'
-import { formatDateTime } from '@/lib/utils'
-import { useState, useRef, useEffect } from 'react'
-import { getProject, getAllProjects, updateProject, type LocalProject, deleteProject, fileToBase64 } from '@/lib/localStorage'
-import { executionsApi, type TestExecution } from '@/lib/api'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { ArrowLeft, Edit, Trash2, AlertCircle, Loader2 } from 'lucide-react'
+import { projectsApi, type Project } from '@/lib/api'
 import type { AxiosResponse } from 'axios'
+import { ProjectOverviewTab } from '@/components/project-detail/ProjectOverviewTab'
+import { SourceBuildTab } from '@/components/project-detail/SourceBuildTab'
+import { TestCasesTab } from '@/components/project-detail/TestCasesTab'
+import { ExecutionTab } from '@/components/project-detail/ExecutionTab'
+import { ReportsTab } from '@/components/project-detail/ReportsTab'
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [project, setProject] = useState<LocalProject | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [testCaseDialogOpen, setTestCaseDialogOpen] = useState(false)
-  const [executeDialogOpen, setExecuteDialogOpen] = useState(false)
-  const [executionStatus, setExecutionStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle')
-  const [executionId, setExecutionId] = useState<number | null>(null)
-  const [executionResult, setExecutionResult] = useState<TestExecution | null>(null)
-  const [executionLogs, setExecutionLogs] = useState<string>('')
-  const [uploadProgress, setUploadProgress] = useState<number>(0)
-  const [isUploading, setIsUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const queryClient = useQueryClient()
+  
+  // 从URL获取当前Tab，默认为overview
+  const currentTab = searchParams.get('tab') || 'overview'
+  
+  // 项目ID（如果是数字ID，说明是后端项目）
+  const projectId = id && !id.startsWith('project_') ? parseInt(id, 10) : null
 
-  // 加载项目数据
-  useEffect(() => {
-    const loadProject = () => {
-      if (id) {
-        setIsLoading(true)
-        // 尝试多次加载，确保localStorage已更新
-        let attempts = 0
-        const maxAttempts = 10  // 增加重试次数
-        
-        const tryLoad = () => {
-          const loadedProject = getProject(id)
-          if (loadedProject) {
-            setProject(loadedProject)
-            setIsLoading(false)
-          } else if (attempts < maxAttempts) {
-            attempts++
-            // 逐渐增加延迟时间
-            const delay = Math.min(100 + attempts * 50, 500)
-            setTimeout(tryLoad, delay)
-          } else {
-            // 最终未找到项目
-            console.warn('项目未找到，ID:', id)
-            console.log('所有项目:', getAllProjects())
-            console.log('尝试查找的项目ID:', id)
-            // 打印所有项目的ID以便调试
-            const allProjects = getAllProjects()
-            console.log('所有项目的ID列表:', allProjects.map(p => p.id))
-            setProject(null)
-            setIsLoading(false)
-          }
-        }
-        
-        // 立即尝试一次
-        tryLoad()
-      } else {
-        setIsLoading(false)
+  // 调试信息
+  console.log('ProjectDetailPage - id:', id, 'projectId:', projectId)
+
+  // 获取项目数据
+  const { data: project, isLoading, error } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: async () => {
+      if (!projectId || isNaN(projectId)) {
+        throw new Error('无效的项目ID')
       }
-    }
-    
-    loadProject()
-  }, [id])
+      console.log('正在获取项目数据，projectId:', projectId)
+      const response = await projectsApi.get(projectId)
+      console.log('项目数据获取成功:', response.data)
+      return response.data
+    },
+    enabled: !!projectId && !isNaN(projectId),
+  })
+  
+  console.log('ProjectDetailPage - isLoading:', isLoading, 'error:', error, 'project:', project)
 
-  // 测试用例表单
-  const [testCaseForm, setTestCaseForm] = useState({
-    name: '',
-    description: '',
-    test_type: 'unit',
+  // 删除项目
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!projectId) throw new Error('无效的项目ID')
+      return projectsApi.delete(projectId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      navigate('/projects')
+    },
+    onError: (error: any) => {
+      alert(`删除失败: ${error.response?.data?.detail || error.message || '未知错误'}`)
+    },
   })
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setUploadFile(file)
-    }
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  // Tab切换处理
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value })
   }
 
-  const handleUpload = async () => {
-    if (!uploadFile || !project || !id) {
-      alert('请选择文件')
-      return
-    }
-
-    try {
-      setIsUploading(true)
-      setUploadProgress(0)
-
-      // 检查文件大小（限制100MB）
-      const maxSize = 100 * 1024 * 1024 // 100MB
-      if (uploadFile.size > maxSize) {
-        alert(`文件过大，最大支持 ${maxSize / 1024 / 1024}MB`)
-        setIsUploading(false)
-        return
-      }
-
-      // 检查文件类型
-      const allowedExtensions = ['.zip', '.tar', '.tar.gz', '.cpp', '.c', '.h', '.hpp']
-      const fileName = uploadFile.name.toLowerCase()
-      const isValidFile = allowedExtensions.some(ext => fileName.endsWith(ext))
-      
-      if (!isValidFile) {
-        alert('不支持的文件类型，请上传ZIP、TAR或C++源文件')
-        setIsUploading(false)
-        return
-      }
-
-      // 模拟上传进度
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval)
-            return prev
-          }
-          return prev + 10
-        })
-      }, 100)
-
-      // 将文件转换为base64
-      setUploadProgress(20)
-      const base64Data = await fileToBase64(uploadFile)
-      setUploadProgress(80)
-      
-      // 更新项目的source_file
-      const updatedProject = updateProject(id, {
-        source_file: {
-          name: uploadFile.name,
-          size: uploadFile.size,
-          type: uploadFile.type || 'application/zip',
-          data: base64Data,
-        },
+  // 导航到指定Tab（带参数）
+  const handleNavigateToTab = (tab: string, params?: Record<string, any>) => {
+    const newParams = new URLSearchParams()
+    newParams.set('tab', tab)
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        newParams.set(key, value)
       })
-
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-
-      if (updatedProject) {
-        setProject(updatedProject)
-        setTimeout(() => {
-          alert('文件上传成功！')
-          setUploadDialogOpen(false)
-          setUploadFile(null)
-          setUploadProgress(0)
-          setIsUploading(false)
-          if (fileInputRef.current) {
-            fileInputRef.current.value = ''
-          }
-        }, 500)
-      } else {
-        alert('文件上传失败，请重试')
-        setIsUploading(false)
-        setUploadProgress(0)
-      }
-    } catch (error: any) {
-      console.error('文件上传失败:', error)
-      alert(`文件上传失败: ${error.message || '未知错误'}`)
-      setIsUploading(false)
-      setUploadProgress(0)
     }
-  }
-
-  const handleDelete = () => {
-    if (id && deleteProject(id)) {
-      alert('项目已删除')
-      navigate('/projects')
-    } else {
-      alert('删除失败')
-    }
-  }
-
-  const handleCreateTestCase = () => {
-    if (!testCaseForm.name.trim()) {
-      alert('请输入测试用例名称')
-      return
-    }
-    // TODO: 实现测试用例创建逻辑
-    alert('测试用例创建功能开发中...')
-    setTestCaseDialogOpen(false)
-    setTestCaseForm({ name: '', description: '', test_type: 'unit' })
-  }
-
-  // 执行单元测试（UTBot + gcov + lcov + Dr.Memory）- 调用后端API
-  const handleExecuteTest = async () => {
-    if (!project || !id) {
-      alert('项目信息不完整')
-      return
-    }
-
-    // 检查是否有源代码
-    if (!project.source_file && !project.source_path) {
-      alert('请先上传源代码文件')
-      setExecuteDialogOpen(false)
-      return
-    }
-
-    try {
-      setExecutionStatus('running')
-      setExecutionLogs('正在启动测试执行...\n')
-      setExecutionResult(null)
-      
-      // 检查项目是否有后端ID（localStorage项目没有）
-      const projectId = project.id?.startsWith('project_') ? null : parseInt(id)
-      
-      let executionResult: TestExecution | null = null
-      
-      if (projectId && !isNaN(projectId)) {
-        // 后端项目：调用后端API
-        setExecutionLogs(prev => prev + '📡 调用后端API执行测试...\n')
-        
-        try {
-          const response = await executionsApi.runUnitTest(projectId)
-          const executionId = response.data.execution_id
-          
-          setExecutionLogs(prev => prev + `✅ 任务已提交，执行ID: ${executionId}\n`)
-          setExecutionLogs(prev => prev + '⏳ 等待执行完成...\n')
-          
-          // 轮询获取执行结果
-          let attempts = 0
-          const maxAttempts = 60 // 最多等待5分钟
-          
-          const pollExecution = async () => {
-            try {
-              const execResponse = await executionsApi.get(executionId)
-              const exec = execResponse.data
-              
-              // 更新日志
-              if (exec.logs) {
-                setExecutionLogs(exec.logs)
-              }
-              
-              if (exec.status === 'completed' || exec.status === 'failed') {
-                executionResult = exec
-                setExecutionResult(exec)
-                setExecutionStatus(exec.status === 'completed' ? 'completed' : 'error')
-                return
-              }
-              
-              // 继续轮询
-              attempts++
-              if (attempts < maxAttempts) {
-                setTimeout(pollExecution, 5000) // 每5秒轮询一次
-              } else {
-                setExecutionLogs(prev => prev + '\n⏱️  执行超时，请手动刷新查看结果\n')
-                setExecutionStatus('error')
-              }
-            } catch (error: any) {
-              console.error('轮询执行结果失败:', error)
-              attempts++
-              if (attempts < maxAttempts) {
-                setTimeout(pollExecution, 5000)
-              } else {
-                setExecutionLogs(prev => prev + '\n❌ 获取执行结果失败\n')
-                setExecutionStatus('error')
-              }
-            }
-          }
-          
-          // 开始轮询
-          setTimeout(pollExecution, 2000) // 2秒后开始轮询
-          
-        } catch (error: any) {
-          console.error('调用后端API失败:', error)
-          setExecutionLogs(prev => prev + `\n❌ API调用失败: ${error.message || '未知错误'}\n`)
-          setExecutionLogs(prev => prev + '💡 提示：请确保后端服务正在运行\n')
-          setExecutionStatus('error')
-        }
-      } else {
-        // localStorage项目：使用本地模拟（因为无法调用后端）
-        setExecutionLogs(prev => prev + '⚠️  本地项目（localStorage），使用模拟执行\n')
-        setExecutionLogs(prev => prev + '💡 提示：要使用真实工具，请通过后端API创建项目\n')
-        
-        // 生成模拟结果（明确标注为模拟数据）
-        const mockResult: TestExecution = {
-          id: Date.now(),
-          project_id: parseInt(id.replace('project_', '')) || 0,
-          executor_type: 'unit',
-          status: 'completed',
-          total_tests: 12,
-          passed_tests: 10,
-          failed_tests: 2,
-          skipped_tests: 0,
-          duration_seconds: 9.5,
-          created_at: new Date().toISOString(),
-          started_at: new Date(Date.now() - 9500).toISOString(),
-          completed_at: new Date().toISOString(),
-          coverage_data: {
-            percentage: 87.3,
-            lines_covered: 1245,
-            lines_total: 1426,
-            branches_covered: 342,
-            branches_total: 398,
-            functions_covered: 89,
-            functions_total: 102,
-            warning: '⚠️ 这是模拟数据，不是真实执行结果'
-          },
-          result: {
-            issues: [
-              {
-                id: '1',
-                type: 'memory_leak',
-                severity: 'error',
-                message: '内存泄漏：在 calculate_sum() 中分配的内存未释放（第45行）[模拟数据]',
-                stack_trace: [
-                  { frame: 1, function: 'calculate_sum', file: 'math_utils.cpp', line: 45 },
-                  { frame: 2, function: 'test_calculate_sum', file: 'test_math_utils.cpp', line: 12 },
-                  { frame: 3, function: 'main', file: 'test_math_utils.cpp', line: 5 },
-                ],
-              },
-              {
-                id: '2',
-                type: 'uninitialized_read',
-                severity: 'warning',
-                message: '未初始化内存读取：变量 result 在使用前未初始化（第28行）[模拟数据]',
-                stack_trace: [
-                  { frame: 1, function: 'process_data', file: 'data_processor.cpp', line: 28 },
-                  { frame: 2, function: 'test_process_data', file: 'test_data_processor.cpp', line: 8 },
-                ],
-              },
-            ],
-            total_issues: 2,
-            error_count: 1,
-            warning_count: 1,
-            warning: '⚠️ 这是模拟数据，不是真实执行结果'
-          },
-          logs: executionLogs + '\n\n⚠️  注意：以上结果是模拟数据，用于演示目的。\n要获得真实结果，请通过后端API创建项目并安装必要的工具（UTBotCpp、lcov、Dr. Memory）。',
-          artifacts: [
-            { type: 'test_code', path: '/artifacts/tests/test_math_utils.cpp' },
-            { type: 'test_code', path: '/artifacts/tests/test_data_processor.cpp' },
-            { type: 'coverage_report', path: '/artifacts/coverage/index.html' },
-            { type: 'memory_report', path: '/artifacts/memory_report.json' },
-          ],
-        }
-        
-        executionResult = mockResult
-      }
-      
-      if (executionResult) {
-        setExecutionResult(executionResult)
-        setExecutionStatus('completed')
-      }
-      
-    } catch (error: any) {
-      console.error('执行测试失败:', error)
-      setExecutionStatus('error')
-      const errorMsg = error.message || '未知错误'
-      setExecutionLogs(prev => prev + `\n❌ 执行失败: ${errorMsg}\n`)
-    }
-  }
-
-  // 注意：不再需要轮询，因为现在是本地模拟执行
-
-  // 根据项目类型获取分析选项
-  const getAnalysisOptions = () => {
-    if (!project) return []
-    
-    const options = []
-    
-    switch (project.project_type) {
-      case 'unit':
-        options.push(
-          { icon: TestTube, label: '创建单元测试', action: () => setTestCaseDialogOpen(true), color: 'blue' },
-          { icon: BarChart3, label: '代码覆盖率分析', action: () => navigate(`/results?project=${id}`), color: 'green' },
-          { icon: Play, label: '执行单元测试', action: () => setExecuteDialogOpen(true), color: 'purple' }
-        )
-        break
-      case 'static':
-        options.push(
-          { icon: FileCode, label: '静态代码分析', action: () => setExecuteDialogOpen(true), color: 'orange' },
-          { icon: BarChart3, label: '查看分析报告', action: () => navigate(`/results?project=${id}`), color: 'blue' }
-        )
-        break
-      case 'ui':
-        options.push(
-          { icon: TestTube, label: '创建UI测试', action: () => setTestCaseDialogOpen(true), color: 'purple' },
-          { icon: Play, label: '执行UI测试', action: () => setExecuteDialogOpen(true), color: 'green' },
-          { icon: BarChart3, label: '查看测试结果', action: () => navigate(`/results?project=${id}`), color: 'blue' }
-        )
-        break
-      case 'integration':
-        options.push(
-          { icon: TestTube, label: '创建集成测试', action: () => setTestCaseDialogOpen(true), color: 'blue' },
-          { icon: Play, label: '执行集成测试', action: () => setExecuteDialogOpen(true), color: 'green' }
-        )
-        break
-      default:
-        options.push(
-          { icon: TestTube, label: '创建测试用例', action: () => setTestCaseDialogOpen(true), color: 'blue' },
-          { icon: Play, label: '执行测试', action: () => setExecuteDialogOpen(true), color: 'green' }
-        )
-    }
-    
-    return options
+    setSearchParams(newParams)
   }
 
   if (isLoading) {
-    return <div className="text-center py-12">加载中...</div>
+    return (
+      <div className="text-center py-12">
+        <Loader2 className="h-8 w-8 mx-auto text-gray-400 animate-spin mb-4" />
+        <p className="text-gray-500">加载中...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    console.error('加载项目失败:', error)
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="h-12 w-12 mx-auto text-red-400 mb-4" />
+        <p className="text-red-500 text-lg">项目加载失败</p>
+        <p className="text-red-400 text-sm mt-2">
+          {error instanceof Error ? error.message : '未知错误'}
+        </p>
+        <Button className="mt-4" onClick={() => navigate('/projects')}>
+          返回项目列表
+        </Button>
+      </div>
+    )
   }
 
   if (!project) {
@@ -416,8 +117,6 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const analysisOptions = getAnalysisOptions()
-
   return (
     <div className="space-y-6">
       {/* 页头 */}
@@ -431,10 +130,6 @@ export default function ProjectDetailPage() {
           <p className="text-gray-600 mt-2">{project.description || '暂无描述'}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            上传源代码
-          </Button>
           <Button variant="outline">
             <Edit className="mr-2 h-4 w-4" />
             编辑
@@ -446,760 +141,36 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* 分析操作卡片 */}
-      {analysisOptions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              测试分析
-            </CardTitle>
-            <CardDescription>
-              根据项目类型进行相应的测试分析
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {analysisOptions.map((option, index) => {
-                const Icon = option.icon
-                const colorClasses = {
-                  blue: 'bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200',
-                  green: 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200',
-                  purple: 'bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200',
-                  orange: 'bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-200',
-                }
-                return (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    className={`h-auto p-4 flex flex-col items-center gap-2 ${colorClasses[option.color as keyof typeof colorClasses] || colorClasses.blue}`}
-                    onClick={option.action}
-                  >
-                    <Icon className="h-6 w-6" />
-                    <span className="font-medium">{option.label}</span>
-                  </Button>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Tab导航 */}
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">概览</TabsTrigger>
+          <TabsTrigger value="source-build">源码与构建</TabsTrigger>
+          <TabsTrigger value="test-cases">测试用例</TabsTrigger>
+          <TabsTrigger value="execution">执行</TabsTrigger>
+          <TabsTrigger value="reports">报告</TabsTrigger>
+        </TabsList>
 
-      {/* 基本信息 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>基本信息</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-gray-500">项目类型</p>
-            <p className="text-base font-medium capitalize">{project.project_type}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">编程语言</p>
-            <p className="text-base font-medium">{project.language || '未指定'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">框架</p>
-            <p className="text-base font-medium">{project.framework || '未指定'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">状态</p>
-            <p className="text-base font-medium">
-              {project.is_active ? '活跃' : '归档'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">创建时间</p>
-            <p className="text-base font-medium">{formatDateTime(project.created_at)}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">更新时间</p>
-            <p className="text-base font-medium">{formatDateTime(project.updated_at)}</p>
-          </div>
-        </CardContent>
-      </Card>
+        <TabsContent value="overview" className="mt-6">
+          <ProjectOverviewTab project={project} onNavigateToTab={handleNavigateToTab} />
+        </TabsContent>
 
-      {/* 源代码文件信息 */}
-      {project.source_file && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              源代码文件
-            </CardTitle>
-            <CardDescription>
-              已上传的源代码文件，可用于执行测试分析
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded">
-                  <FileCode className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{project.source_file.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {(project.source_file.size / 1024 / 1024).toFixed(2)} MB • {project.source_file.type}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setUploadDialogOpen(true)}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                重新上传
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="source-build" className="mt-6">
+          <SourceBuildTab projectId={project.id} project={project} />
+        </TabsContent>
 
-      {/* 文件路径 */}
-      {(project.source_path || project.build_path || project.binary_path) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>文件路径</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {project.source_path && (
-              <div>
-                <p className="text-sm text-gray-500">源代码路径</p>
-                <p className="text-base font-mono bg-gray-50 p-2 rounded">
-                  {project.source_path}
-                </p>
-              </div>
-            )}
-            {project.build_path && (
-              <div>
-                <p className="text-sm text-gray-500">构建路径</p>
-                <p className="text-base font-mono bg-gray-50 p-2 rounded">
-                  {project.build_path}
-                </p>
-              </div>
-            )}
-            {project.binary_path && (
-              <div>
-                <p className="text-sm text-gray-500">二进制文件路径</p>
-                <p className="text-base font-mono bg-gray-50 p-2 rounded">
-                  {project.binary_path}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="test-cases" className="mt-6">
+          <TestCasesTab projectId={project.id} />
+        </TabsContent>
 
-      {/* 统计信息 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>测试用例</CardTitle>
-            <CardDescription>总数</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">0</p>
-            <Button variant="link" className="mt-2" onClick={() => setTestCaseDialogOpen(true)}>
-              创建测试用例
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>执行记录</CardTitle>
-            <CardDescription>总数</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">0</p>
-            <Link to="/results" className="text-blue-600 hover:underline text-sm mt-2 inline-block">
-              查看执行记录
-            </Link>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>通过率</CardTitle>
-            <CardDescription>最近7天</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">--%</p>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="execution" className="mt-6">
+          <ExecutionTab projectId={project.id} onNavigateToTab={handleNavigateToTab} />
+        </TabsContent>
 
-      {/* 上传源代码对话框 */}
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent>
-        <DialogHeader>
-          <DialogTitle>上传源代码</DialogTitle>
-          <DialogDescription>
-            上传项目源代码文件（支持ZIP格式，会自动解压）
-          </DialogDescription>
-        </DialogHeader>
-          <div className="space-y-4">
-            {/* 已上传的文件信息 */}
-            {project.source_file && !uploadFile && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm font-medium text-green-900">
-                        {project.source_file.name}
-                      </p>
-                      <p className="text-xs text-green-700">
-                        {(project.source_file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (id) {
-                        const updated = updateProject(id, { source_file: undefined })
-                        if (updated) {
-                          setProject(updated)
-                        }
-                      }
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* 文件选择 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                选择文件
-              </label>
-              <div className="flex items-center gap-2">
-                <label className="flex-1 cursor-pointer">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".zip,.tar,.tar.gz,.cpp,.c,.h,.hpp"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    disabled={isUploading}
-                  />
-                  <div className={`flex items-center justify-center px-4 py-2 border-2 border-dashed rounded-md transition-colors ${
-                    isUploading 
-                      ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
-                      : 'border-gray-300 hover:border-blue-500 cursor-pointer'
-                  }`}>
-                    {isUploading ? (
-                      <Loader2 className="h-5 w-5 mr-2 text-blue-500 animate-spin" />
-                    ) : (
-                    <Upload className="h-5 w-5 mr-2 text-gray-400" />
-                    )}
-                    <span className="text-sm text-gray-600">
-                      {isUploading 
-                        ? '上传中...' 
-                        : uploadFile 
-                        ? uploadFile.name 
-                        : '点击选择文件（支持ZIP、TAR或C++源文件）'}
-                    </span>
-                  </div>
-                </label>
-                {uploadFile && !isUploading && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setUploadFile(null)
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = ''
-                      }
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              
-              {/* 文件信息 */}
-              {uploadFile && (
-                <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
-                  <p>文件名: {uploadFile.name}</p>
-                  <p>大小: {(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                  <p>类型: {uploadFile.type || '未知'}</p>
-                </div>
-              )}
-
-              {/* 上传进度 */}
-              {isUploading && uploadProgress > 0 && (
-                <div className="mt-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs text-gray-600">上传进度</span>
-                    <span className="text-xs text-gray-600">{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <p className="mt-1 text-xs text-gray-500">
-                支持ZIP、TAR格式（会自动解压）或C++源文件，最大100MB
-              </p>
-            </div>
-          </div>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-                if (!isUploading) {
-              setUploadDialogOpen(false)
-              setUploadFile(null)
-                  setUploadProgress(0)
-                }
-            }}
-              disabled={isUploading}
-          >
-            取消
-          </Button>
-          <Button
-            onClick={handleUpload}
-              disabled={!uploadFile || isUploading}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  上传中...
-                </>
-              ) : (
-                '上传'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 创建测试用例对话框 */}
-      <Dialog open={testCaseDialogOpen} onOpenChange={setTestCaseDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>创建测试用例</DialogTitle>
-            <DialogDescription>
-              为项目创建新的测试用例（Test IR格式）
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                测试用例名称 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={testCaseForm.name}
-                onChange={(e) => setTestCaseForm({ ...testCaseForm, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例如：测试加法函数"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                测试类型
-              </label>
-              <select
-                value={testCaseForm.test_type}
-                onChange={(e) => setTestCaseForm({ ...testCaseForm, test_type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="unit">单元测试</option>
-                <option value="integration">集成测试</option>
-                <option value="ui">UI测试</option>
-                <option value="static">静态分析</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                描述
-              </label>
-              <textarea
-                value={testCaseForm.description}
-                onChange={(e) => setTestCaseForm({ ...testCaseForm, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-                placeholder="测试用例的详细描述..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setTestCaseDialogOpen(false)
-                setTestCaseForm({ name: '', description: '', test_type: 'unit' })
-              }}
-            >
-              取消
-            </Button>
-            <Button onClick={handleCreateTestCase}>
-              创建
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 执行测试对话框 */}
-      <Dialog open={executeDialogOpen} onOpenChange={(open) => {
-        setExecuteDialogOpen(open)
-        if (!open) {
-          // 关闭时重置状态
-          setExecutionStatus('idle')
-          setExecutionResult(null)
-          setExecutionLogs('')
-          setExecutionId(null)
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current)
-            pollIntervalRef.current = null
-          }
-        }
-      }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>执行单元测试分析</DialogTitle>
-            <DialogDescription>
-              使用 UTBotCpp、gcov+lcov、Dr.Memory 进行完整的单元测试分析
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {/* 执行状态 */}
-            {executionStatus === 'idle' && (
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800 mb-2">
-                  <strong>将执行以下分析：</strong>
-                </p>
-                <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
-                  <li><strong>UTBotCpp</strong> - 自动生成单元测试代码</li>
-                  <li><strong>gcov + lcov</strong> - 收集代码覆盖率数据并生成报告</li>
-                  <li><strong>Dr. Memory</strong> - 检测内存泄漏、未初始化访问等问题</li>
-                </ul>
-              </div>
-            )}
-
-            {/* 执行中 */}
-            {executionStatus === 'running' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg">
-                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                  <span className="text-blue-800 font-medium">测试执行中，请稍候...</span>
-                </div>
-                
-                {/* 执行日志 */}
-                {executionLogs && (
-                  <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm max-h-60 overflow-y-auto">
-                    <pre className="whitespace-pre-wrap">{executionLogs}</pre>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 执行完成 - 显示结果 */}
-            {executionStatus === 'completed' && executionResult && (
-              <div className="space-y-4">
-                {/* 执行摘要 */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      {executionResult.status === 'completed' ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-500" />
-                      )}
-                      执行摘要
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">总测试数</p>
-                        <p className="text-2xl font-bold">{executionResult.total_tests}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">通过</p>
-                        <p className="text-2xl font-bold text-green-600">{executionResult.passed_tests}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">失败</p>
-                        <p className="text-2xl font-bold text-red-600">{executionResult.failed_tests}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">耗时</p>
-                        <p className="text-2xl font-bold">{executionResult.duration_seconds?.toFixed(2) || '--'}s</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* 代码覆盖率结果 */}
-                {executionResult.coverage_data && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-blue-500" />
-                        代码覆盖率 (gcov + lcov)
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {executionResult.coverage_data.percentage !== undefined && (
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">总体覆盖率</span>
-                            <span className="text-2xl font-bold text-blue-600">
-                              {executionResult.coverage_data.percentage.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-4">
-                            <div
-                              className="bg-blue-600 h-4 rounded-full transition-all"
-                              style={{ width: `${executionResult.coverage_data.percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                        {executionResult.coverage_data.lines_total !== undefined && (
-                          <div>
-                            <p className="text-sm text-gray-500">行覆盖率</p>
-                            <p className="text-lg font-semibold">
-                              {executionResult.coverage_data.lines_covered || 0} / {executionResult.coverage_data.lines_total}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {Math.round(((executionResult.coverage_data.lines_covered || 0) / executionResult.coverage_data.lines_total) * 100)}%
-                            </p>
-                          </div>
-                        )}
-                        {executionResult.coverage_data.branches_total !== undefined && (
-                          <div>
-                            <p className="text-sm text-gray-500">分支覆盖率</p>
-                            <p className="text-lg font-semibold">
-                              {executionResult.coverage_data.branches_covered || 0} / {executionResult.coverage_data.branches_total}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {Math.round(((executionResult.coverage_data.branches_covered || 0) / executionResult.coverage_data.branches_total) * 100)}%
-                            </p>
-                          </div>
-                        )}
-                        {executionResult.coverage_data.functions_total !== undefined && (
-                          <div>
-                            <p className="text-sm text-gray-500">函数覆盖率</p>
-                            <p className="text-lg font-semibold">
-                              {executionResult.coverage_data.functions_covered || 0} / {executionResult.coverage_data.functions_total}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {Math.round(((executionResult.coverage_data.functions_covered || 0) / executionResult.coverage_data.functions_total) * 100)}%
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Dr. Memory 内存调试结果 */}
-                {executionResult.result?.issues && executionResult.result.issues.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MemoryStick className="h-5 w-5 text-purple-500" />
-                        Dr. Memory 内存调试结果
-                      </CardTitle>
-                      <CardDescription>
-                        发现 {executionResult.result.total_issues || executionResult.result.issues.length} 个内存问题
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {executionResult.result.issues.map((issue) => (
-                        <div
-                          key={issue.id}
-                          className={`p-3 border rounded-lg ${
-                            issue.severity === 'error'
-                              ? 'bg-red-50 border-red-200'
-                              : issue.severity === 'warning'
-                              ? 'bg-yellow-50 border-yellow-200'
-                              : 'bg-blue-50 border-blue-200'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <p className="font-semibold text-sm">问题 #{issue.id}</p>
-                              <p className="text-xs text-gray-600 mt-1">{issue.message}</p>
-                            </div>
-                            <span
-                              className={`px-2 py-1 text-xs rounded-full ${
-                                issue.severity === 'error'
-                                  ? 'bg-red-100 text-red-800'
-                                  : issue.severity === 'warning'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}
-                            >
-                              {issue.severity}
-                            </span>
-                          </div>
-                          {issue.stack_trace && issue.stack_trace.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-opacity-20">
-                              <p className="text-xs font-medium mb-1">堆栈跟踪:</p>
-                              <div className="space-y-1 font-mono text-xs">
-                                {issue.stack_trace.slice(0, 3).map((frame, idx) => (
-                                  <div key={idx} className="text-gray-600">
-                                    #{frame.frame} {frame.function}
-                                    {frame.file && (
-                                      <span className="text-gray-500">
-                                        {' '}at {frame.file}
-                                        {frame.line && `:${frame.line}`}
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 生成的报告文件 */}
-                {executionResult.artifacts && executionResult.artifacts.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>生成的报告文件</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {executionResult.artifacts.map((artifact, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <span className="text-sm">
-                              <strong>{artifact.type}:</strong> {artifact.path}
-                            </span>
-                            <Button variant="ghost" size="sm">
-                              查看
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 执行日志 */}
-                {executionResult.logs && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>执行日志</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <pre className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs max-h-60 overflow-y-auto whitespace-pre-wrap">
-                        {executionResult.logs}
-                      </pre>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {/* 执行错误 */}
-            {executionStatus === 'error' && (
-              <div className="p-4 bg-red-50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <XCircle className="h-5 w-5 text-red-500" />
-                  <span className="text-red-800 font-medium">执行失败</span>
-                </div>
-                {executionLogs && (
-                  <pre className="text-sm text-red-700 mt-2 whitespace-pre-wrap">{executionLogs}</pre>
-                )}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            {executionStatus === 'idle' && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setExecuteDialogOpen(false)}
-                >
-                  取消
-                </Button>
-                <Button onClick={handleExecuteTest}>
-                  <Play className="mr-2 h-4 w-4" />
-                  开始执行
-                </Button>
-              </>
-            )}
-            {executionStatus === 'running' && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setExecutionStatus('idle')
-                  setExecutionLogs('')
-                  if (pollIntervalRef.current) {
-                    clearInterval(pollIntervalRef.current)
-                    pollIntervalRef.current = null
-                  }
-                }}
-              >
-                取消执行
-              </Button>
-            )}
-            {(executionStatus === 'completed' || executionStatus === 'error') && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setExecutionStatus('idle')
-                    setExecutionResult(null)
-                    setExecutionLogs('')
-                  }}
-                >
-                  重新执行
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    if (executionResult) {
-                      navigate(`/results/${executionResult.id}`)
-                    }
-                    setExecuteDialogOpen(false)
-                  }}
-                >
-                  查看详细结果
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setExecuteDialogOpen(false)}
-                >
-                  关闭
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="reports" className="mt-6">
+          <ReportsTab projectId={project.id} />
+        </TabsContent>
+      </Tabs>
 
       {/* 删除确认对话框 */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -1218,10 +189,24 @@ export default function ProjectDetailPage() {
             >
               取消
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              删除
-          </Button>
-        </DialogFooter>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                deleteMutation.mutate()
+                setDeleteDialogOpen(false)
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                '删除'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

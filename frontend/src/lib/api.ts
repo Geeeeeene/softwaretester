@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+// 优先使用环境变量，如果没有则使用相对路径（通过 Vite 代理）
+// 注意：baseURL 应该包含 /api/v1，因为所有 API 路径都以 /api/v1 开头
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -79,25 +81,25 @@ export interface ProjectCreate {
 
 export const projectsApi = {
   list: (params?: { skip?: number; limit?: number; project_type?: string }) =>
-    api.get<{ total: number; items: Project[] }>('/api/v1/projects', { params }),
+    api.get<{ total: number; items: Project[] }>('/projects', { params }),
   
   get: (id: number) =>
-    api.get<Project>(`/api/v1/projects/${id}`),
+    api.get<Project>(`/projects/${id}`),
   
   create: (data: ProjectCreate) =>
-    api.post<Project>('/api/v1/projects', data),
+    api.post<Project>('/projects', data),
   
   // 创建项目（支持文件上传）
   createWithFile: (formData: FormData) =>
-    api.post<Project>('/api/v1/projects', formData, {
+    api.post<Project>('/projects', formData, {
       // 不要手动设置Content-Type，让axios自动处理FormData的boundary
     }),
   
   update: (id: number, data: Partial<ProjectCreate>) =>
-    api.put<Project>(`/api/v1/projects/${id}`, data),
+    api.put<Project>(`/projects/${id}`, data),
   
   delete: (id: number) =>
-    api.delete(`/api/v1/projects/${id}`),
+    api.delete(`/projects/${id}`),
 }
 
 // ============ 文件上传API ============
@@ -115,7 +117,7 @@ export const uploadApi = {
       extracted_path?: string
       size: number
       extracted: boolean
-    }>(`/api/v1/upload/project/${projectId}/source`, formData)
+    }>(`/upload/project/${projectId}/source`, formData)
   },
 }
 
@@ -152,19 +154,19 @@ export const testCasesApi = {
     skip?: number
     limit?: number
   }) =>
-    api.get<{ total: number; items: TestCase[] }>('/api/v1/test-cases', { params }),
+    api.get<{ total: number; items: TestCase[] }>('/test-cases', { params }),
   
   get: (id: number) =>
-    api.get<TestCase>(`/api/v1/test-cases/${id}`),
+    api.get<TestCase>(`/test-cases/${id}`),
   
   create: (data: TestCaseCreate) =>
-    api.post<TestCase>('/api/v1/test-cases', data),
+    api.post<TestCase>('/test-cases', data),
   
   update: (id: number, data: Partial<TestCaseCreate>) =>
-    api.put<TestCase>(`/api/v1/test-cases/${id}`, data),
+    api.put<TestCase>(`/test-cases/${id}`, data),
   
   delete: (id: number) =>
-    api.delete(`/api/v1/test-cases/${id}`),
+    api.delete(`/test-cases/${id}`),
 }
 
 // ============ 测试执行API ============
@@ -230,13 +232,13 @@ export const executionsApi = {
     skip?: number
     limit?: number
   }) =>
-    api.get<TestExecution[]>('/api/v1/executions', { params }),
+    api.get<TestExecution[]>('/executions', { params }),
   
   get: (id: number) =>
-    api.get<TestExecution>(`/api/v1/executions/${id}`),
+    api.get<TestExecution>(`/executions/${id}`),
   
   create: (data: ExecutionCreate) =>
-    api.post<TestExecution>('/api/v1/executions', data),
+    api.post<TestExecution>('/executions', data),
   
   // 执行单元测试（UTBot + gcov + lcov + Dr.Memory）
   runUnitTest: (projectId: number) =>
@@ -245,7 +247,7 @@ export const executionsApi = {
       execution_id: number
       status: string
       project_id: number
-    }>(`/api/v1/projects/${projectId}/test/utbot`),
+    }>(`/projects/${projectId}/test/utbot`),
   
   // 执行本地项目的单元测试（支持localStorage项目）
   runLocalUnitTest: (projectData: {
@@ -263,5 +265,141 @@ export const executionsApi = {
       execution_id: number
       status: string
       temp_path?: string
-    }>('/api/v1/projects/local/test/utbot', projectData),
+    }>('/projects/local/test/utbot', projectData),
+}
+
+// ============ 上传任务API ============
+
+export interface UploadTask {
+  id: string
+  filename: string
+  target_project_id?: number
+  target_project_name?: string
+  status: 'queued' | 'uploading' | 'processing' | 'success' | 'failed'
+  progress: number
+  error_message?: string
+  created_at: string
+  completed_at?: string
+}
+
+export interface UploadTaskCreate {
+  files: File[]
+  project_type?: string
+  language?: string
+  auto_create_project?: boolean
+}
+
+export const uploadTasksApi = {
+  list: () =>
+    api.get<UploadTask[]>('/upload-tasks'),
+  
+  get: (id: string) =>
+    api.get<UploadTask>(`/upload-tasks/${id}`),
+  
+  create: (data: UploadTaskCreate) => {
+    const formData = new FormData()
+    data.files.forEach((file, index) => {
+      formData.append(`files`, file)
+    })
+    if (data.project_type) formData.append('project_type', data.project_type)
+    if (data.language) formData.append('language', data.language)
+    formData.append('auto_create_project', (data.auto_create_project ?? true).toString())
+    return api.post<{ tasks: UploadTask[] }>('/upload-tasks', formData)
+  },
+  
+  cancel: (id: string) =>
+    api.post(`/upload-tasks/${id}/cancel`),
+  
+  retry: (id: string) =>
+    api.post(`/upload-tasks/${id}/retry`),
+}
+
+// ============ 批量上传API ============
+
+export interface BatchUploadRequest {
+  files: Array<{
+    file: File
+    project_name?: string
+    project_type?: string
+    language?: string
+  }>
+}
+
+export const batchUploadApi = {
+  upload: (data: BatchUploadRequest) => {
+    const formData = new FormData()
+    data.files.forEach((item, index) => {
+      formData.append(`files`, item.file)
+      if (item.project_name) formData.append(`names`, item.project_name)
+      if (item.project_type) formData.append(`types`, item.project_type)
+      if (item.language) formData.append(`languages`, item.language)
+    })
+    return api.post<{ tasks: UploadTask[] }>('/batch-upload', formData)
+  },
+}
+
+// ============ 构建状态API ============
+
+export interface BuildStatus {
+  project_id: number
+  status: 'pending' | 'building' | 'success' | 'failed'
+  build_log?: string
+  build_path?: string
+  binary_path?: string
+  error_message?: string
+  started_at?: string
+  completed_at?: string
+}
+
+export const buildApi = {
+  getStatus: (projectId: number) =>
+    api.get<BuildStatus>(`/projects/${projectId}/build/status`),
+  
+  startBuild: (projectId: number) =>
+    api.post<{ message: string; build_id: string }>(`/projects/${projectId}/build/start`),
+  
+  getLogs: (projectId: number) =>
+    api.get<{ logs: string }>(`/projects/${projectId}/build/logs`),
+}
+
+// ============ 活动日志API ============
+
+export interface Activity {
+  id: string
+  project_id: number
+  type: 'upload' | 'execution' | 'testcase_created' | 'testcase_updated' | 'build'
+  message: string
+  metadata?: Record<string, any>
+  created_at: string
+}
+
+export const activitiesApi = {
+  list: (params?: { project_id?: number; limit?: number }) =>
+    api.get<Activity[]>('/activities', { params }),
+}
+
+// ============ 工具状态API ============
+
+export interface ToolStatus {
+  available: boolean
+  path?: string
+  message: string
+  install_hint?: string
+  version?: string
+}
+
+export interface ToolsStatusResponse {
+  utbot: ToolStatus
+  gcov: ToolStatus
+  lcov: ToolStatus
+  drmemory: ToolStatus
+  genhtml?: ToolStatus
+}
+
+export const toolsApi = {
+  getStatus: () =>
+    api.get<ToolsStatusResponse>('/tools/status'),
+  
+  getToolStatus: (toolName: string) =>
+    api.get<ToolStatus>(`/tools/status/${toolName}`),
 }

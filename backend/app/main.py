@@ -21,12 +21,15 @@ app = FastAPI(
 )
 
 # 配置CORS
+# 将 AnyHttpUrl 列表转换为字符串列表
+cors_origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 

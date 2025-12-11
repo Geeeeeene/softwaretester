@@ -2,9 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { 
   Home, 
   FolderOpen, 
-  TestTube, 
-  Play, 
-  BarChart3,
+  TestTube,
   Menu
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -12,9 +10,6 @@ import { cn } from '@/lib/utils'
 const navigation = [
   { name: '首页', href: '/', icon: Home },
   { name: '项目管理', href: '/projects', icon: FolderOpen },
-  { name: '测试用例', href: '/test-cases', icon: TestTube },
-  { name: '测试执行', href: '/execution', icon: Play },
-  { name: '结果分析', href: '/results', icon: BarChart3 },
 ]
 
 export default function Layout() {

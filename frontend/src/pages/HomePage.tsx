@@ -20,27 +20,6 @@ export default function HomePage() {
       href: '/projects',
       color: 'text-blue-600',
     },
-    {
-      title: '测试用例',
-      description: '通过Test IR统一格式管理UI、单元、集成测试用例',
-      icon: TestTube,
-      href: '/test-cases',
-      color: 'text-green-600',
-    },
-    {
-      title: '测试执行',
-      description: '异步执行测试，支持Spix、UTBot等多种执行器',
-      icon: Play,
-      href: '/execution',
-      color: 'text-purple-600',
-    },
-    {
-      title: '结果分析',
-      description: '可视化测试结果、覆盖率报告和趋势分析',
-      icon: BarChart3,
-      href: '/results',
-      color: 'text-orange-600',
-    },
   ]
 
   const highlights = [

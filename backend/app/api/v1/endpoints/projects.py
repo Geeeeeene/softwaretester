@@ -57,137 +57,148 @@ async def create_project(
     db: Session = Depends(get_db)
 ):
     """创建项目（支持JSON和FormData两种方式）"""
-    content_type = request.headers.get("content-type", "")
-    
-    # 检测是JSON还是FormData
-    if "application/json" in content_type:
-        # JSON方式创建项目
-        body = await request.json()
-        project_data = ProjectCreate(**body)
+    try:
+        content_type = request.headers.get("content-type", "")
         
-        project = Project(
-            name=project_data.name,
-            description=project_data.description,
-            project_type=project_data.project_type,
-            language=project_data.language,
-            framework=project_data.framework,
-            source_path=project_data.source_path,
-            build_path=project_data.build_path,
-            binary_path=project_data.binary_path
-        )
-        source_file = None
-        extract = "true"
-    else:
-        # FormData方式创建项目（支持文件上传）
-        form = await request.form()
-        
-        name = form.get("name")
-        if not name:
-            raise HTTPException(status_code=400, detail="name为必填项")
-        
-        project_type = form.get("project_type")
-        if not project_type:
-            raise HTTPException(status_code=400, detail="project_type为必填项")
-        
-        project = Project(
-            name=name,
-            description=form.get("description") or None,
-            project_type=project_type,
-            language=form.get("language") or None,
-            framework=form.get("framework") or None
-        )
-        
-        # 获取上传的文件
-        source_file = form.get("source_file")
-        # FastAPI的FormData中，文件字段返回的是UploadFile类型
-        # 需要检查是否为UploadFile实例
-        from fastapi import UploadFile as FastAPIUploadFile
-        if not isinstance(source_file, FastAPIUploadFile):
+        # 检测是JSON还是FormData
+        if "application/json" in content_type:
+            # JSON方式创建项目
+            body = await request.json()
+            project_data = ProjectCreate(**body)
+            
+            project = Project(
+                name=project_data.name,
+                description=project_data.description,
+                project_type=project_data.project_type,
+                language=project_data.language,
+                framework=project_data.framework,
+                source_path=project_data.source_path,
+                build_path=project_data.build_path,
+                binary_path=project_data.binary_path
+            )
             source_file = None
-        
-        extract = form.get("extract", "true")
-        if isinstance(extract, str):
-            pass
-        else:
             extract = "true"
-    
-    db.add(project)
-    db.flush()  # 获取项目ID
-    
-    # 如果有上传文件，处理文件上传（仅FormData方式）
-    # 检查source_file是否为UploadFile类型
-    if source_file and hasattr(source_file, 'file') and hasattr(source_file, 'filename'):
-        try:
-            # 验证文件大小
-            source_file.file.seek(0, 2)
-            file_size = source_file.file.tell()
-            source_file.file.seek(0)
+        else:
+            # FormData方式创建项目（支持文件上传）
+            form = await request.form()
             
-            if file_size > settings.MAX_UPLOAD_SIZE:
-                db.rollback()
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"文件过大，最大支持 {settings.MAX_UPLOAD_SIZE / 1024 / 1024}MB"
-                )
+            name = form.get("name")
+            if not name:
+                raise HTTPException(status_code=400, detail="name为必填项")
             
-            # 创建项目上传目录
-            project_upload_dir = Path(settings.UPLOAD_DIR) / str(project.id)
-            project_upload_dir.mkdir(parents=True, exist_ok=True)
+            project_type = form.get("project_type")
+            if not project_type:
+                raise HTTPException(status_code=400, detail="project_type为必填项")
             
-            file_ext = Path(source_file.filename or '').suffix.lower()
+            project = Project(
+                name=name,
+                description=form.get("description") or None,
+                project_type=project_type,
+                language=form.get("language") or None,
+                framework=form.get("framework") or None
+            )
             
-            # 如果是ZIP文件且需要解压（extract可能是字符串"true"或布尔值）
-            should_extract = extract == "true" or extract is True
-            if file_ext == '.zip' and should_extract:
-                # 保存ZIP文件到临时位置
-                temp_zip = project_upload_dir / f"{uuid.uuid4()}.zip"
-                with open(temp_zip, "wb") as buffer:
-                    shutil.copyfileobj(source_file.file, buffer)
-                
-                # 解压ZIP文件
-                extract_dir = project_upload_dir / "source"
-                extract_dir.mkdir(parents=True, exist_ok=True)
-                
-                with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
-                    zip_ref.extractall(extract_dir)
-                
-                # 删除临时ZIP文件
-                temp_zip.unlink()
-                
-                # 设置项目source_path（使用绝对路径，确保跨平台兼容）
-                project.source_path = str(extract_dir.resolve())
-                
-                # 创建构建目录
-                build_path = extract_dir / "build"
-                if not build_path.exists():
-                    build_path.mkdir(parents=True, exist_ok=True)
-                
-                # 设置build_path
-                project.build_path = str(build_path.resolve())
+            # 获取上传的文件
+            source_file = form.get("source_file")
+            # FastAPI的FormData中，文件字段返回的是UploadFile类型
+            # 需要检查是否为UploadFile实例
+            from fastapi import UploadFile as FastAPIUploadFile
+            if not isinstance(source_file, FastAPIUploadFile):
+                source_file = None
+            
+            extract = form.get("extract", "true")
+            if isinstance(extract, str):
+                pass
             else:
-                # 普通文件上传
-                unique_filename = f"{uuid.uuid4()}{file_ext}"
-                file_path = project_upload_dir / unique_filename
+                extract = "true"
+        
+        db.add(project)
+        db.flush()  # 获取项目ID
+        
+        # 如果有上传文件，处理文件上传（仅FormData方式）
+        # 检查source_file是否为UploadFile类型
+        if source_file and hasattr(source_file, 'file') and hasattr(source_file, 'filename'):
+            try:
+                # 验证文件大小
+                source_file.file.seek(0, 2)
+                file_size = source_file.file.tell()
+                source_file.file.seek(0)
                 
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(source_file.file, buffer)
+                if file_size > settings.MAX_UPLOAD_SIZE:
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"文件过大，最大支持 {settings.MAX_UPLOAD_SIZE / 1024 / 1024}MB"
+                    )
                 
-                # 使用绝对路径，确保跨平台兼容
-                project.source_path = str(file_path.resolve())
+                # 创建项目上传目录
+                project_upload_dir = Path(settings.UPLOAD_DIR) / str(project.id)
+                project_upload_dir.mkdir(parents=True, exist_ok=True)
                 
-        except zipfile.BadZipFile:
-            db.rollback()
-            raise HTTPException(status_code=400, detail="无效的ZIP文件")
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail=f"文件处理失败: {str(e)}")
-        finally:
-            if source_file:
-                source_file.file.close()
-    
-    db.commit()
-    db.refresh(project)
-    return project
+                file_ext = Path(source_file.filename or '').suffix.lower()
+                
+                # 如果是ZIP文件且需要解压（extract可能是字符串"true"或布尔值）
+                should_extract = extract == "true" or extract is True
+                if file_ext == '.zip' and should_extract:
+                    # 保存ZIP文件到临时位置
+                    temp_zip = project_upload_dir / f"{uuid.uuid4()}.zip"
+                    with open(temp_zip, "wb") as buffer:
+                        shutil.copyfileobj(source_file.file, buffer)
+                    
+                    # 解压ZIP文件
+                    extract_dir = project_upload_dir / "source"
+                    extract_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+                        zip_ref.extractall(extract_dir)
+                    
+                    # 删除临时ZIP文件
+                    temp_zip.unlink()
+                    
+                    # 设置项目source_path（使用绝对路径，确保跨平台兼容）
+                    project.source_path = str(extract_dir.resolve())
+                    
+                    # 创建构建目录
+                    build_path = extract_dir / "build"
+                    if not build_path.exists():
+                        build_path.mkdir(parents=True, exist_ok=True)
+                    
+                    # 设置build_path
+                    project.build_path = str(build_path.resolve())
+                else:
+                    # 普通文件上传
+                    unique_filename = f"{uuid.uuid4()}{file_ext}"
+                    file_path = project_upload_dir / unique_filename
+                    
+                    with open(file_path, "wb") as buffer:
+                        shutil.copyfileobj(source_file.file, buffer)
+                    
+                    # 使用绝对路径，确保跨平台兼容
+                    project.source_path = str(file_path.resolve())
+                
+            except zipfile.BadZipFile:
+                db.rollback()
+                raise HTTPException(status_code=400, detail="无效的ZIP文件")
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(status_code=500, detail=f"文件处理失败: {str(e)}")
+            finally:
+                if source_file:
+                    source_file.file.close()
+        
+        db.commit()
+        db.refresh(project)
+        return project
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        # 捕获其他异常并回滚
+        db.rollback()
+        import traceback
+        error_detail = f"创建项目时发生错误: {str(e)}\n{traceback.format_exc()}"
+        print(f"❌ {error_detail}")  # 打印到控制台以便调试
+        raise HTTPException(status_code=500, detail=f"创建项目失败: {str(e)}")
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
