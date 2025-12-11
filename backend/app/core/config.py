@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     
     # 文件存储配置
     ARTIFACT_STORAGE_PATH: str = "./artifacts"
+    UPLOAD_DIR: str = "./uploads"  # 项目源代码上传目录
     MAX_UPLOAD_SIZE: int = 104857600  # 100MB
     
     # 工具路径配置
@@ -60,13 +61,14 @@ class Settings(BaseSettings):
     CPPCHECK_EXECUTABLE: str = "cppcheck"  # 系统路径或工具路径
     
     # 代码覆盖率配置
-    GCOV_PATH: str = ""  # 从系统 PATH 查找，或指定路径
-    LCOV_PATH: str = ""  # 从系统 PATH 查找，或指定路径
+    GCOV_PATH: str = ""  # 从系统 PATH 查找，或指定路径（如: "C:/MinGW/bin/gcov.exe"）
+    LCOV_PATH: str = ""  # 从系统 PATH 查找，或指定路径（如: "C:/Program Files/lcov/bin/lcov.exe"）
+    GENHTML_PATH: str = ""  # genhtml路径（通常与lcov在同一目录）
     
     # 内存调试配置（Windows 使用 Dr. Memory）
     VALGRIND_PATH: str = ""  # Windows 不支持原生 Valgrind
-    DRMEMORY_PATH: str = f"{TOOLS_BASE_PATH}/valgrind/drmemory"
-    DRMEMORY_EXECUTABLE: str = "drmemory.exe"
+    DRMEMORY_PATH: str = f"{TOOLS_BASE_PATH}/drmemory"  # Dr. Memory安装目录
+    DRMEMORY_EXECUTABLE: str = "drmemory.exe"  # 可执行文件名，完整路径或系统PATH中的名称
     
     # GammaRay 配置
     GAMMARAY_PATH: str = f"{TOOLS_BASE_PATH}/gammaray/GammaRay"

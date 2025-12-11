@@ -6,7 +6,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.db.models.test_execution import TestExecution
+from app.models.execution import TestExecution
 from app.db.models.project import Project
 from app.worker.tasks import execute_tests
 
@@ -35,13 +35,14 @@ class ExecutionResponse(BaseModel):
     created_at: datetime
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
+    # 添加覆盖率、结果、日志和artifacts字段
+    coverage_data: Optional[dict] = None
+    result: Optional[dict] = None
+    logs: Optional[str] = None
+    artifacts: Optional[List[dict]] = None
     
     class Config:
         from_attributes = True
-
-
-from pydantic import BaseModel, Field
-from typing import List
 
 
 @router.post("", response_model=ExecutionResponse, status_code=201)

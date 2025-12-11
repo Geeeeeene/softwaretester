@@ -1,5 +1,5 @@
 """测试执行模型"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, Float, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -33,6 +33,19 @@ class TestExecution(Base):
     
     # 错误信息
     error_message = Column(String(1000), nullable=True)
+    
+    # 执行日志
+    logs = Column(Text, nullable=True)
+    
+    # 覆盖率数据
+    coverage_data = Column(JSON, nullable=True)  # 覆盖率详细数据
+    coverage_percentage = Column(Float, nullable=True)  # 覆盖率百分比
+    
+    # 执行结果详情
+    result = Column(JSON, nullable=True)  # 执行结果详情
+    
+    # Artifacts（报告、截图等）
+    artifacts = Column(JSON, nullable=True)  # [{type: "coverage_report", path: "..."}, ...]
     
     # 元数据（不能使用metadata，它是SQLAlchemy保留字）
     extra_data = Column(JSON, default=dict)

@@ -12,6 +12,7 @@ class TestType(str, enum.Enum):
     INTEGRATION = "integration"
     STATIC = "static"
     PERFORMANCE = "performance"
+    MEMORY = "memory"  # 内存调试
 
 
 class TestPriority(str, enum.Enum):

@@ -7,6 +7,7 @@ from app.executors.base_executor import BaseExecutor
 from app.executors.ui_executor import UIExecutor
 from app.executors.unit_executor import UnitExecutor
 from app.executors.static_executor import StaticExecutor
+from app.executors.memory_executor import MemoryExecutor
 
 
 class ExecutorFactory:
@@ -16,6 +17,7 @@ class ExecutorFactory:
         TestType.UI: UIExecutor,
         TestType.UNIT: UnitExecutor,
         TestType.STATIC: StaticExecutor,
+        TestType.MEMORY: MemoryExecutor,
     }
     
     @classmethod

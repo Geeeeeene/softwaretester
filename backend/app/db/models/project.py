@@ -18,8 +18,9 @@ class Project(Base):
     project_type = Column(String(50), nullable=False, default="ui")
     
     # 源代码路径或二进制路径
-    source_path = Column(String(512), nullable=True)
-    binary_path = Column(String(512), nullable=True)
+    source_path = Column(String(512), nullable=True)  # 源代码目录路径
+    build_path = Column(String(512), nullable=True)  # 构建输出目录路径
+    binary_path = Column(String(512), nullable=True)  # 编译后的二进制文件路径
     
     # 语言和框架
     language = Column(String(50), nullable=True)  # cpp, python, java等
