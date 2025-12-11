@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     
     # 文件存储配置
     ARTIFACT_STORAGE_PATH: str = "./artifacts"
-    UPLOAD_DIR: str = "./uploads"  # 项目源代码上传目录
+    UPLOAD_DIR: str = "./projects"  # 项目源代码上传目录
     MAX_UPLOAD_SIZE: int = 104857600  # 100MB
     
     # 工具路径配置

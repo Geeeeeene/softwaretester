@@ -23,6 +23,20 @@ class UnitExecutor(BaseExecutor):
         self.gcov_path = self._find_tool("gcov")
         self.lcov_path = self._find_tool("lcov")
         self.genhtml_path = self._find_tool("genhtml")
+        
+        # 记录工具状态
+        self._log_tool_status()
+    
+    def _log_tool_status(self):
+        """记录工具状态（用于调试）"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info("UnitExecutor 工具状态:")
+        logger.info(f"  UTBotCpp: {self.utbot_executable or '未找到'}")
+        logger.info(f"  gcov: {self.gcov_path or '未找到'}")
+        logger.info(f"  lcov: {self.lcov_path or '未找到'}")
+        logger.info(f"  genhtml: {self.genhtml_path or '未找到'}")
     
     def _find_utbot_executable(self) -> Optional[str]:
         """查找UTBot可执行文件"""
@@ -120,16 +134,20 @@ class UnitExecutor(BaseExecutor):
     ) -> Optional[str]:
         """使用UTBot生成测试代码"""
         if not self.utbot_executable:
-            logs.append("⚠️  UTBot未找到，使用模拟测试生成")
+            logs.append("❌ UTBotCpp 未找到，无法生成单元测试")
+            logs.append("💡 提示: 请确保 UTBotCpp 已编译并配置正确路径")
+            logs.append(f"   配置路径: {settings.UTBOT_PATH}")
+            logs.append(f"   可执行文件: {settings.UTBOT_EXECUTABLE}")
+            logs.append("⚠️  使用模拟测试生成")
             # 创建模拟测试文件
             with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as f:
                 func_info = test_ir.get("function_under_test", {})
-                test_code = f"""// 自动生成的测试代码
+                test_code = f"""// 自动生成的测试代码（UTBotCpp 未找到，使用模拟代码）
 #include <cassert>
 #include "{func_info.get('file_path', 'target.h')}"
 
 void test_{func_info.get('name', 'function')}() {{
-    // TODO: 实现测试逻辑
+    // TODO: 实现测试逻辑（需要 UTBotCpp 才能自动生成）
     assert(true);
 }}
 """
@@ -252,16 +270,35 @@ void test_{func_info.get('name', 'function')}() {{
         self, test_ir: Dict[str, Any], source_path: str, build_path: str, logs: list
     ) -> Optional[Dict[str, Any]]:
         """收集覆盖率数据（使用gcov和lcov）"""
-        if not self.gcov_path or not self.lcov_path:
-            logs.append("⚠️  gcov/lcov未找到，使用模拟覆盖率数据")
+        if not self.gcov_path:
+            error_msg = "gcov 未找到，无法收集覆盖率数据"
+            logs.append(f"❌ {error_msg}")
+            logs.append("💡 提示: gcov 通常随 MinGW/GCC 安装")
+            logs.append(f"   配置路径: {settings.GCOV_PATH}")
+            logs.append("⚠️  使用模拟覆盖率数据")
             return {
-                "percentage": 85.5,
-                "lines_covered": 342,
-                "lines_total": 400,
-                "branches_covered": 45,
-                "branches_total": 60,
-                "functions_covered": 12,
-                "functions_total": 15
+                "percentage": 0,
+                "lines_covered": 0,
+                "lines_total": 0,
+                "branches_covered": 0,
+                "branches_total": 0,
+                "functions_covered": 0,
+                "functions_total": 0,
+                "warning": "gcov 未找到，返回模拟数据"
+            }
+        
+        if not self.lcov_path:
+            error_msg = "lcov 未找到，无法生成覆盖率报告"
+            logs.append(f"❌ {error_msg}")
+            logs.append("💡 提示: Windows 可以使用 Chocolatey 安装: choco install lcov")
+            logs.append(f"   配置路径: {settings.LCOV_PATH}")
+            logs.append("⚠️  尝试仅使用 gcov 收集数据")
+            # 可以尝试仅使用 gcov，但功能有限
+            return {
+                "percentage": 0,
+                "lines_covered": 0,
+                "lines_total": 0,
+                "warning": "lcov 未找到，无法生成完整覆盖率报告"
             }
         
         logs.append("📊 收集覆盖率数据...")
@@ -610,7 +647,11 @@ void test_{func_info.get('name', 'function')}() {{
     ) -> List[str]:
         """使用UTBot为项目生成测试"""
         if not self.utbot_executable:
-            logs.append("⚠️  UTBot未找到，使用模拟测试生成")
+            logs.append("❌ UTBotCpp 未找到，无法生成单元测试")
+            logs.append("💡 提示: 请确保 UTBotCpp 已编译并配置正确路径")
+            logs.append(f"   配置路径: {settings.UTBOT_PATH}")
+            logs.append(f"   可执行文件: {settings.UTBOT_EXECUTABLE}")
+            logs.append("⚠️  使用模拟测试生成")
             # 创建模拟测试文件
             test_dir = Path(build_path) / "tests"
             test_dir.mkdir(parents=True, exist_ok=True)
@@ -618,11 +659,11 @@ void test_{func_info.get('name', 'function')}() {{
             test_files = []
             for cpp_file in cpp_files[:5]:  # 限制数量
                 test_file = test_dir / f"test_{cpp_file.stem}.cpp"
-                test_code = f"""// 自动生成的测试代码
+                test_code = f"""// 自动生成的测试代码（UTBotCpp 未找到，使用模拟代码）
 #include <cassert>
 #include "{cpp_file.relative_to(source_path)}"
 
-// TODO: 实现测试逻辑
+// TODO: 实现测试逻辑（需要 UTBotCpp 才能自动生成）
 void test_{cpp_file.stem}() {{
     assert(true);
 }}

@@ -35,7 +35,7 @@ export default function ProjectDetailPage() {
         setIsLoading(true)
         // 尝试多次加载，确保localStorage已更新
         let attempts = 0
-        const maxAttempts = 5
+        const maxAttempts = 10  // 增加重试次数
         
         const tryLoad = () => {
           const loadedProject = getProject(id)
@@ -44,16 +44,23 @@ export default function ProjectDetailPage() {
             setIsLoading(false)
           } else if (attempts < maxAttempts) {
             attempts++
-            setTimeout(tryLoad, 100)
+            // 逐渐增加延迟时间
+            const delay = Math.min(100 + attempts * 50, 500)
+            setTimeout(tryLoad, delay)
           } else {
             // 最终未找到项目
             console.warn('项目未找到，ID:', id)
             console.log('所有项目:', getAllProjects())
+            console.log('尝试查找的项目ID:', id)
+            // 打印所有项目的ID以便调试
+            const allProjects = getAllProjects()
+            console.log('所有项目的ID列表:', allProjects.map(p => p.id))
             setProject(null)
             setIsLoading(false)
           }
         }
         
+        // 立即尝试一次
         tryLoad()
       } else {
         setIsLoading(false)
@@ -180,7 +187,7 @@ export default function ProjectDetailPage() {
     setTestCaseForm({ name: '', description: '', test_type: 'unit' })
   }
 
-  // 执行单元测试（UTBot + gcov + lcov + Dr.Memory）- 本地模拟执行
+  // 执行单元测试（UTBot + gcov + lcov + Dr.Memory）- 调用后端API
   const handleExecuteTest = async () => {
     if (!project || !id) {
       alert('项目信息不完整')
@@ -199,99 +206,146 @@ export default function ProjectDetailPage() {
       setExecutionLogs('正在启动测试执行...\n')
       setExecutionResult(null)
       
-      // 模拟执行流程（不调用后端）
-      setExecutionLogs(prev => prev + '📝 使用 UTBotCpp 生成单元测试...\n')
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setExecutionLogs(prev => prev + '  ✅ 发现 15 个C++源文件\n')
-      setExecutionLogs(prev => prev + '  ✅ 为 12 个文件生成测试代码\n')
+      // 检查项目是否有后端ID（localStorage项目没有）
+      const projectId = project.id?.startsWith('project_') ? null : parseInt(id)
       
-      setExecutionLogs(prev => prev + '✅ 测试代码生成完成\n')
-      setExecutionLogs(prev => prev + '🔨 编译测试代码（带覆盖率标志 -fprofile-arcs -ftest-coverage）...\n')
-      await new Promise(resolve => setTimeout(resolve, 2500))
-      setExecutionLogs(prev => prev + '  ✅ 编译 12 个测试文件\n')
-      setExecutionLogs(prev => prev + '✅ 编译完成\n')
+      let executionResult: TestExecution | null = null
       
-      setExecutionLogs(prev => prev + '▶️  运行测试...\n')
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setExecutionLogs(prev => prev + '  ✅ 测试执行完成: 10/12 通过\n')
-      
-      setExecutionLogs(prev => prev + '📊 收集代码覆盖率数据（gcov）...\n')
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setExecutionLogs(prev => prev + '  ✅ 处理 15 个源文件的覆盖率数据\n')
-      
-      setExecutionLogs(prev => prev + '📈 生成覆盖率报告（lcov + genhtml）...\n')
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setExecutionLogs(prev => prev + '  ✅ 生成HTML覆盖率报告\n')
-      
-      setExecutionLogs(prev => prev + '🔍 运行 Dr. Memory 内存调试...\n')
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setExecutionLogs(prev => prev + '  ✅ 分析 12 个测试可执行文件\n')
-      setExecutionLogs(prev => prev + '  ⚠️  发现 2 个内存问题\n')
-      
-      setExecutionLogs(prev => prev + '✅ 所有分析完成\n')
-      
-      // 生成合理的模拟结果
-      const mockResult: TestExecution = {
-        id: Date.now(),
-        project_id: parseInt(id) || 0,
-        executor_type: 'unit',
-        status: 'completed',
-        total_tests: 12,
-        passed_tests: 10,
-        failed_tests: 2,
-        skipped_tests: 0,
-        duration_seconds: 9.5,
-        created_at: new Date().toISOString(),
-        started_at: new Date(Date.now() - 9500).toISOString(),
-        completed_at: new Date().toISOString(),
-        coverage_data: {
-          percentage: 87.3,
-          lines_covered: 1245,
-          lines_total: 1426,
-          branches_covered: 342,
-          branches_total: 398,
-          functions_covered: 89,
-          functions_total: 102,
-        },
-        result: {
-          issues: [
-            {
-              id: '1',
-              type: 'memory_leak',
-              severity: 'error',
-              message: '内存泄漏：在 calculate_sum() 中分配的内存未释放（第45行）',
-              stack_trace: [
-                { frame: 1, function: 'calculate_sum', file: 'math_utils.cpp', line: 45 },
-                { frame: 2, function: 'test_calculate_sum', file: 'test_math_utils.cpp', line: 12 },
-                { frame: 3, function: 'main', file: 'test_math_utils.cpp', line: 5 },
-              ],
-            },
-            {
-              id: '2',
-              type: 'uninitialized_read',
-              severity: 'warning',
-              message: '未初始化内存读取：变量 result 在使用前未初始化（第28行）',
-              stack_trace: [
-                { frame: 1, function: 'process_data', file: 'data_processor.cpp', line: 28 },
-                { frame: 2, function: 'test_process_data', file: 'test_data_processor.cpp', line: 8 },
-              ],
-            },
+      if (projectId && !isNaN(projectId)) {
+        // 后端项目：调用后端API
+        setExecutionLogs(prev => prev + '📡 调用后端API执行测试...\n')
+        
+        try {
+          const response = await executionsApi.runUnitTest(projectId)
+          const executionId = response.data.execution_id
+          
+          setExecutionLogs(prev => prev + `✅ 任务已提交，执行ID: ${executionId}\n`)
+          setExecutionLogs(prev => prev + '⏳ 等待执行完成...\n')
+          
+          // 轮询获取执行结果
+          let attempts = 0
+          const maxAttempts = 60 // 最多等待5分钟
+          
+          const pollExecution = async () => {
+            try {
+              const execResponse = await executionsApi.get(executionId)
+              const exec = execResponse.data
+              
+              // 更新日志
+              if (exec.logs) {
+                setExecutionLogs(exec.logs)
+              }
+              
+              if (exec.status === 'completed' || exec.status === 'failed') {
+                executionResult = exec
+                setExecutionResult(exec)
+                setExecutionStatus(exec.status === 'completed' ? 'completed' : 'error')
+                return
+              }
+              
+              // 继续轮询
+              attempts++
+              if (attempts < maxAttempts) {
+                setTimeout(pollExecution, 5000) // 每5秒轮询一次
+              } else {
+                setExecutionLogs(prev => prev + '\n⏱️  执行超时，请手动刷新查看结果\n')
+                setExecutionStatus('error')
+              }
+            } catch (error: any) {
+              console.error('轮询执行结果失败:', error)
+              attempts++
+              if (attempts < maxAttempts) {
+                setTimeout(pollExecution, 5000)
+              } else {
+                setExecutionLogs(prev => prev + '\n❌ 获取执行结果失败\n')
+                setExecutionStatus('error')
+              }
+            }
+          }
+          
+          // 开始轮询
+          setTimeout(pollExecution, 2000) // 2秒后开始轮询
+          
+        } catch (error: any) {
+          console.error('调用后端API失败:', error)
+          setExecutionLogs(prev => prev + `\n❌ API调用失败: ${error.message || '未知错误'}\n`)
+          setExecutionLogs(prev => prev + '💡 提示：请确保后端服务正在运行\n')
+          setExecutionStatus('error')
+        }
+      } else {
+        // localStorage项目：使用本地模拟（因为无法调用后端）
+        setExecutionLogs(prev => prev + '⚠️  本地项目（localStorage），使用模拟执行\n')
+        setExecutionLogs(prev => prev + '💡 提示：要使用真实工具，请通过后端API创建项目\n')
+        
+        // 生成模拟结果（明确标注为模拟数据）
+        const mockResult: TestExecution = {
+          id: Date.now(),
+          project_id: parseInt(id.replace('project_', '')) || 0,
+          executor_type: 'unit',
+          status: 'completed',
+          total_tests: 12,
+          passed_tests: 10,
+          failed_tests: 2,
+          skipped_tests: 0,
+          duration_seconds: 9.5,
+          created_at: new Date().toISOString(),
+          started_at: new Date(Date.now() - 9500).toISOString(),
+          completed_at: new Date().toISOString(),
+          coverage_data: {
+            percentage: 87.3,
+            lines_covered: 1245,
+            lines_total: 1426,
+            branches_covered: 342,
+            branches_total: 398,
+            functions_covered: 89,
+            functions_total: 102,
+            warning: '⚠️ 这是模拟数据，不是真实执行结果'
+          },
+          result: {
+            issues: [
+              {
+                id: '1',
+                type: 'memory_leak',
+                severity: 'error',
+                message: '内存泄漏：在 calculate_sum() 中分配的内存未释放（第45行）[模拟数据]',
+                stack_trace: [
+                  { frame: 1, function: 'calculate_sum', file: 'math_utils.cpp', line: 45 },
+                  { frame: 2, function: 'test_calculate_sum', file: 'test_math_utils.cpp', line: 12 },
+                  { frame: 3, function: 'main', file: 'test_math_utils.cpp', line: 5 },
+                ],
+              },
+              {
+                id: '2',
+                type: 'uninitialized_read',
+                severity: 'warning',
+                message: '未初始化内存读取：变量 result 在使用前未初始化（第28行）[模拟数据]',
+                stack_trace: [
+                  { frame: 1, function: 'process_data', file: 'data_processor.cpp', line: 28 },
+                  { frame: 2, function: 'test_process_data', file: 'test_data_processor.cpp', line: 8 },
+                ],
+              },
+            ],
+            total_issues: 2,
+            error_count: 1,
+            warning_count: 1,
+            warning: '⚠️ 这是模拟数据，不是真实执行结果'
+          },
+          logs: executionLogs + '\n\n⚠️  注意：以上结果是模拟数据，用于演示目的。\n要获得真实结果，请通过后端API创建项目并安装必要的工具（UTBotCpp、lcov、Dr. Memory）。',
+          artifacts: [
+            { type: 'test_code', path: '/artifacts/tests/test_math_utils.cpp' },
+            { type: 'test_code', path: '/artifacts/tests/test_data_processor.cpp' },
+            { type: 'coverage_report', path: '/artifacts/coverage/index.html' },
+            { type: 'memory_report', path: '/artifacts/memory_report.json' },
           ],
-          total_issues: 2,
-          error_count: 1,
-          warning_count: 1,
-        },
-        logs: executionLogs,
-        artifacts: [
-          { type: 'test_code', path: '/artifacts/tests/test_math_utils.cpp' },
-          { type: 'test_code', path: '/artifacts/tests/test_data_processor.cpp' },
-          { type: 'coverage_report', path: '/artifacts/coverage/index.html' },
-          { type: 'memory_report', path: '/artifacts/memory_report.json' },
-        ],
+        }
+        
+        executionResult = mockResult
       }
       
-      setExecutionResult(mockResult)
-      setExecutionStatus('completed')
+      if (executionResult) {
+        setExecutionResult(executionResult)
+        setExecutionStatus('completed')
+      }
       
     } catch (error: any) {
       console.error('执行测试失败:', error)

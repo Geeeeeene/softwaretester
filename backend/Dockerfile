@@ -1,9 +1,20 @@
-FROM python:3.11-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
+# 配置 Debian 镜像源（使用阿里云镜像，提高下载速度）
+# 兼容新旧版本的 Debian sources 配置
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources; \
+    else \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list || true; \
+    fi && \
+    # 配置 pip 使用国内镜像源（清华大学镜像）
+    pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple || true
+
+# 安装系统依赖（添加重试机制和错误处理）
+RUN apt-get update --fix-missing || apt-get update && \
+    apt-get install -y --no-install-recommends \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*

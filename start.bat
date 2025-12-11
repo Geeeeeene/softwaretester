@@ -1,12 +1,13 @@
 @echo off
+chcp 65001 >nul
 REM HomemadeTester 启动脚本（Windows）
 
-echo 🚀 启动 HomemadeTester...
+echo [启动] 启动 HomemadeTester...
 
 REM 检查Docker是否安装
 docker --version >nul 2>&1
 if errorlevel 1 (
-    echo ❌ 未检测到Docker，请先安装Docker Desktop
+    echo [错误] 未检测到Docker，请先安装Docker Desktop
     echo.
     echo 请访问 https://www.docker.com/products/docker-desktop 下载并安装
     pause
@@ -18,7 +19,7 @@ docker compose version >nul 2>&1
 if errorlevel 1 (
     docker-compose --version >nul 2>&1
     if errorlevel 1 (
-        echo ❌ 未检测到Docker Compose，请确保Docker Desktop已正确安装
+        echo [错误] 未检测到Docker Compose，请确保Docker Desktop已正确安装
         pause
         exit /b 1
     ) else (
@@ -31,20 +32,20 @@ if errorlevel 1 (
 )
 
 REM 启动服务
-echo 📦 启动所有服务...
+echo [信息] 启动所有服务...
 %DOCKER_COMPOSE_CMD% up -d
 
 REM 等待服务启动
-echo ⏳ 等待服务启动...
+echo [信息] 等待服务启动...
 timeout /t 5 /nobreak >nul
 
 REM 检查服务状态
 echo.
-echo 📊 服务状态:
+echo [信息] 服务状态:
 %DOCKER_COMPOSE_CMD% ps
 
 echo.
-echo ✅ 启动完成！
+echo [完成] 启动完成！
 echo.
 echo 访问地址：
 echo   前端:     http://localhost:5173

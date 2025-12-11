@@ -76,17 +76,43 @@ export function getProject(id: string): LocalProject | null {
  * 创建项目
  */
 export function createProject(project: Omit<LocalProject, 'id' | 'created_at' | 'updated_at'>): LocalProject {
-  const projects = getAllProjects()
-  const newProject: LocalProject = {
-    ...project,
-    id: generateId(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    is_active: project.is_active ?? true,
+  try {
+    const projects = getAllProjects()
+    const newProject: LocalProject = {
+      ...project,
+      id: generateId(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: project.is_active ?? true,
+    }
+    projects.push(newProject)
+    
+    // 检查存储大小（如果文件太大，可能无法保存）
+    const dataSize = JSON.stringify(projects).length
+    if (dataSize > MAX_STORAGE_SIZE) {
+      console.error('项目数据过大，无法保存。文件大小:', dataSize, '字节，限制:', MAX_STORAGE_SIZE, '字节')
+      throw new Error('项目文件过大，无法保存。请减小文件大小或删除一些旧项目。')
+    }
+    
+    const saved = saveAllProjects(projects)
+    
+    if (!saved) {
+      console.error('保存项目失败，可能是存储空间不足')
+      throw new Error('保存项目失败，可能是存储空间不足。请清理浏览器缓存或删除一些旧项目。')
+    }
+    
+    // 不进行立即验证，因为 localStorage 写入是同步的
+    // 如果 saveAllProjects 返回 true，说明已成功保存
+    return newProject
+  } catch (error: any) {
+    console.error('创建项目时发生错误:', error)
+    // 如果是已知错误，直接抛出
+    if (error.message && (error.message.includes('过大') || error.message.includes('空间不足'))) {
+      throw error
+    }
+    // 其他错误包装后抛出
+    throw new Error(`创建项目失败: ${error.message || '未知错误'}`)
   }
-  projects.push(newProject)
-  saveAllProjects(projects)
-  return newProject
 }
 
 /**

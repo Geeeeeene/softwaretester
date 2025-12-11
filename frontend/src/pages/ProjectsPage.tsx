@@ -105,13 +105,34 @@ export default function ProjectsPage() {
       setCreateDialogOpen(false)
       resetForm()
       
-      // 确保localStorage已更新后再跳转
+      // 确保localStorage已更新后再跳转，增加延迟并验证项目存在
       setTimeout(() => {
-        navigate(`/projects/${newProject.id}`)
-      }, 100)
-    } catch (error) {
+        // 验证项目是否已保存
+        const savedProject = getAllProjects().find(p => p.id === newProject.id)
+        if (savedProject) {
+          navigate(`/projects/${newProject.id}`)
+        } else {
+          console.error('项目创建后未找到，ID:', newProject.id)
+          // 如果找不到，再等待一下
+          setTimeout(() => {
+            const retryProject = getAllProjects().find(p => p.id === newProject.id)
+            if (retryProject) {
+              navigate(`/projects/${newProject.id}`)
+            } else {
+              alert('项目创建成功，但跳转失败。请手动刷新页面查看项目列表。')
+            }
+          }, 200)
+        }
+      }, 150)
+    } catch (error: any) {
       console.error('创建项目失败:', error)
-      alert('创建项目失败，请重试')
+      // 显示更详细的错误信息
+      const errorMessage = error?.message || '创建项目失败，请重试'
+      alert(errorMessage)
+      // 如果是存储空间问题，提供更明确的提示
+      if (errorMessage.includes('空间不足') || errorMessage.includes('过大')) {
+        console.warn('建议：清理浏览器缓存或删除一些旧项目')
+      }
     } finally {
       setIsCreating(false)
     }

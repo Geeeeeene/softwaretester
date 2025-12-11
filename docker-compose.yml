@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL数据库
   postgres:
@@ -36,7 +34,7 @@ services:
     image: neo4j:5-community
     environment:
       NEO4J_AUTH: neo4j/testpassword
-      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_PLUGINS: '["apoc"]'
     ports:
       - "7474:7474"  # HTTP
       - "7687:7687"  # Bolt
@@ -67,6 +65,7 @@ services:
     volumes:
       - ./backend:/app
       - artifacts_data:/app/artifacts
+      - ./projects:/app/projects
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +90,7 @@ services:
     volumes:
       - ./backend:/app
       - artifacts_data:/app/artifacts
+      - ./projects:/app/projects
     depends_on:
       postgres:
         condition: service_healthy

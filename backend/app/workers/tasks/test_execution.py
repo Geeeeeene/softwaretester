@@ -21,8 +21,9 @@ async def _execute_test_async(testcase_id: int, config: dict):
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy import select
     from app.core.config import settings
-    from app.models.testcase import TestCase
-    from app.models.execution import TestExecution, ExecutionStatus
+    from app.db.models.test_case import TestCase
+    from app.db.models.test_execution import TestExecution
+    from app.models.execution import ExecutionStatus
     
     # 创建数据库会话
     engine = create_async_engine(

@@ -6,7 +6,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.models.execution import TestExecution
+from app.db.models.test_execution import TestExecution
 from app.db.models.project import Project
 from app.worker.tasks import execute_tests
 

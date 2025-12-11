@@ -20,6 +20,15 @@ class MemoryExecutor(BaseExecutor):
     def __init__(self):
         self.drmemory_path = Path(settings.DRMEMORY_PATH).resolve() if settings.DRMEMORY_PATH else None
         self.drmemory_executable = self._find_drmemory_executable()
+        
+        # 记录工具状态
+        self._log_tool_status()
+    
+    def _log_tool_status(self):
+        """记录工具状态（用于调试）"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"MemoryExecutor Dr. Memory: {self.drmemory_executable or '未找到'}")
     
     def _find_drmemory_executable(self) -> Optional[str]:
         """查找Dr. Memory可执行文件"""
@@ -136,7 +145,13 @@ class MemoryExecutor(BaseExecutor):
     ) -> str:
         """使用Dr. Memory运行程序"""
         if not self.drmemory_executable:
-            logs.append("⚠️  Dr. Memory未找到，使用模拟内存检查")
+            error_msg = "Dr. Memory 未找到，无法进行内存调试"
+            logs.append(f"❌ {error_msg}")
+            logs.append("💡 提示: 请下载并安装 Dr. Memory")
+            logs.append("   下载地址: https://github.com/DynamoRIO/drmemory/releases")
+            logs.append(f"   配置路径: {settings.DRMEMORY_PATH}")
+            logs.append(f"   可执行文件: {settings.DRMEMORY_EXECUTABLE}")
+            logs.append("⚠️  使用模拟内存检查数据")
             return self._generate_mock_output()
         
         logs.append(f"🔍 使用Dr. Memory分析: {self.drmemory_executable}")

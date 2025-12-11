@@ -45,6 +45,7 @@ Thumbs.db
 # Artifacts
 artifacts/
 uploads/
+projects/
 temp/
 
 # Logs

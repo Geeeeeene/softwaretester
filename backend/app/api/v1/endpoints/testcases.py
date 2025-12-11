@@ -4,8 +4,9 @@ from sqlalchemy import select, func
 from typing import Optional
 
 from app.db.session import get_db
-from app.models.testcase import TestCase, TestType
-from app.models.project import Project
+from app.db.models.test_case import TestCase
+from app.models.testcase import TestType
+from app.db.models.project import Project
 from app.schemas.testcase import (
     TestCaseCreate,
     TestCaseUpdate,
