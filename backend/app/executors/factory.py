@@ -4,6 +4,8 @@ from app.executors.base import BaseExecutor
 from app.executors.spix_adapter import SpixAdapter
 from app.executors.utbot_adapter import UTBotAdapter
 from app.executors.static_analyzer import StaticAnalyzer
+from app.executors.clazy_executor import ClazyExecutor
+from app.executors.cppcheck_executor import CppcheckExecutor
 
 
 class ExecutorFactory:
@@ -13,6 +15,8 @@ class ExecutorFactory:
         "spix": SpixAdapter,
         "utbot": UTBotAdapter,
         "static_analyzer": StaticAnalyzer,
+        "clazy": ClazyExecutor,
+        "cppcheck": CppcheckExecutor,
     }
     
     @classmethod

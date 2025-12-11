@@ -1,13 +1,15 @@
-import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { projectsApi } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Edit, Trash2, Play } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Play, TestTube } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data: project, isLoading, error } = useQuery({
     queryKey: ['project', id],
@@ -36,15 +38,46 @@ export default function ProjectDetailPage() {
           <p className="text-gray-600 mt-2">{project.description || '暂无描述'}</p>
         </div>
         <div className="flex gap-2">
+          <Link to={`/test-cases?project_id=${project.id}`}>
           <Button variant="outline">
+              <TestTube className="mr-2 h-4 w-4" />
+              测试用例
+            </Button>
+          </Link>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              alert('编辑功能开发中...\n项目ID: ' + project.id);
+            }}
+          >
             <Edit className="mr-2 h-4 w-4" />
             编辑
           </Button>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              alert('运行测试功能开发中...\n将执行项目中的所有测试用例');
+            }}
+          >
             <Play className="mr-2 h-4 w-4" />
             运行测试
           </Button>
-          <Button variant="destructive">
+          <Button 
+            variant="destructive"
+            onClick={async () => {
+              if (confirm('确定要删除项目 "' + project.name + '" 吗？\n此操作不可恢复！')) {
+                try {
+                  await projectsApi.delete(project.id);
+                  queryClient.invalidateQueries({ queryKey: ['projects'] });
+                  alert('项目已删除');
+                  navigate('/projects');
+                } catch (error: any) {
+                  console.error('删除失败:', error);
+                  alert('删除失败: ' + (error.response?.data?.detail || error.message || '请稍后重试'));
+                }
+              }
+            }}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             删除
           </Button>

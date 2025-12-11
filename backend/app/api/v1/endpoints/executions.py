@@ -20,6 +20,20 @@ class ExecutionCreate(BaseModel):
     test_case_ids: List[int] = Field(default_factory=list)
 
 
+class TestResultResponse(BaseModel):
+    """测试结果Schema"""
+    id: int
+    test_case_id: Optional[int]
+    status: str
+    duration_seconds: Optional[float]
+    error_message: Optional[str]
+    log_path: Optional[str]
+    extra_data: Optional[dict] = None
+    
+    class Config:
+        from_attributes = True
+
+
 class ExecutionResponse(BaseModel):
     """执行响应Schema"""
     id: int
@@ -35,6 +49,8 @@ class ExecutionResponse(BaseModel):
     created_at: datetime
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
+    
+    test_results: List[TestResultResponse] = []
     
     class Config:
         from_attributes = True

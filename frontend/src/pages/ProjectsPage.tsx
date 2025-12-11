@@ -5,23 +5,46 @@ import { projectsApi, type Project } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, FolderOpen, Calendar, Code } from 'lucide-react'
-import { formatDateTime, getStatusColor } from '@/lib/utils'
+import { formatDateTime } from '@/lib/utils'
+import ProjectForm from '@/components/ProjectForm'
 
 export default function ProjectsPage() {
-  const [projectType, setProjectType] = useState<string | undefined>()
+  const [projectType, setProjectType] = useState<string | undefined>('static')
+  const [showCreateForm, setShowCreateForm] = useState(false)
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['projects', projectType],
     queryFn: () => projectsApi.list({ project_type: projectType }).then(res => res.data),
   })
 
-  const projectTypes = [
-    { value: undefined, label: '全部' },
-    { value: 'ui', label: 'UI测试' },
-    { value: 'unit', label: '单元测试' },
-    { value: 'integration', label: '集成测试' },
-    { value: 'static', label: '静态分析' },
-  ]
+  // 仅保留静态分析作为默认视角（如需恢复其他，只需解除注释）
+  // const projectTypes = [
+  //   { value: undefined, label: '全部' },
+  //   { value: 'ui', label: 'UI测试' },
+  //   { value: 'unit', label: '单元测试' },
+  //   { value: 'integration', label: '集成测试' },
+  //   { value: 'static', label: '静态分析' },
+  // ]
+
+  if (showCreateForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-gray-900">创建新项目</h1>
+          <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+            返回列表
+          </Button>
+        </div>
+        <ProjectForm 
+          onSuccess={() => {
+            setShowCreateForm(false)
+            refetch()
+          }}
+          onCancel={() => setShowCreateForm(false)}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -29,29 +52,12 @@ export default function ProjectsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">项目管理</h1>
-          <p className="text-gray-600 mt-2">管理测试项目和配置</p>
+          <p className="text-gray-600 mt-2">管理代码静态分析项目</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowCreateForm(true)}>
           <Plus className="mr-2 h-4 w-4" />
           创建项目
         </Button>
-      </div>
-
-      {/* 过滤器 */}
-      <div className="flex gap-2">
-        {projectTypes.map((type) => (
-          <button
-            key={type.label}
-            onClick={() => setProjectType(type.value)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              projectType === type.value
-                ? 'bg-primary text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border'
-            }`}
-          >
-            {type.label}
-          </button>
-        ))}
       </div>
 
       {/* 项目列表 */}
@@ -72,7 +78,7 @@ export default function ProjectsPage() {
           <CardContent className="text-center py-12">
             <FolderOpen className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500">暂无项目</p>
-            <Button className="mt-4">
+            <Button className="mt-4" onClick={() => setShowCreateForm(true)}>
               <Plus className="mr-2 h-4 w-4" />
               创建第一个项目
             </Button>

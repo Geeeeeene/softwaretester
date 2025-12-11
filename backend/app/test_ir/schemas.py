@@ -132,12 +132,20 @@ class StaticAnalysisIR(BaseModel):
     name: str
     description: Optional[str] = None
     
+    # 分析工具（clazy 或 cppcheck）
+    tool: Literal["clazy", "cppcheck"] = Field("cppcheck", description="使用的静态分析工具")
+    
     # 分析目标
     target_files: List[str] = Field(default_factory=list)
     target_directories: List[str] = Field(default_factory=list)
     
     # 分析规则
     rules: List[StaticAnalysisRule] = Field(default_factory=list)
+    
+    # 工具特定配置
+    checks: Optional[List[str]] = Field(None, description="Clazy 检查项（如 ['level1', 'level2']）")
+    enable: Optional[str] = Field(None, description="Cppcheck 启用的检查类型（如 'all', 'error', 'warning'）")
+    suppress: Optional[List[str]] = Field(None, description="Cppcheck 抑制的警告列表")
     
     # 排除项
     exclude_patterns: List[str] = Field(default_factory=list)

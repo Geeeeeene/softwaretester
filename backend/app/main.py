@@ -1,7 +1,20 @@
 """FastAPI主应用入口"""
+import os
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+# 设置Python默认编码为UTF-8，解决中文乱码问题
+if sys.platform != 'win32':
+    os.environ['LC_ALL'] = 'C.UTF-8'
+    os.environ['LANG'] = 'C.UTF-8'
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+# 设置标准输出和错误输出的编码
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
 
 from app.core.config import settings
 from app.api.v1 import api_router
@@ -21,12 +34,16 @@ app = FastAPI(
 )
 
 # 配置CORS
+# 将配置中的 URL 转换为字符串列表
+cors_origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
@@ -74,6 +91,10 @@ async def health_check():
 
 # 注册API路由
 app.include_router(api_router, prefix="/api/v1")
+
+# 强制注册上传路由（修复路由未生效问题）
+from app.api.v1.endpoints import upload
+app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
 
 
 if __name__ == "__main__":

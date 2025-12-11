@@ -72,19 +72,20 @@ def execute_tests(execution_id: int, test_case_ids: List[int]):
                     error_message=result.get("error_message"),
                     log_path=result.get("log_path"),
                     screenshot_path=result.get("screenshot_path"),
-                    metadata=result.get("metadata", {})
+                    extra_data=result.get("metadata", {}) or result.get("extra_data", {})
                 )
                 db.add(test_result)
                 
                 if result["status"] == "passed":
                     passed += 1
                     print(f"    ✅ 通过")
-                elif result["status"] == "failed":
+                elif result["status"] == "failed" or result["status"] == "error":
                     failed += 1
-                    print(f"    ❌ 失败: {result.get('error_message', '未知错误')}")
+                    error_msg = result.get('error_message', '未知错误')
+                    print(f"    ❌ 失败: {error_msg}")
                 else:
                     skipped += 1
-                    print(f"    ⏭️  跳过")
+                    print(f"    ⏭️  跳过 (状态: {result['status']})")
                 
             except Exception as e:
                 print(f"    ❌ 执行异常: {str(e)}")

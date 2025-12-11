@@ -1,0 +1,88 @@
+{
+  "examples": [
+    {
+      "name": "Clazy 示例 - Qt 代码分析",
+      "description": "使用 Clazy 分析 Qt 代码",
+      "test_ir": {
+        "type": "static",
+        "tool": "clazy",
+        "name": "Qt 代码质量检查",
+        "description": "使用 Clazy 检查 Qt 代码中的常见问题",
+        "target_files": [
+          "src/main.cpp",
+          "src/widget.cpp"
+        ],
+        "target_directories": [
+          "src/qt"
+        ],
+        "checks": ["level1", "level2"],
+        "rules": [
+          {
+            "rule_id": "qstring-arg",
+            "severity": "warning",
+            "category": "performance",
+            "enabled": true
+          },
+          {
+            "rule_id": "qmap-with-pointer-key",
+            "severity": "error",
+            "category": "correctness",
+            "enabled": true
+          }
+        ],
+        "exclude_patterns": [
+          "**/moc_*.cpp",
+          "**/ui_*.h"
+        ],
+        "tags": ["qt", "clazy", "static-analysis"]
+      }
+    },
+    {
+      "name": "Cppcheck 示例 - C/C++ 代码分析",
+      "description": "使用 Cppcheck 分析 C/C++ 代码",
+      "test_ir": {
+        "type": "static",
+        "tool": "cppcheck",
+        "name": "C/C++ 代码质量检查",
+        "description": "使用 Cppcheck 检查 C/C++ 代码中的错误和潜在问题",
+        "target_files": [
+          "src/main.cpp",
+          "src/utils.cpp"
+        ],
+        "target_directories": [
+          "src/core"
+        ],
+        "enable": "all",
+        "rules": [
+          {
+            "rule_id": "nullPointer",
+            "severity": "error",
+            "category": "correctness",
+            "enabled": true
+          },
+          {
+            "rule_id": "arrayIndexOutOfBounds",
+            "severity": "error",
+            "category": "correctness",
+            "enabled": true
+          },
+          {
+            "rule_id": "unusedFunction",
+            "severity": "warning",
+            "category": "style",
+            "enabled": true
+          }
+        ],
+        "exclude_patterns": [
+          "**/test_*.cpp",
+          "**/mock_*.cpp"
+        ],
+        "suppress": [
+          "unmatchedSuppression"
+        ],
+        "tags": ["cpp", "cppcheck", "static-analysis"]
+      }
+    }
+  ]
+}
+

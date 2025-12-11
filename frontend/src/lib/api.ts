@@ -126,13 +126,34 @@ export const testCasesApi = {
     api.post<TestCase>('/api/v1/test-cases', data),
   
   update: (id: number, data: Partial<TestCaseCreate>) =>
-    api.put<TestCase>(`/api/v1/test-cases/${id}`, data),
+    api.patch<TestCase>(`/api/v1/test-cases/${id}`, data),
   
   delete: (id: number) =>
     api.delete(`/api/v1/test-cases/${id}`),
 }
 
 // ============ 测试执行API ============
+
+export interface TestResult {
+  id: number
+  test_case_id?: number
+  status: string
+  duration_seconds?: number
+  error_message?: string
+  log_path?: string
+  extra_data?: {
+    issues?: Array<{
+      file: string
+      line?: number
+      column?: number
+      severity: string
+      message: string
+      id?: string
+      tool: string
+    }>
+    [key: string]: any
+  }
+}
 
 export interface TestExecution {
   id: number
@@ -148,6 +169,7 @@ export interface TestExecution {
   created_at: string
   started_at?: string
   completed_at?: string
+  test_results?: TestResult[]
 }
 
 export interface ExecutionCreate {
@@ -170,4 +192,19 @@ export const executionsApi = {
   
   create: (data: ExecutionCreate) =>
     api.post<TestExecution>('/api/v1/executions', data),
+}
+
+// ============ 上传API ============
+
+export const uploadApi = {
+  uploadStaticZip: (file: File, name?: string, description?: string, tool?: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (name) form.append('name', name)
+    if (description) form.append('description', description)
+    if (tool) form.append('tool', tool)
+    return api.post('/api/v1/upload/static-zip', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }

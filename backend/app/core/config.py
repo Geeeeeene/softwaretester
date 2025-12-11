@@ -29,14 +29,17 @@ class Settings(BaseSettings):
     NEO4J_PASSWORD: str = "testpassword"
     
     # CORS配置
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+    BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
     ]
     
     # 文件存储配置
     ARTIFACT_STORAGE_PATH: str = "./artifacts"
     MAX_UPLOAD_SIZE: int = 104857600  # 100MB
+    UPLOAD_DIR: str = "./artifacts/uploads"
     
     # 工具路径配置
     TOOLS_BASE_PATH: str = "backend/tools"  # 工具基础路径（相对于项目根目录）
