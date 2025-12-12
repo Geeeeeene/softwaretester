@@ -13,6 +13,10 @@ import type { AxiosResponse } from 'axios'
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  
+  // 判断是否为后端项目（ID是纯数字）
+  const isBackendProject = id ? /^\d+$/.test(id) : false
+  
   const [project, setProject] = useState<LocalProject | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
@@ -29,40 +33,68 @@ export default function ProjectDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 加载项目数据
+  // 计算后端项目ID
+  const backendProjectId = isBackendProject && id ? parseInt(id, 10) : null
+
+  // 使用useQuery加载后端项目（条件查询）
+  const { data: backendProject } = useQuery({
+    queryKey: ['project', id],
+    queryFn: async () => {
+      if (!backendProjectId) return null
+      const response = await projectsApi.get(backendProjectId)
+      return response.data
+    },
+    enabled: !!backendProjectId,
+  })
+
+  // 获取静态分析状态（仅后端项目）
+  const { data: staticAnalysisStatus } = useQuery({
+    queryKey: ['static-analysis-status', backendProjectId],
+    queryFn: async () => {
+      if (!backendProjectId) throw new Error('无效的项目ID')
+      const response = await staticAnalysisApi.getStatus(backendProjectId)
+      return response.data
+    },
+    enabled: !!backendProjectId,
+  })
+
+  // 加载localStorage项目
   useEffect(() => {
-    const loadProject = () => {
-      if (id) {
-        setIsLoading(true)
-        // 尝试多次加载，确保localStorage已更新
-        let attempts = 0
-        const maxAttempts = 5
-        
-        const tryLoad = () => {
-          const loadedProject = getProject(id)
-          if (loadedProject) {
-            setProject(loadedProject)
-            setIsLoading(false)
-          } else if (attempts < maxAttempts) {
-            attempts++
-            setTimeout(tryLoad, 100)
-          } else {
-            // 最终未找到项目
-            console.warn('项目未找到，ID:', id)
-            console.log('所有项目:', getAllProjects())
-            setProject(null)
-            setIsLoading(false)
-          }
-        }
-        
-        tryLoad()
-      } else {
+    if (!id) {
+      setIsLoading(false)
+      return
+    }
+
+    if (isBackendProject) {
+      // 后端项目，等待useQuery加载
+      if (backendProject) {
+        setProject(backendProject as any)
         setIsLoading(false)
       }
+    } else {
+      // localStorage项目
+      setIsLoading(true)
+      let attempts = 0
+      const maxAttempts = 5
+      
+      const tryLoad = () => {
+        const loadedProject = getProject(id)
+        if (loadedProject) {
+          setProject(loadedProject)
+          setIsLoading(false)
+        } else if (attempts < maxAttempts) {
+          attempts++
+          setTimeout(tryLoad, 100)
+        } else {
+          console.warn('项目未找到，ID:', id)
+          setProject(null)
+          setIsLoading(false)
+        }
+      }
+      
+      tryLoad()
     }
-    
-    loadProject()
-  }, [id])
+  }, [id, isBackendProject, backendProject])
 
   // 测试用例表单
   const [testCaseForm, setTestCaseForm] = useState({
@@ -314,21 +346,21 @@ export default function ProjectDetailPage() {
       case 'unit':
         options.push(
           { icon: TestTube, label: '创建单元测试', action: () => setTestCaseDialogOpen(true), color: 'blue' },
-          { icon: BarChart3, label: '代码覆盖率分析', action: () => navigate(`/results?project=${id}`), color: 'green' },
+          { icon: BarChart3, label: '代码覆盖率分析', action: () => navigate(`/projects/${id}/static-analysis`), color: 'green' },
           { icon: Play, label: '执行单元测试', action: () => setExecuteDialogOpen(true), color: 'purple' }
         )
         break
       case 'static':
         options.push(
           { icon: FileCode, label: '静态代码分析', action: () => setExecuteDialogOpen(true), color: 'orange' },
-          { icon: BarChart3, label: '查看分析报告', action: () => navigate(`/results?project=${id}`), color: 'blue' }
+          { icon: BarChart3, label: '查看分析报告', action: () => navigate(`/projects/${id}/static-analysis`), color: 'blue' }
         )
         break
       case 'ui':
         options.push(
           { icon: TestTube, label: '创建UI测试', action: () => setTestCaseDialogOpen(true), color: 'purple' },
           { icon: Play, label: '执行UI测试', action: () => setExecuteDialogOpen(true), color: 'green' },
-          { icon: BarChart3, label: '查看测试结果', action: () => navigate(`/results?project=${id}`), color: 'blue' }
+          { icon: BarChart3, label: '查看测试结果', action: () => navigate(`/projects/${id}/static-analysis`), color: 'blue' }
         )
         break
       case 'integration':
@@ -364,21 +396,6 @@ export default function ProjectDetailPage() {
   }
 
   const analysisOptions = getAnalysisOptions()
-  
-  // 检查是否为后端项目（ID是数字）
-  const isBackendProject = id && !isNaN(parseInt(id, 10))
-  const backendProjectId = isBackendProject ? parseInt(id, 10) : null
-  
-  // 获取静态分析状态（仅后端项目）
-  const { data: staticAnalysisStatus } = useQuery({
-    queryKey: ['static-analysis-status', backendProjectId],
-    queryFn: async () => {
-      if (!backendProjectId) throw new Error('无效的项目ID')
-      const response = await staticAnalysisApi.getStatus(backendProjectId)
-      return response.data
-    },
-    enabled: !!backendProjectId,
-  })
 
   return (
     <div className="space-y-6">
@@ -646,9 +663,11 @@ export default function ProjectDetailPage() {
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">0</p>
-            <Link to="/results" className="text-blue-600 hover:underline text-sm mt-2 inline-block">
-              查看执行记录
-            </Link>
+            {isBackendProject && (
+              <Link to={`/projects/${id}/static-analysis`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">
+                查看执行记录
+              </Link>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -1212,10 +1231,11 @@ export default function ProjectDetailPage() {
                 <Button
                   type="button"
                   onClick={() => {
-                    if (executionResult) {
-                      navigate(`/results/${executionResult.id}`)
-                    }
                     setExecuteDialogOpen(false)
+                    if (isBackendProject && id) {
+                      // 跳转到静态分析页面查看详细结果
+                      navigate(`/projects/${id}/static-analysis`)
+                    }
                   }}
                 >
                   查看详细结果

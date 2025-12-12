@@ -37,12 +37,14 @@ export function AnalysisResults({ results, onIssueClick, className }: AnalysisRe
   Object.entries(analysisData.file_results || {}).forEach(([filePath, fileResult]: [string, any]) => {
     const issues = fileResult.issues || []
     issues.forEach((issue: any) => {
+      // 后端返回的字段是"line"不是"line_number"，支持两种格式
+      const lineNumber = issue.line !== undefined ? issue.line : (issue.line_number !== undefined ? issue.line_number : null)
       allIssues.push({
         file: filePath,
-        line: issue.line_number || 0,
+        line: lineNumber,  // 保留null，不要转换为0
         severity: issue.severity || 'MEDIUM',
-        type: issue.type || 'unknown',
-        description: issue.description || '',
+        type: issue.type || issue.id || 'unknown',
+        description: issue.message || issue.description || '',
         tool: issue.tool,
       })
     })
@@ -59,6 +61,9 @@ export function AnalysisResults({ results, onIssueClick, className }: AnalysisRe
     const orderA = severityOrder[a.severity as keyof typeof severityOrder] ?? 3
     const orderB = severityOrder[b.severity as keyof typeof severityOrder] ?? 3
     if (orderA !== orderB) return orderA - orderB
+    // 处理null行号：null排在最后
+    if (a.line === null || a.line === undefined) return 1
+    if (b.line === null || b.line === undefined) return -1
     return a.line - b.line
   })
 
@@ -141,7 +146,14 @@ export function AnalysisResults({ results, onIssueClick, className }: AnalysisRe
                   "p-3 rounded border cursor-pointer hover:shadow-md transition-shadow",
                   getSeverityColor(issue.severity)
                 )}
-                onClick={() => onIssueClick?.(issue.file, issue.line)}
+                onClick={() => {
+                  if (issue.line !== null && issue.line !== undefined) {
+                    onIssueClick?.(issue.file, issue.line)
+                  } else {
+                    // 文件级别问题，只跳转到文件，不跳转到具体行
+                    onIssueClick?.(issue.file, 1)  // 跳转到第1行
+                  }
+                }}
               >
                 <div className="flex items-start gap-2">
                   {getSeverityIcon(issue.severity)}
@@ -159,8 +171,14 @@ export function AnalysisResults({ results, onIssueClick, className }: AnalysisRe
                     <p className="text-sm text-gray-800 mb-1">{issue.description}</p>
                     <div className="text-xs text-gray-600">
                       <span className="font-mono">{issue.file}</span>
-                      <span className="mx-1">:</span>
-                      <span className="font-semibold">行 {issue.line}</span>
+                      {issue.line !== null && issue.line !== undefined ? (
+                        <>
+                          <span className="mx-1">:</span>
+                          <span className="font-semibold">行 {issue.line}</span>
+                        </>
+                      ) : (
+                        <span className="mx-1 text-gray-500">(文件级别问题)</span>
+                      )}
                     </div>
                   </div>
                 </div>

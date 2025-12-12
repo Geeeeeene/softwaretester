@@ -76,10 +76,14 @@ export default function StaticAnalysisPage() {
   // 启动分析
   const runAnalysisMutation = useMutation({
     mutationFn: async (useLlm: boolean = true) => {
+      console.log('开始分析，useLlm:', useLlm, 'projectId:', projectId)
       if (!projectId) throw new Error('无效的项目ID')
       return staticAnalysisApi.run(projectId, useLlm, project?.language)
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('分析启动成功:', data)
+      // 显示成功提示
+      alert('✅ 分析任务已提交，正在后台执行中...\n请稍候，系统会自动更新分析状态。')
       queryClient.invalidateQueries({ queryKey: ['static-analysis-status', projectId] })
       // 开始轮询状态
       setTimeout(() => {
@@ -87,7 +91,11 @@ export default function StaticAnalysisPage() {
       }, 2000)
     },
     onError: (error: any) => {
-      alert(`启动分析失败: ${error.response?.data?.detail || error.message}`)
+      const errorMessage = error.response?.data?.detail || error.message || '未知错误'
+      // 将换行符转换为空格，以便在alert中正确显示
+      const formattedMessage = errorMessage.replace(/\n/g, ' ')
+      console.error('分析失败:', error)
+      alert(`启动分析失败: ${formattedMessage}`)
     },
   })
 
@@ -162,7 +170,7 @@ export default function StaticAnalysisPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            {!analysisStatus?.has_analysis && (
+            {!analysisStatus?.has_analysis ? (
               <>
                 <Button
                   onClick={() => runAnalysisMutation.mutate(true)}
@@ -182,32 +190,56 @@ export default function StaticAnalysisPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => runAnalysisMutation.mutate(false)}
+                  onClick={() => {
+                    console.log('点击开始分析（仅工具）按钮')
+                    runAnalysisMutation.mutate(false)
+                  }}
                   disabled={runAnalysisMutation.isPending}
                 >
                   <Play className="mr-2 h-4 w-4" />
                   开始分析（仅工具）
                 </Button>
               </>
-            )}
-            {analysisStatus?.has_analysis && (
-              <Button
-                onClick={() => runAnalysisMutation.mutate(true)}
-                disabled={runAnalysisMutation.isPending}
-                variant="outline"
-              >
-                {runAnalysisMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    重新分析中...
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-4 w-4" />
-                    重新分析
-                  </>
-                )}
-              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => {
+                    console.log('点击重新分析（含大模型）按钮', {
+                      isPending: runAnalysisMutation.isPending,
+                      projectId,
+                      hasAnalysis: analysisStatus?.has_analysis
+                    })
+                    runAnalysisMutation.mutate(true)
+                  }}
+                  disabled={runAnalysisMutation.isPending}
+                  variant="outline"
+                  style={{ cursor: runAnalysisMutation.isPending ? 'not-allowed' : 'pointer' }}
+                >
+                  {runAnalysisMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      重新分析中...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-2 h-4 w-4" />
+                      重新分析（含大模型）
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log('点击重新分析（仅工具）按钮')
+                    runAnalysisMutation.mutate(false)
+                  }}
+                  disabled={runAnalysisMutation.isPending}
+                  style={{ cursor: runAnalysisMutation.isPending ? 'not-allowed' : 'pointer' }}
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  重新分析（仅工具）
+                </Button>
+              </>
             )}
           </div>
         </div>

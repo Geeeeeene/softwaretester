@@ -31,7 +31,7 @@ services:
 
   # Neo4j图数据库
   neo4j:
-    image: neo4j:5-community
+    image: neo4j:5
     environment:
       NEO4J_AUTH: neo4j/testpassword
       NEO4J_PLUGINS: '["apoc"]'
@@ -42,10 +42,11 @@ services:
       - neo4j_data:/data
       - neo4j_logs:/logs
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider localhost:7474 || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 20s
+      timeout: 15s
+      retries: 10
+      start_period: 60s
 
   # FastAPI后端服务
   backend:
@@ -72,7 +73,7 @@ services:
       redis:
         condition: service_healthy
       neo4j:
-        condition: service_healthy
+        condition: service_started
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Worker进程

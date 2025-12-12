@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试创建项目 API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+        .result { margin-top: 20px; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>测试创建项目 API</h1>
+    <button onclick="testCreateProject()">测试创建项目</button>
+    <div id="result" class="result"></div>
+
+    <script>
+        async function testCreateProject() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '正在创建项目...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: '测试项目 - ' + new Date().getTime(),
+                        description: '这是一个测试项目',
+                        project_type: 'static',
+                        language: 'C++',
+                        framework: 'Qt'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = '<h3>✅ 成功！</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } else {
+                    const error = await response.text();
+                    resultDiv.innerHTML = '<h3>❌ 失败</h3><pre>' + error + '</pre>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<h3>❌ 错误</h3><pre>' + error.message + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>
+
+

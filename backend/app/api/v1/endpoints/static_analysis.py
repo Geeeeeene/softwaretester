@@ -149,10 +149,16 @@ def get_file_content(
     service = StaticAnalysisService()
     
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"获取文件内容: project_id={project_id}, source_path={project.source_path}, file_path={file_path}")
         file_content = service.get_file_content(project.source_path, file_path)
         return file_content
     except FileNotFoundError as e:
+        logger.error(f"文件未找到: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        import traceback
+        logger.error(f"读取文件失败: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"读取文件失败: {str(e)}")
 

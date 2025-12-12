@@ -102,25 +102,6 @@ export const projectsApi = {
     api.delete(`/projects/${id}`),
 }
 
-// ============ 文件上传API ============
-
-export const uploadApi = {
-  // 上传项目源代码
-  uploadProjectSource: (projectId: number, file: File, extract: boolean = true) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('extract', extract.toString())
-    return api.post<{
-      message: string
-      filename: string
-      path?: string
-      extracted_path?: string
-      size: number
-      extracted: boolean
-    }>(`/upload/project/${projectId}/source`, formData)
-  },
-}
-
 // ============ 测试用例API ============
 
 export interface TestCase {
@@ -171,6 +152,27 @@ export const testCasesApi = {
 
 // ============ 测试执行API ============
 
+export interface TestResult {
+  id: number
+  test_case_id?: number
+  status: string
+  duration_seconds?: number
+  error_message?: string
+  log_path?: string
+  extra_data?: {
+    issues?: Array<{
+      file: string
+      line?: number
+      column?: number
+      severity: string
+      message: string
+      id?: string
+      tool: string
+    }>
+    [key: string]: any
+  }
+}
+
 export interface TestExecution {
   id: number
   project_id: number
@@ -217,6 +219,7 @@ export interface TestExecution {
     type: string
     path: string
   }>
+  test_results?: TestResult[]
 }
 
 export interface ExecutionCreate {
@@ -387,4 +390,32 @@ export const staticAnalysisApi = {
     api.get<FileContent>(`/projects/${projectId}/static-analysis/file-content`, {
       params: { file_path: filePath },
     }),
+}
+
+// ============ 上传API ============
+
+export const uploadApi = {
+  // 上传项目源代码
+  uploadProjectSource: (projectId: number, file: File, extract: boolean = true) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('extract', extract.toString())
+    return api.post<{
+      message: string
+      filename: string
+      path?: string
+      extracted_path?: string
+      size: number
+      extracted: boolean
+    }>(`/upload/project/${projectId}/source`, formData)
+  },
+  
+  uploadStaticZip: (file: File, name?: string, description?: string, tool?: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (name) form.append('name', name)
+    if (description) form.append('description', description)
+    if (tool) form.append('tool', tool)
+    return api.post('/upload/static-zip', form)
+  },
 }

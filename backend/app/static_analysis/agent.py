@@ -6,7 +6,10 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 # 添加tools目录到路径
-tools_path = Path(__file__).parent.parent.parent.parent / "tools"
+# agent.py位于: backend/app/static_analysis/agent.py
+# tools位于: backend/tools/
+# 所以需要往上3级（static_analysis -> app -> backend）
+tools_path = Path(__file__).parent.parent.parent / "tools"
 sys.path.insert(0, str(tools_path))
 
 from static_analyzer_agent import StaticAnalyzerAgent as BaseStaticAnalyzerAgent

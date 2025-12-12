@@ -10,7 +10,7 @@ from app.db.models.test_execution import TestExecution
 from app.db.models.test_case import TestCase
 from app.db.models.test_result import TestResult
 from app.db.models.project import Project
-from app.executors.executor_factory import ExecutorFactory
+from app.executors.factory import ExecutorFactory
 from app.models.testcase import TestType
 
 
@@ -39,15 +39,22 @@ def execute_tests(execution_id: int, test_case_ids: List[int]):
         db.commit()
         
         print(f"▶️  开始执行测试 (ID: {execution_id})")
+        print(f"   测试用例数量: {len(test_case_ids)}")
+        print(f"   执行器类型: {execution.executor_type}")
         
         # 获取项目配置
         project = db.query(Project).filter(Project.id == execution.project_id).first()
+        print(f"   项目ID: {execution.project_id}")
         if not project:
+            print(f"   ❌ 项目不存在")
             execution.status = "failed"
             execution.error_message = "项目不存在"
             execution.completed_at = datetime.utcnow()
             db.commit()
             return
+        
+        print(f"   ✅ 找到项目: {project.name}")
+        print(f"   项目路径: {project.source_path}")
         
         # 构建执行配置
         config = {
@@ -63,10 +70,13 @@ def execute_tests(execution_id: int, test_case_ids: List[int]):
             build_dir.mkdir(parents=True, exist_ok=True)
         
         # 获取执行器
+        print(f"   🔧 获取执行器: {execution.executor_type}")
         try:
-            test_type = TestType(execution.executor_type)
-            executor = ExecutorFactory.get_executor(test_type)
-        except ValueError:
+            # 直接使用字符串类型，不需要转换为枚举
+            executor = ExecutorFactory.get_executor(execution.executor_type)
+            print(f"   ✅ 执行器创建成功: {type(executor).__name__}")
+        except ValueError as e:
+            print(f"   ❌ 执行器创建失败: {e}")
             execution.status = "failed"
             execution.error_message = f"不支持的执行器类型: {execution.executor_type}"
             execution.completed_at = datetime.utcnow()
@@ -84,22 +94,27 @@ def execute_tests(execution_id: int, test_case_ids: List[int]):
         start_time = time.time()
         
         for test_case_id in test_case_ids:
+            print(f"\n  📋 处理测试用例 ID: {test_case_id}")
             # 获取测试用例
             test_case = db.query(TestCase).filter(
                 TestCase.id == test_case_id
             ).first()
             
             if not test_case:
-                print(f"⚠️  测试用例 {test_case_id} 不存在，跳过")
+                print(f"  ⚠️  测试用例 {test_case_id} 不存在，跳过")
                 skipped += 1
                 continue
             
             print(f"  🧪 执行测试用例: {test_case.name}")
+            print(f"     Test IR: {test_case.test_ir}")
             
             try:
-                # 执行测试（传递配置）
-                import asyncio
-                result = asyncio.run(executor.execute(test_case.test_ir, config))
+                # 执行测试
+                print(f"     ⏳ 开始执行分析...")
+                # CppcheckExecutor.execute 只接受 test_ir 参数，不需要 config
+                # 因为配置信息已经在 test_ir 中了
+                result = executor.execute(test_case.test_ir)
+                print(f"     ✅ 分析完成，结果: {result.get('status', 'unknown')}")
                 
                 # 收集日志和覆盖率数据
                 if result.get("logs"):
@@ -120,17 +135,20 @@ def execute_tests(execution_id: int, test_case_ids: List[int]):
                     error_message=result.get("error_message"),
                     log_path=result.get("log_path"),
                     screenshot_path=result.get("screenshot_path"),
-                    extra_data=result.get("metadata", {})  # 使用extra_data而不是metadata
+                    extra_data=result.get("metadata", {}) or result.get("extra_data", {})
                 )
                 db.add(test_result)
                 
                 if result.get("passed"):
                     passed += 1
                     print(f"    ✅ 通过")
-                else:
+                elif result.get("status") in ["failed", "error"]:
                     failed += 1
-                    error_msg = result.get("error_message", "未知错误")
+                    error_msg = result.get('error_message', '未知错误')
                     print(f"    ❌ 失败: {error_msg}")
+                else:
+                    skipped += 1
+                    print(f"    ⏭️  跳过 (状态: {result.get('status', 'unknown')})")
                 
             except Exception as e:
                 print(f"    ❌ 执行异常: {str(e)}")
