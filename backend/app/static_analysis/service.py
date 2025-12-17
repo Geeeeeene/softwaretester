@@ -18,7 +18,21 @@ class StaticAnalysisService:
     def __init__(self):
         """初始化服务"""
         # API key是可选的，如果没有配置则使用None（仅使用传统工具分析）
-        self.agent = StaticAnalysisAgent(api_key=settings.DASHSCOPE_API_KEY) if settings.DASHSCOPE_API_KEY else None
+        # 优先使用Claude API，如果没有配置则使用通义千问
+        if settings.CLAUDE_API_KEY:
+            self.agent = StaticAnalysisAgent(
+                api_key=settings.CLAUDE_API_KEY, 
+                model=settings.CLAUDE_MODEL,
+                use_claude=True,
+                base_url=settings.CLAUDE_BASE_URL
+            )
+        elif settings.DASHSCOPE_API_KEY:
+            self.agent = StaticAnalysisAgent(
+                api_key=settings.DASHSCOPE_API_KEY,
+                use_claude=False
+            )
+        else:
+            self.agent = None
         self.storage = StaticAnalysisStorage(storage_path=settings.STATIC_ANALYSIS_STORAGE_PATH)
     
     def run_analysis(
@@ -45,7 +59,7 @@ class StaticAnalysisService:
             
             # 检查是否需要大模型但未配置
             if use_llm and not self.agent:
-                raise ValueError("需要大模型分析但未配置 DASHSCOPE_API_KEY，请设置环境变量或在配置文件中添加")
+                raise ValueError("需要大模型分析但未配置 API KEY，请设置 CLAUDE_API_KEY 或 DASHSCOPE_API_KEY 环境变量")
             
             # 运行分析
             if use_llm and self.agent:

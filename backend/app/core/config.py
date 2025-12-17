@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     
     # 大模型API配置（用于深度静态分析）
     DASHSCOPE_API_KEY: Optional[str] = None  # 通义千问API密钥（可选，不使用大模型分析时可留空）
+    CLAUDE_API_KEY: Optional[str] = "sk-K8eYxw7bz3rPzQdyakgVoyL5TJ55lBDFW7asbnB7vXU6uJlL"  # Claude API密钥
+    CLAUDE_MODEL: str = "claude-sonnet-4-5-20250929"  # Claude模型名称
+    CLAUDE_BASE_URL: Optional[str] = "https://work.poloapi.com"  # Claude API base URL（不含/v1后缀）
     
     # 静态分析存储配置
     STATIC_ANALYSIS_STORAGE_PATH: str = "./artifacts/static_analysis"  # 静态分析结果存储路径
