@@ -358,9 +358,7 @@ export default function ProjectDetailPage() {
         break
       case 'ui':
         options.push(
-          { icon: TestTube, label: '创建UI测试', action: () => setTestCaseDialogOpen(true), color: 'purple' },
-          { icon: Play, label: '执行UI测试', action: () => setExecuteDialogOpen(true), color: 'green' },
-          { icon: BarChart3, label: '查看测试结果', action: () => navigate(`/projects/${id}/static-analysis`), color: 'blue' }
+          { icon: TestTube, label: 'UI测试管理', action: () => navigate(`/projects/${id}/ui-test`), color: 'purple' }
         )
         break
       case 'integration':

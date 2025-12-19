@@ -419,3 +419,76 @@ export const uploadApi = {
     return api.post('/upload/static-zip', form)
   },
 }
+
+// ============ UI测试API ============
+
+export interface UITestCaseGenerateRequest {
+  name: string
+  description: string
+}
+
+export interface UITestCaseGenerateResponse {
+  name: string
+  description: string
+  robot_script: string
+  test_ir: Record<string, any>
+}
+
+export interface UITestExecuteRequest {
+  name: string
+  description: string
+  robot_script: string
+}
+
+export interface UITestExecuteResponse {
+  execution_id: number
+  status: string
+  message: string
+}
+
+export interface UITestResult {
+  execution_id: number
+  status: string
+  passed: boolean
+  logs?: string
+  error_message?: string
+  artifacts: Array<{
+    type: string
+    path: string
+    name?: string
+  }>
+  duration_seconds?: number
+  created_at: string
+  completed_at?: string
+}
+
+export interface UITestExecutionListResponse {
+  total: number
+  items: TestExecution[]
+  statistics: {
+    total_executions: number
+    completed_executions: number
+    passed_executions: number
+    pass_rate: number
+  }
+}
+
+export const uiTestApi = {
+  // 使用AI生成UI测试用例
+  generateTestCase: (projectId: number, request: UITestCaseGenerateRequest) =>
+    api.post<UITestCaseGenerateResponse>(`/projects/${projectId}/ui-test/generate`, request),
+  
+  // 执行UI测试
+  executeTest: (projectId: number, request: UITestExecuteRequest) =>
+    api.post<UITestExecuteResponse>(`/projects/${projectId}/ui-test/execute`, request),
+  
+  // 获取UI测试结果
+  getTestResult: (projectId: number, executionId: number) =>
+    api.get<UITestResult>(`/projects/${projectId}/ui-test/results/${executionId}`),
+  
+  // 获取UI测试执行历史
+  listExecutions: (projectId: number, skip: number = 0, limit: number = 20) =>
+    api.get<UITestExecutionListResponse>(`/projects/${projectId}/ui-test/executions`, {
+      params: { skip, limit }
+    }),
+}

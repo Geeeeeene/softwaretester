@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { projectsApi, type Project } from '@/lib/api'
@@ -8,23 +8,38 @@ import { Plus, FolderOpen, Calendar, Code } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
 import ProjectForm from '@/components/ProjectForm'
 
+const PROJECT_TYPE_STORAGE_KEY = 'homemade_tester_project_type'
+
 export default function ProjectsPage() {
-  const [projectType, setProjectType] = useState<string | undefined>('static')
+  // 从 localStorage 读取上次选择的项目类型，如果没有则默认为 undefined（全部项目）
+  const [projectType, setProjectType] = useState<string | undefined>(() => {
+    const saved = localStorage.getItem(PROJECT_TYPE_STORAGE_KEY)
+    return saved ? (saved === 'null' ? undefined : saved) : undefined
+  })
   const [showCreateForm, setShowCreateForm] = useState(false)
+
+  // 当 projectType 改变时，保存到 localStorage
+  useEffect(() => {
+    if (projectType === undefined) {
+      localStorage.setItem(PROJECT_TYPE_STORAGE_KEY, 'null')
+    } else {
+      localStorage.setItem(PROJECT_TYPE_STORAGE_KEY, projectType)
+    }
+  }, [projectType])
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['projects', projectType],
     queryFn: () => projectsApi.list({ project_type: projectType }).then(res => res.data),
   })
 
-  // 仅保留静态分析作为默认视角（如需恢复其他，只需解除注释）
-  // const projectTypes = [
-  //   { value: undefined, label: '全部' },
-  //   { value: 'ui', label: 'UI测试' },
-  //   { value: 'unit', label: '单元测试' },
-  //   { value: 'integration', label: '集成测试' },
-  //   { value: 'static', label: '静态分析' },
-  // ]
+  // 项目类型分类
+  const projectTypes = [
+    { value: undefined, label: '全部项目' },
+    { value: 'ui', label: 'UI测试项目' },
+    { value: 'unit', label: '单元测试项目' },
+    { value: 'integration', label: '集成测试项目' },
+    { value: 'static', label: '静态分析项目' },
+  ]
 
   if (showCreateForm) {
     return (
@@ -36,8 +51,13 @@ export default function ProjectsPage() {
           </Button>
         </div>
         <ProjectForm 
-          onSuccess={() => {
+          onSuccess={(createdProjectType) => {
             setShowCreateForm(false)
+            // 根据创建的项目类型，自动切换到对应的分类
+            if (createdProjectType) {
+              setProjectType(createdProjectType)
+            }
+            // 刷新项目列表
             refetch()
           }}
           onCancel={() => setShowCreateForm(false)}
@@ -52,12 +72,29 @@ export default function ProjectsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">项目管理</h1>
-          <p className="text-gray-600 mt-2">管理代码静态分析项目</p>
+          <p className="text-gray-600 mt-2">管理和查看所有测试项目</p>
         </div>
         <Button onClick={() => setShowCreateForm(true)}>
           <Plus className="mr-2 h-4 w-4" />
           创建项目
         </Button>
+      </div>
+
+      {/* 项目类型分类筛选 */}
+      <div className="flex flex-wrap gap-2 border-b pb-4">
+        {projectTypes.map((type) => (
+          <button
+            key={type.value || 'all'}
+            onClick={() => setProjectType(type.value)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              projectType === type.value
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {type.label}
+          </button>
+        ))}
       </div>
 
       {/* 项目列表 */}

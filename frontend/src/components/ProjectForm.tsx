@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { projectsApi, uploadApi, type ProjectCreate } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface ProjectFormProps {
-  onSuccess?: () => void
+  onSuccess?: (projectType?: string) => void
   onCancel?: () => void
 }
 
@@ -22,6 +23,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
   const [staticTool, setStaticTool] = useState<string>('cppcheck')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const projectTypes = [
     { value: 'ui', label: 'UI测试', description: '用于 UI 自动化测试' },
@@ -52,12 +54,38 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
           description.trim() || undefined,
           staticTool
         )
-        const { project_id, execution_id } = res.data as any
+        const { project_id } = res.data as any
         
         if (onSuccess) onSuccess()
         
         // 跳转到项目详情页（分析会在后台进行）
         navigate(`/projects/${project_id}`)
+      } else if (projectType === 'ui') {
+        // UI测试项目流程
+        if (!sourcePath.trim()) {
+          throw new Error('UI测试项目需要指定源代码路径')
+        }
+        
+        const project: ProjectCreate = {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          project_type: projectType,
+          source_path: sourcePath.trim(),
+        }
+
+        const res = await projectsApi.create(project)
+        
+        // 在跳转前刷新项目列表缓存，确保新项目会被显示
+        // 使用 invalidateQueries 来刷新所有项目列表查询（包括不同 project_type 的查询）
+        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        
+        // 调用 onSuccess 回调（在跳转前调用，确保能执行）
+        if (onSuccess) {
+          onSuccess(projectType)
+        }
+        
+        // 跳转到UI测试页面
+        navigate(`/projects/${res.data.id}/ui-test`)
       } else {
         // 普通项目流程
         const project: ProjectCreate = {
@@ -70,7 +98,13 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
         }
 
         await projectsApi.create(project)
-        if (onSuccess) onSuccess()
+        
+        // 刷新项目列表缓存
+        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        
+        if (onSuccess) {
+          onSuccess(projectType)
+        }
         
         // 重置表单
         setName('')
@@ -247,8 +281,30 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             </div>
           )}
 
+          {/* UI测试配置 */}
+          {projectType === 'ui' && (
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-sm font-medium text-gray-900">UI测试配置</h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  源代码路径 *
+                </label>
+                <input
+                  type="text"
+                  value={sourcePath}
+                  onChange={(e) => setSourcePath(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="例如：./src 或 /path/to/source"
+                />
+                <p className="text-xs text-gray-500 mt-1">指定待测试应用的源代码路径</p>
+              </div>
+            </div>
+          )}
+
           {/* 其他类型保持原样（技术栈等） */}
-          {projectType !== 'static' && (
+          {projectType !== 'static' && projectType !== 'ui' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -278,7 +334,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             </div>
           )}
           
-          {projectType !== 'static' && (
+          {projectType !== 'static' && projectType !== 'ui' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 源代码路径
@@ -301,7 +357,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
                 取消
               </Button>
             )}
-            <Button type="submit" disabled={isSubmitting || !name.trim() || (projectType === 'static' && !uploadFile)}>
+            <Button type="submit" disabled={isSubmitting || !name.trim() || (projectType === 'static' && !uploadFile) || (projectType === 'ui' && !sourcePath.trim())}>
               {isSubmitting ? '处理中...' : (projectType === 'static' ? '上传并开始分析' : '创建项目')}
             </Button>
           </div>

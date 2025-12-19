@@ -4,20 +4,24 @@
 """
 from app.models.testcase import TestType
 from app.executors.base_executor import BaseExecutor
-from app.executors.ui_executor import UIExecutor
+# UIExecutor已废弃，UI测试现在使用RobotFrameworkExecutor
+# from app.executors.ui_executor import UIExecutor
 from app.executors.unit_executor import UnitExecutor
 from app.executors.static_executor import StaticExecutor
 from app.executors.memory_executor import MemoryExecutor
+from app.executors.robot_framework_executor import RobotFrameworkExecutor
 
 
 class ExecutorFactory:
     """执行器工厂类"""
     
     _executors = {
-        TestType.UI: UIExecutor,
+        # UI测试项目使用Robot Framework + SikuliLibrary
+        TestType.UI: RobotFrameworkExecutor,
         TestType.UNIT: UnitExecutor,
         TestType.STATIC: StaticExecutor,
         TestType.MEMORY: MemoryExecutor,
+        TestType.ROBOT_FRAMEWORK: RobotFrameworkExecutor,
     }
     
     @classmethod

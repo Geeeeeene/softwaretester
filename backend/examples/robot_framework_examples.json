@@ -1,0 +1,91 @@
+{
+  "examples": [
+    {
+      "name": "Qt流程图编辑器-基本功能测试",
+      "description": "测试Qt流程图编辑器的基本启动和界面显示功能",
+      "test_type": "robot_framework",
+      "priority": "high",
+      "robot_script": "*** Settings ***\nLibrary    SikuliLibrary\nLibrary    OperatingSystem\nSuite Setup    启动流程图编辑器\nSuite Teardown    关闭流程图编辑器\nTest Timeout    2 minutes\n\n*** Variables ***\n${APP_PATH}    C:/Program Files/FlowchartEditor/FlowchartEditor.exe\n${MAIN_WINDOW}    resources/main_window.png\n${NEW_FILE_BUTTON}    resources/new_file_button.png\n${SAVE_BUTTON}    resources/save_button.png\n\n*** Test Cases ***\n验证主窗口显示\n    [Documentation]    验证应用程序主窗口正常显示\n    [Tags]    smoke    ui\n    等待图像出现    ${MAIN_WINDOW}    timeout=30\n    截图    main_window_displayed.png\n\n创建新流程图\n    [Documentation]    测试创建新流程图功能\n    [Tags]    功能测试\n    点击图像    ${NEW_FILE_BUTTON}\n    Sleep    1s\n    等待图像出现    resources/blank_canvas.png    timeout=10\n    截图    new_flowchart_created.png\n\n添加流程图节点\n    [Documentation]    测试添加流程图节点功能\n    [Tags]    功能测试\n    # 点击工具栏中的矩形工具\n    点击图像    resources/rectangle_tool.png\n    # 在画布上点击放置节点\n    点击图像    resources/canvas_center.png\n    Sleep    0.5s\n    # 验证节点已创建\n    等待图像出现    resources/node_created.png    timeout=5\n    截图    node_added.png\n\n连接两个节点\n    [Documentation]    测试连接两个流程图节点的功能\n    [Tags]    功能测试\n    # 添加第一个节点\n    点击图像    resources/rectangle_tool.png\n    点击图像位置    300    200\n    Sleep    0.5s\n    # 添加第二个节点\n    点击图像    resources/rectangle_tool.png\n    点击图像位置    300    400\n    Sleep    0.5s\n    # 使用连线工具\n    点击图像    resources/connector_tool.png\n    # 从第一个节点连到第二个节点\n    点击图像位置    300    250\n    点击图像位置    300    350\n    Sleep    0.5s\n    # 验证连线已创建\n    等待图像出现    resources/connection_line.png    timeout=5\n    截图    nodes_connected.png\n\n保存流程图\n    [Documentation]    测试保存流程图功能\n    [Tags]    功能测试\n    点击图像    ${SAVE_BUTTON}\n    等待图像出现    resources/save_dialog.png    timeout=10\n    输入文本    test_flowchart.flow\n    按键    Key.ENTER\n    Sleep    1s\n    截图    flowchart_saved.png\n\n*** Keywords ***\n启动流程图编辑器\n    [Documentation]    启动Qt流程图编辑器应用程序\n    Add Image Path    resources\n    Start Sikuli Process\n    Run    ${APP_PATH}\n    Sleep    3s\n\n关闭流程图编辑器\n    [Documentation]    关闭应用程序\n    按键    Key.ALT+Key.F4\n    Sleep    1s\n    Stop Remote Server\n\n等待图像出现\n    [Arguments]    ${image}    ${timeout}=10\n    [Documentation]    等待指定图像出现\n    Wait Until Screen Contain    ${image}    ${timeout}\n\n点击图像\n    [Arguments]    ${image}\n    [Documentation]    点击指定图像\n    Click    ${image}\n\n点击图像位置\n    [Arguments]    ${x}    ${y}\n    [Documentation]    点击指定坐标位置\n    Click    ${x}    ${y}\n\n输入文本\n    [Arguments]    ${text}\n    [Documentation]    输入文本\n    Input Text    ${text}\n\n按键\n    [Arguments]    ${key}\n    [Documentation]    按下键盘按键\n    Press Special Key    ${key}\n\n截图\n    [Arguments]    ${filename}\n    [Documentation]    截图保存\n    Capture Screen    screenshots/${filename}",
+      "variables": {
+        "APP_PATH": "C:/Program Files/FlowchartEditor/FlowchartEditor.exe",
+        "TIMEOUT": "120"
+      },
+      "resources": [
+        "resources/main_window.png",
+        "resources/new_file_button.png",
+        "resources/save_button.png",
+        "resources/blank_canvas.png",
+        "resources/rectangle_tool.png",
+        "resources/canvas_center.png",
+        "resources/node_created.png",
+        "resources/connector_tool.png",
+        "resources/connection_line.png",
+        "resources/save_dialog.png"
+      ],
+      "tags": ["qt", "ui", "flowchart", "system-test"]
+    },
+    {
+      "name": "Qt流程图编辑器-拖拽功能测试",
+      "description": "测试流程图编辑器的拖拽功能",
+      "test_type": "robot_framework",
+      "priority": "medium",
+      "robot_script": "*** Settings ***\nLibrary    SikuliLibrary\nSuite Setup    初始化测试环境\nSuite Teardown    清理测试环境\n\n*** Variables ***\n${APP_PATH}    C:/Program Files/FlowchartEditor/FlowchartEditor.exe\n\n*** Test Cases ***\n拖拽节点到新位置\n    [Documentation]    测试拖拽节点移动功能\n    [Tags]    拖拽    交互\n    启动应用\n    创建测试节点\n    # 拖拽节点\n    Drag And Drop    resources/test_node.png    resources/target_position.png\n    Sleep    0.5s\n    # 验证节点已移动\n    等待图像出现    resources/node_at_new_position.png\n    截图    node_dragged.png\n\n从工具栏拖拽组件到画布\n    [Documentation]    测试从工具栏拖拽组件到画布\n    [Tags]    拖拽    组件\n    # 从工具栏拖拽矩形组件\n    Drag And Drop    resources/toolbar_rectangle.png    resources/canvas_area.png\n    Sleep    0.5s\n    等待图像出现    resources/rectangle_on_canvas.png\n    截图    component_dragged_to_canvas.png\n\n*** Keywords ***\n初始化测试环境\n    Add Image Path    resources\n    Start Sikuli Process\n\n清理测试环境\n    Stop Remote Server\n\n启动应用\n    Run    ${APP_PATH}\n    Sleep    3s\n    Wait Until Screen Contain    resources/main_window.png    30\n\n创建测试节点\n    Click    resources/new_node_button.png\n    Sleep    0.5s\n\n等待图像出现\n    [Arguments]    ${image}\n    Wait Until Screen Contain    ${image}    10\n\n截图\n    [Arguments]    ${filename}\n    Capture Screen    screenshots/${filename}",
+      "variables": {
+        "APP_PATH": "C:/Program Files/FlowchartEditor/FlowchartEditor.exe"
+      },
+      "tags": ["qt", "drag-drop", "interaction"]
+    },
+    {
+      "name": "简化的Robot Framework测试用例结构",
+      "description": "演示如何使用Test IR结构化定义测试",
+      "test_type": "robot_framework",
+      "priority": "low",
+      "libraries": [
+        "SikuliLibrary",
+        "OperatingSystem"
+      ],
+      "resource_files": [],
+      "variables": {
+        "APP_PATH": "C:/Program Files/FlowchartEditor/FlowchartEditor.exe",
+        "TIMEOUT": "60"
+      },
+      "tags": ["demo", "simple"],
+      "steps": [
+        "Add Image Path    resources",
+        "Start Sikuli Process",
+        "Run    ${APP_PATH}",
+        "Sleep    3s",
+        "Wait Until Screen Contain    resources/main_window.png    30",
+        "Click    resources/new_file_button.png",
+        "Sleep    1s",
+        "Capture Screen    screenshots/test_result.png",
+        "Stop Remote Server"
+      ]
+    }
+  ],
+  "best_practices": {
+    "图像资源准备": [
+      "使用高质量截图作为图像匹配模板",
+      "确保图像具有独特的视觉特征",
+      "避免包含可能变化的内容（如时间戳）",
+      "图像大小适中，不要太大也不要太小",
+      "使用PNG格式保存图像以保持质量"
+    ],
+    "测试编写建议": [
+      "为每个测试用例添加清晰的文档说明",
+      "使用适当的标签组织测试",
+      "设置合理的超时时间",
+      "在关键操作后添加Sleep等待",
+      "使用Wait Until Screen Contain确保UI准备就绪",
+      "为每个测试步骤添加截图便于调试"
+    ],
+    "Qt应用特定注意事项": [
+      "Qt应用启动可能需要较长时间，设置足够的等待",
+      "注意Qt的样式主题可能影响图像匹配",
+      "某些Qt组件可能有动画效果，需要等待动画完成",
+      "使用高DPI屏幕时注意缩放问题",
+      "测试前确保应用程序窗口在前台"
+    ]
+  }
+}
+

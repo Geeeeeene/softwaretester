@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     # 静态分析存储配置
     STATIC_ANALYSIS_STORAGE_PATH: str = "./artifacts/static_analysis"  # 静态分析结果存储路径
     
+    # Java配置（SikuliLibrary需要）
+    JAVA_HOME: Optional[str] = None  # Java安装路径（可选，为None时自动查找）
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

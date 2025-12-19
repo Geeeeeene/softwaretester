@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4 (Python 3.12.5 on win32)" generated="2025-12-19T13:42:47.783125" rpa="false" schemaversion="5">
+<suite id="s1" name="Capture And Find Element" source="C:\Users\lenovo\Desktop\homemadeTester\backend\scripts\capture_and_find_element.robot">
+<test id="s1-t1" name="截图并定位元素坐标" line="12">
+<kw name="Create Directory" owner="OperatingSystem">
+<msg time="2025-12-19T13:42:50.862218" level="INFO" html="true">Directory '&lt;a href="file://C:\Users\lenovo\Desktop\homemadeTester\backend\scripts\screenshots"&gt;C:\Users\lenovo\Desktop\homemadeTester\backend\scripts\screenshots&lt;/a&gt;' already exists.</msg>
+<arg>${SCREENSHOT_DIR}</arg>
+<doc>Creates the specified directory.</doc>
+<status status="PASS" start="2025-12-19T13:42:50.862218" elapsed="0.000000"/>
+</kw>
+<kw name="Create Directory" owner="OperatingSystem">
+<msg time="2025-12-19T13:42:50.863963" level="INFO" html="true">Directory '&lt;a href="file://C:\Users\lenovo\Desktop\homemadeTester\backend\scripts\robot_resources"&gt;C:\Users\lenovo\Desktop\homemadeTester\backend\scripts\robot_resources&lt;/a&gt;' already exists.</msg>
+<arg>${IMAGE_DIR}</arg>
+<doc>Creates the specified directory.</doc>
+<status status="PASS" start="2025-12-19T13:42:50.863963" elapsed="0.000000"/>
+</kw>
+<kw name="Add Image Path" owner="SikuliLibrary">
+<arg>${IMAGE_DIR}</arg>
+<doc>Add image path</doc>
+<status status="PASS" start="2025-12-19T13:42:50.863963" elapsed="0.014827"/>
+</kw>
+<kw name="Start Sikuli Process" owner="SikuliLibrary">
+<msg time="2025-12-19T13:42:50.880531" level="INFO">Starting process:
+java -jar C:\Users\lenovo\AppData\Local\Programs\Python\Python312\Lib\site-packages\SikuliLibrary\lib\SikuliLibrary.jar 62149 C:\Users\lenovo\Desktop\homemadeTester\backend</msg>
+<msg time="2025-12-19T13:42:50.884636" level="INFO">Start sikuli java process on port 62149</msg>
+<msg time="2025-12-19T13:42:51.437331" level="INFO">Sikuli java process is started</msg>
+<status status="PASS" start="2025-12-19T13:42:50.878790" elapsed="3.045053"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:42:53.923843" level="INFO">启动应用: C:/Users/lenovo/Desktop/FreeCharts/diagramscene.exe</msg>
+<arg>启动应用: ${APP_PATH}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:42:53.923843" elapsed="0.000000"/>
+</kw>
+<kw name="Start Process" owner="Process">
+<msg time="2025-12-19T13:42:53.923843" level="INFO">Starting process:
+C:/Users/lenovo/Desktop/FreeCharts/diagramscene.exe</msg>
+<arg>${APP_PATH}</arg>
+<arg>alias=app</arg>
+<doc>Starts a new process on background.</doc>
+<status status="PASS" start="2025-12-19T13:42:53.923843" elapsed="0.004540"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2025-12-19T13:42:58.928999" level="INFO">Slept 5 seconds.</msg>
+<arg>5s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2025-12-19T13:42:53.928383" elapsed="5.000616"/>
+</kw>
+<kw name="Capture Screen" owner="SikuliLibrary">
+<msg time="2025-12-19T13:42:59.481266" level="INFO" html="true">&lt;img src='sikuli_captured/sikuliximage-1766122979168.png'/&gt;</msg>
+<msg time="2025-12-19T13:42:59.485406" level="INFO">${full_screen} = C:\Users\lenovo\Desktop\homemadeTester\backend\sikuli_captured\sikuliximage-1766122979168.png</msg>
+<var>${full_screen}</var>
+<doc>Capture whole screen, file name is returned</doc>
+<status status="PASS" start="2025-12-19T13:42:58.928999" elapsed="0.556407"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:42:59.485406" level="INFO">完整屏幕截图已保存: C:\Users\lenovo\Desktop\homemadeTester\backend\sikuli_captured\sikuliximage-1766122979168.png</msg>
+<arg>完整屏幕截图已保存: ${full_screen}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:42:59.485406" elapsed="0.000000"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:42:59.485406" level="INFO">请手动操作应用（例如：点击左侧图元集的一个图元）</msg>
+<arg>请手动操作应用（例如：点击左侧图元集的一个图元）</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:42:59.485406" elapsed="0.000000"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:42:59.485406" level="INFO">操作完成后，按任意键继续...</msg>
+<arg>操作完成后，按任意键继续...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:42:59.485406" elapsed="0.000000"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2025-12-19T13:43:09.491745" level="INFO">Slept 10 seconds.</msg>
+<arg>10s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2025-12-19T13:42:59.489682" elapsed="10.002063"/>
+</kw>
+<kw name="Capture Screen" owner="SikuliLibrary">
+<msg time="2025-12-19T13:43:09.844558" level="INFO" html="true">&lt;img src='sikuli_captured/sikuliximage-1766122989649.png'/&gt;</msg>
+<msg time="2025-12-19T13:43:09.844558" level="INFO">${after_action} = C:\Users\lenovo\Desktop\homemadeTester\backend\sikuli_captured\sikuliximage-1766122989649.png</msg>
+<var>${after_action}</var>
+<doc>Capture whole screen, file name is returned</doc>
+<status status="PASS" start="2025-12-19T13:43:09.498830" elapsed="0.345728"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:43:09.844558" level="INFO">操作后截图已保存: C:\Users\lenovo\Desktop\homemadeTester\backend\sikuli_captured\sikuliximage-1766122989649.png</msg>
+<arg>操作后截图已保存: ${after_action}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:43:09.844558" elapsed="0.000000"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:43:09.844558" level="INFO">请将鼠标移动到目标元素上，然后等待5秒...</msg>
+<arg>请将鼠标移动到目标元素上，然后等待5秒...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:43:09.844558" elapsed="0.000000"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2025-12-19T13:43:14.849091" level="INFO">Slept 5 seconds.</msg>
+<arg>5s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2025-12-19T13:43:09.844558" elapsed="5.004533"/>
+</kw>
+<kw name="Capture Screen" owner="SikuliLibrary">
+<msg time="2025-12-19T13:43:15.177120" level="INFO" html="true">&lt;img src='sikuli_captured/sikuliximage-1766122994998.png'/&gt;</msg>
+<msg time="2025-12-19T13:43:15.177120" level="INFO">${current_screen} = C:\Users\lenovo\Desktop\homemadeTester\backend\sikuli_captured\sikuliximage-1766122994998.png</msg>
+<var>${current_screen}</var>
+<doc>Capture whole screen, file name is returned</doc>
+<status status="PASS" start="2025-12-19T13:43:14.853184" elapsed="0.323936"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:43:15.177120" level="INFO">当前屏幕截图已保存: C:\Users\lenovo\Desktop\homemadeTester\backend\sikuli_captured\sikuliximage-1766122994998.png</msg>
+<arg>当前屏幕截图已保存: ${current_screen}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:43:15.177120" elapsed="0.000000"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:43:15.177120" level="INFO">请查看截图文件，找到目标元素的坐标</msg>
+<arg>请查看截图文件，找到目标元素的坐标</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:43:15.177120" elapsed="0.000000"/>
+</kw>
+<kw name="Terminate Process" owner="Process">
+<msg time="2025-12-19T13:43:15.181404" level="INFO">Forcefully killing process.</msg>
+<msg time="2025-12-19T13:43:15.283792" level="INFO">Process completed.</msg>
+<arg>app</arg>
+<arg>kill=True</arg>
+<doc>Stops the process gracefully or forcefully.</doc>
+<status status="PASS" start="2025-12-19T13:43:15.181404" elapsed="0.102388"/>
+</kw>
+<kw name="Stop Remote Server" owner="SikuliLibrary">
+<msg time="2025-12-19T13:43:15.287804" level="INFO">Robot Framework remote server stopping</msg>
+<doc>Stops the remote server.</doc>
+<status status="PASS" start="2025-12-19T13:43:15.283792" elapsed="0.004012"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:43:15.287804" level="INFO">截图完成！请查看 C:\Users\lenovo\Desktop\homemadeTester\backend\scripts/screenshots 目录中的截图文件</msg>
+<arg>截图完成！请查看 ${SCREENSHOT_DIR} 目录中的截图文件</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:43:15.287804" elapsed="0.000000"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:43:15.287804" level="INFO">使用图像编辑工具（如画图、Photoshop）打开截图，找到目标元素的位置和大小</msg>
+<arg>使用图像编辑工具（如画图、Photoshop）打开截图，找到目标元素的位置和大小</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:43:15.287804" elapsed="0.000000"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2025-12-19T13:43:15.289810" level="INFO">然后使用 create_target_image.py 脚本裁剪出目标区域</msg>
+<arg>然后使用 create_target_image.py 脚本裁剪出目标区域</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2025-12-19T13:43:15.289810" elapsed="0.000000"/>
+</kw>
+<doc>启动应用，截图，并帮助定位元素坐标</doc>
+<status status="PASS" start="2025-12-19T13:42:50.862218" elapsed="24.427592"/>
+</test>
+<status status="PASS" start="2025-12-19T13:42:47.785491" elapsed="27.504319"/>
+</suite>
+<statistics>
+<total>
+<stat pass="1" fail="0" skip="0">All Tests</stat>
+</total>
+<tag>
+</tag>
+<suite>
+<stat name="Capture And Find Element" id="s1" pass="1" fail="0" skip="0">Capture And Find Element</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>

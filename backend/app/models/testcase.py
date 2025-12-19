@@ -10,6 +10,7 @@ class TestType(str, enum.Enum):
     STATIC = "static"
     PERFORMANCE = "performance"
     MEMORY = "memory"  # 内存调试
+    ROBOT_FRAMEWORK = "robot_framework"  # Robot Framework + SikuliLibrary系统测试
 
 
 class TestPriority(str, enum.Enum):
