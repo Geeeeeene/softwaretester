@@ -1,6 +1,12 @@
 """FastAPI主应用入口"""
 import os
 import sys
+import asyncio
+
+# Windows 平台异步子进程支持修复 (必须在任何事件循环创建前设置)
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -90,12 +96,13 @@ async def health_check():
     )
 
 
+# 强制注册上传和单元测试路由（修复路由未生效问题）
+from app.api.v1.endpoints import upload, unit_tests
+app.include_router(unit_tests.router, prefix="/api/v1/unit-tests", tags=["unit-tests"])
+app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
+
 # 注册API路由
 app.include_router(api_router, prefix="/api/v1")
-
-# 强制注册上传路由（修复路由未生效问题）
-from app.api.v1.endpoints import upload
-app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
 
 
 if __name__ == "__main__":

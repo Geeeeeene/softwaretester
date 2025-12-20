@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { projectsApi, uploadApi, type ProjectCreate } from '@/lib/api'
+import { api, projectsApi, uploadApi, type ProjectCreate } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
 
 interface ProjectFormProps {
@@ -40,26 +40,34 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
     setIsSubmitting(true)
 
     try {
-      if (projectType === 'static') {
-        // 静态分析流程：使用 upload 接口
+      if (projectType === 'static' || projectType === 'unit') {
+        // 静态分析和单元测试现在统一走“一键上传 ZIP”流程
         if (!uploadFile) {
           throw new Error('请上传源代码压缩包')
         }
         
-        const res = await uploadApi.uploadStaticZip(
-          uploadFile,
-          name.trim(),
-          description.trim() || undefined,
-          staticTool
-        )
-        const { project_id, execution_id } = res.data as any
+        let res;
+        if (projectType === 'static') {
+          res = await uploadApi.uploadStaticZip(
+            uploadFile,
+            name.trim(),
+            description.trim() || undefined,
+            staticTool
+          )
+        } else {
+          // 调用刚才新建的后端 unit-zip 接口
+          const formData = new FormData()
+          formData.append('file', uploadFile)
+          formData.append('name', name.trim())
+          if (description) formData.append('description', description.trim())
+          res = await api.post('/upload/unit-zip', formData)
+        }
         
+        const { project_id } = res.data as any
         if (onSuccess) onSuccess()
-        
-        // 跳转到项目详情页（分析会在后台进行）
         navigate(`/projects/${project_id}`)
       } else {
-        // 普通项目流程
+        // 其他项目类型保持普通创建流程
         const project: ProjectCreate = {
           name: name.trim(),
           description: description.trim() || undefined,
@@ -69,20 +77,14 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
           source_path: sourcePath.trim() || undefined,
         }
 
-        await projectsApi.create(project)
+        const res = await projectsApi.create(project)
+        const { id: createdProjectId } = res.data as any
         if (onSuccess) onSuccess()
-        
-        // 重置表单
-        setName('')
-        setDescription('')
-        setProjectType('static')
-        setLanguage('')
-        setFramework('')
-        setSourcePath('')
+        navigate(`/projects/${createdProjectId}`)
       }
     } catch (error: any) {
       console.error('创建项目失败:', error)
-      const errorMessage = error.response?.data?.detail || error.message || '创建项目失败，请检查输入'
+      const errorMessage = error.response?.data?.detail || error.message || '创建项目失败'
       alert(errorMessage)
     } finally {
       setIsSubmitting(false)
@@ -162,10 +164,12 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             </div>
           </div>
 
-          {/* 静态分析特有配置 */}
-          {projectType === 'static' && (
+          {/* 静态分析或单元测试特有配置 */}
+          {(projectType === 'static' || projectType === 'unit') && (
             <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-medium text-gray-900">静态分析配置</h3>
+              <h3 className="text-sm font-medium text-gray-900">
+                {projectType === 'static' ? '静态分析配置' : '单元测试配置'}
+              </h3>
               
               {/* 文件上传 */}
               <div>
@@ -213,42 +217,44 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
               </div>
 
               {/* 工具选择 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  分析工具
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {staticTools.map((tool) => (
-                    <div
-                      key={tool.value}
-                      onClick={() => setStaticTool(tool.value)}
-                      className={`p-3 border rounded-md cursor-pointer flex items-center ${
-                        staticTool === tool.value
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="staticTool"
-                        value={tool.value}
-                        checked={staticTool === tool.value}
-                        onChange={() => setStaticTool(tool.value)}
-                        className="mr-3 text-primary focus:ring-primary"
-                      />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{tool.label}</div>
-                        <div className="text-xs text-gray-500">{tool.description}</div>
+              {projectType === 'static' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    分析工具
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {staticTools.map((tool) => (
+                      <div
+                        key={tool.value}
+                        onClick={() => setStaticTool(tool.value)}
+                        className={`p-3 border rounded-md cursor-pointer flex items-center ${
+                          staticTool === tool.value
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="staticTool"
+                          value={tool.value}
+                          checked={staticTool === tool.value}
+                          onChange={() => setStaticTool(tool.value)}
+                          className="mr-3 text-primary focus:ring-primary"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{tool.label}</div>
+                          <div className="text-xs text-gray-500">{tool.description}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {/* 其他类型保持原样（技术栈等） */}
-          {projectType !== 'static' && (
+          {projectType !== 'static' && projectType !== 'unit' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -278,7 +284,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             </div>
           )}
           
-          {projectType !== 'static' && (
+          {projectType !== 'static' && projectType !== 'unit' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 源代码路径
@@ -301,8 +307,8 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
                 取消
               </Button>
             )}
-            <Button type="submit" disabled={isSubmitting || !name.trim() || (projectType === 'static' && !uploadFile)}>
-              {isSubmitting ? '处理中...' : (projectType === 'static' ? '上传并开始分析' : '创建项目')}
+            <Button type="submit" disabled={isSubmitting || !name.trim() || ((projectType === 'static' || projectType === 'unit') && !uploadFile)}>
+              {isSubmitting ? '处理中...' : ((projectType === 'static' || projectType === 'unit') ? '上传并完成创建' : '创建项目')}
             </Button>
           </div>
         </form>

@@ -273,3 +273,52 @@ def upload_static_zip(
         "execution_id": execution.id,
         "project_path": str(project_dir),
     }
+
+@router.post("/unit-zip")
+def upload_unit_zip(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    name: str | None = Form(None),
+    description: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    """【完全照搬 static-zip】上传压缩包，创建单元测试项目"""
+    if not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="仅支持 zip 压缩包")
+    
+    # 路径准备
+    uploads_dir = Path(settings.UPLOAD_DIR)
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    project_uuid = uuid.uuid4().hex
+    zip_path = uploads_dir / f"{project_uuid}.zip"
+    project_dir = Path(settings.ARTIFACT_STORAGE_PATH) / "projects" / project_uuid
+    project_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 保存并解压
+    try:
+        with open(zip_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(project_dir)
+        zip_path.unlink()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"文件处理失败: {str(e)}")
+    
+    # 创建项目 (唯一区别是 project_type 改为 "unit")
+    project = Project(
+        name=name or f"Unit Project {project_uuid[:8]}",
+        description=description or "一键上传创建的单元测试项目",
+        project_type="unit",
+        source_path=str(project_dir.resolve()), # 使用绝对路径
+        language="C++",
+        is_active=True,
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    
+    return {
+        "message": "上传成功，已创建单元测试项目",
+        "project_id": project.id,
+        "project_path": str(project_dir),
+    }

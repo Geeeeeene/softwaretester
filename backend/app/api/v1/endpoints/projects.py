@@ -217,6 +217,28 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
     
+    # 清理相关文件
+    if project.source_path:
+        try:
+            path = Path(project.source_path)
+            # 如果是 source 目录，删除整个父目录（项目上传目录）
+            if path.name == "source":
+                parent_dir = path.parent
+                if parent_dir.exists() and "artifacts" in str(parent_dir):
+                    shutil.rmtree(parent_dir)
+            # 如果路径包含 projects/{uuid}，删除该目录
+            elif "projects" in str(path):
+                if path.exists():
+                    shutil.rmtree(path)
+            # 普通文件
+            elif path.exists():
+                if path.is_file():
+                    path.unlink()
+                else:
+                    shutil.rmtree(path)
+        except Exception as e:
+            print(f"⚠️ 清理项目文件失败: {str(e)}")
+
     db.delete(project)
     db.commit()
     return None

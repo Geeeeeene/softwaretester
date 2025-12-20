@@ -4,6 +4,7 @@ import sys
 import logging
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+from app.core.config import settings
 
 # 添加tools目录到路径
 # agent.py位于: backend/app/static_analysis/agent.py
@@ -25,7 +26,7 @@ class StaticAnalysisAgent:
         初始化静态分析Agent
         
         Args:
-            api_key: API密钥（Claude或通义千问），如果为None则从环境变量读取
+            api_key: API密钥（Claude或通义千问），如果为None则从 settings 读取
             model: 模型名称
             use_claude: 是否使用Claude API（默认True），否则使用通义千问
             base_url: API base URL（用于第三方代理）
@@ -34,13 +35,13 @@ class StaticAnalysisAgent:
         self.use_claude = use_claude
         
         if use_claude:
-            self.api_key = api_key or os.getenv("CLAUDE_API_KEY", "")
-            self.model = model or os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
-            self.base_url = base_url or os.getenv("CLAUDE_BASE_URL")
+            self.api_key = api_key or settings.CLAUDE_API_KEY
+            self.model = model or settings.CLAUDE_MODEL
+            self.base_url = base_url or settings.CLAUDE_BASE_URL
             if not self.api_key:
                 logger.warning("CLAUDE_API_KEY未设置，大模型分析功能将不可用")
         else:
-            self.api_key = api_key or os.getenv("DASHSCOPE_API_KEY", "")
+            self.api_key = api_key or settings.DASHSCOPE_API_KEY
             self.model = "qwen-plus"
             self.base_url = None
             if not self.api_key:

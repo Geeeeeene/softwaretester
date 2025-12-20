@@ -392,6 +392,28 @@ export const staticAnalysisApi = {
     }),
 }
 
+// ============ 单元测试API ============
+
+export const unitTestsApi = {
+  // 获取项目文件列表
+  getFiles: (projectId: number) =>
+    api.get<{ project_id: number; files: any[] }>(`/unit-tests/${projectId}/files`),
+  
+  // 生成测试代码
+  generate: (projectId: number, filePath: string, additionalInfo?: string) =>
+    api.post<{ project_id: number; file_path: string; test_code: string }>(
+      `/unit-tests/${projectId}/generate`,
+      { file_path: filePath, additional_info: additionalInfo }
+    ),
+  
+  // 执行测试
+  execute: (projectId: number, filePath: string, testCode: string) =>
+    api.post<{ success: boolean; logs: string; summary: any; raw_output: string }>(
+      `/unit-tests/${projectId}/execute`,
+      { file_path: filePath, test_code: testCode }
+    ),
+}
+
 // ============ 上传API ============
 
 export const uploadApi = {

@@ -2,13 +2,12 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Edit, Trash2, Play, Upload, X, TestTube, BarChart3, FileCode, Settings, AlertCircle, Loader2, CheckCircle2, XCircle, TrendingUp, MemoryStick, Search } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Play, Upload, X, TestTube, BarChart3, FileCode, Settings, AlertCircle, Loader2, CheckCircle2, XCircle, TrendingUp, MemoryStick, Search, Beaker } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
 import { useState, useRef, useEffect } from 'react'
-import { getProject, getAllProjects, updateProject, type LocalProject, deleteProject, fileToBase64 } from '@/lib/localStorage'
-import { executionsApi, staticAnalysisApi, projectsApi, type TestExecution } from '@/lib/api'
+import { getProject, updateProject, type LocalProject, deleteProject, fileToBase64 } from '@/lib/localStorage'
+import { staticAnalysisApi, projectsApi, type TestExecution } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
-import type { AxiosResponse } from 'axios'
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,13 +24,12 @@ export default function ProjectDetailPage() {
   const [testCaseDialogOpen, setTestCaseDialogOpen] = useState(false)
   const [executeDialogOpen, setExecuteDialogOpen] = useState(false)
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle')
-  const [executionId, setExecutionId] = useState<number | null>(null)
   const [executionResult, setExecutionResult] = useState<TestExecution | null>(null)
   const [executionLogs, setExecutionLogs] = useState<string>('')
   const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollIntervalRef = useRef<any>(null)
 
   // 计算后端项目ID
   const backendProjectId = isBackendProject && id ? parseInt(id, 10) : null
@@ -193,12 +191,21 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleDelete = () => {
-    if (id && deleteProject(id)) {
-      alert('项目已删除')
-      navigate('/projects')
-    } else {
-      alert('删除失败')
+  const handleDelete = async () => {
+    try {
+      if (isBackendProject && backendProjectId) {
+        await projectsApi.delete(backendProjectId)
+        alert('项目已删除')
+        navigate('/projects')
+      } else if (id && deleteProject(id)) {
+        alert('项目已删除')
+        navigate('/projects')
+      } else {
+        alert('删除失败')
+      }
+    } catch (error: any) {
+      console.error('删除项目失败:', error)
+      alert(`删除项目失败: ${error.response?.data?.detail || error.message || '未知错误'}`)
     }
   }
 
@@ -336,6 +343,31 @@ export default function ProjectDetailPage() {
 
   // 注意：不再需要轮询，因为现在是本地模拟执行
 
+  const handleRunStaticAnalysis = async () => {
+    if (!backendProjectId) {
+      alert('仅支持云端项目运行在线扫描')
+      return
+    }
+    
+    try {
+      setExecutionStatus('running')
+      setExecutionLogs('正在启动代码扫描...\n')
+      setExecuteDialogOpen(true) // 借用执行对话框显示日志
+      
+      const response = await staticAnalysisApi.run(backendProjectId, true)
+      setExecutionLogs(prev => prev + '✅ 任务已提交，后台运行中...\n')
+      setExecutionLogs(prev => prev + `项目ID: ${response.data.project_id}\n`)
+      
+      // 提示用户跳转
+      if (confirm('分析任务已启动，是否跳转到分析详情页查看实时进度？')) {
+        navigate(`/projects/${id}/static-analysis`)
+      }
+    } catch (error: any) {
+      console.error('启动分析失败:', error)
+      alert('启动分析失败: ' + (error.response?.data?.detail || error.message))
+    }
+  }
+
   // 根据项目类型获取分析选项
   const getAnalysisOptions = () => {
     if (!project) return []
@@ -345,15 +377,14 @@ export default function ProjectDetailPage() {
     switch (project.project_type) {
       case 'unit':
         options.push(
-          { icon: TestTube, label: '创建单元测试', action: () => setTestCaseDialogOpen(true), color: 'blue' },
-          { icon: BarChart3, label: '代码覆盖率分析', action: () => navigate(`/projects/${id}/static-analysis`), color: 'green' },
-          { icon: Play, label: '执行单元测试', action: () => setExecuteDialogOpen(true), color: 'purple' }
+          { icon: Beaker, label: 'Catch2 单元测试', action: () => navigate(`/projects/${id}/unit-test`), color: 'blue' },
+          { icon: BarChart3, label: '查看测试报告', action: () => navigate(`/projects/${id}/static-analysis`), color: 'green' }
         )
         break
       case 'static':
         options.push(
-          { icon: FileCode, label: '静态代码分析', action: () => setExecuteDialogOpen(true), color: 'orange' },
-          { icon: BarChart3, label: '查看分析报告', action: () => navigate(`/projects/${id}/static-analysis`), color: 'blue' }
+          { icon: Search, label: '运行代码扫描', action: () => handleRunStaticAnalysis(), color: 'blue' },
+          { icon: BarChart3, label: '查看分析报告', action: () => navigate(`/projects/${id}/static-analysis`), color: 'green' }
         )
         break
       case 'ui':
