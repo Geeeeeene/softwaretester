@@ -401,16 +401,60 @@ export const unitTestsApi = {
   
   // 生成测试代码
   generate: (projectId: number, filePath: string, additionalInfo?: string) =>
-    api.post<{ project_id: number; file_path: string; test_code: string }>(
+    api.post<{ project_id: number; file_path: string; test_code: string; test_file_path?: string }>(
       `/unit-tests/${projectId}/generate`,
       { file_path: filePath, additional_info: additionalInfo }
     ),
   
-  // 执行测试
-  execute: (projectId: number, filePath: string, testCode: string) =>
-    api.post<{ success: boolean; logs: string; summary: any; raw_output: string }>(
-      `/unit-tests/${projectId}/execute`,
+  // 获取测试文件内容
+  getTestFile: (projectId: number, filePath: string) =>
+    api.get<{ project_id: number; file_path: string; test_file_path: string; test_code: string }>(
+      `/unit-tests/${projectId}/test-file`,
+      { params: { file_path: filePath } }
+    ),
+  
+  // 更新测试文件内容
+  updateTestFile: (projectId: number, filePath: string, testCode: string) =>
+    api.put<{ project_id: number; file_path: string; test_file_path: string; message: string }>(
+      `/unit-tests/${projectId}/test-file`,
       { file_path: filePath, test_code: testCode }
+    ),
+  
+  // 执行测试（testCode可选，如果不提供则从文件读取）
+  execute: (projectId: number, filePath: string, testCode?: string) => {
+    const body: any = { file_path: filePath }
+    // 只有当 testCode 有值时才添加到请求体中
+    if (testCode !== undefined && testCode !== null && testCode !== '') {
+      body.test_code = testCode
+    }
+    console.log('执行测试请求:', { projectId, filePath, hasTestCode: testCode !== undefined, body })
+    return api.post<{ success: boolean; logs: string; summary: any; raw_output: string }>(
+      `/unit-tests/${projectId}/execute`,
+      body
+    )
+  },
+  
+  // 上传设计文档
+  uploadDocument: (projectId: number, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<{ project_id: number; filename: string; summary: string; message: string }>(
+      `/unit-tests/${projectId}/upload-document`,
+      formData
+    )
+  },
+  
+  // 获取文档要点
+  getDocumentSummary: (projectId: number) =>
+    api.get<{ project_id: number; summary: string | null; has_summary: boolean; message?: string }>(
+      `/unit-tests/${projectId}/document-summary`
+    ),
+  
+  // 更新文档要点
+  updateDocumentSummary: (projectId: number, summary: string) =>
+    api.put<{ project_id: number; summary: string; has_summary: boolean; message: string }>(
+      `/unit-tests/${projectId}/document-summary`,
+      { summary }
     ),
 }
 
