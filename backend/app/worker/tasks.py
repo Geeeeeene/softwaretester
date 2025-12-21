@@ -10,8 +10,11 @@ from app.db.models.test_execution import TestExecution
 from app.db.models.test_case import TestCase
 from app.db.models.test_result import TestResult
 from app.db.models.project import Project
+# 导入 StaticAnalysis 以确保 SQLAlchemy 关系正确解析
+from app.db.models.static_analysis import StaticAnalysis
 from app.executors.factory import ExecutorFactory
 from app.models.testcase import TestType
+from app.core.config import settings
 
 
 def execute_tests(execution_id: int, test_case_ids: List[int]):
@@ -353,6 +356,164 @@ def run_utbot_project_test(execution_id: int):
             execution.status = "failed"
             execution.error_message = str(e)
             execution.completed_at = datetime.utcnow()
+            db.commit()
+    
+    finally:
+        db.close()
+
+
+def run_ui_test(
+    execution_id: int,
+    project_id: int,
+    test_name: str,
+    test_description: str,
+    robot_script: str
+):
+    """
+    Worker任务：执行UI测试（Robot Framework）
+    在Windows主机上的worker中执行，可以访问Windows路径和Java环境
+    """
+    import asyncio
+    from app.executors.robot_framework_executor import RobotFrameworkExecutor
+    
+    db = SessionLocal()
+    start_time = time.time()
+    execution = None
+    
+    try:
+        print(f"🔍 查询执行记录: execution_id={execution_id}, project_id={project_id}")
+        print(f"   数据库URL: {settings.DATABASE_URL}")
+        
+        # 先检查数据库连接（通过查询项目）
+        try:
+            project = db.query(Project).filter(Project.id == project_id).first()
+            if project:
+                print(f"✅ 数据库连接正常，找到项目: {project.name}")
+            else:
+                print(f"⚠️  数据库连接正常，但项目 {project_id} 不存在")
+        except Exception as e:
+            print(f"❌ 数据库连接失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return
+        
+        # 获取执行记录
+        execution = db.query(TestExecution).filter(
+            TestExecution.id == execution_id
+        ).first()
+        
+        if not execution:
+            # 尝试查询所有执行记录，看看是否有其他记录
+            all_executions = db.query(TestExecution).filter(
+                TestExecution.project_id == project_id
+            ).order_by(TestExecution.id.desc()).limit(5).all()
+            print(f"❌ 执行记录 {execution_id} 不存在")
+            print(f"   项目 {project_id} 的最近执行记录: {[e.id for e in all_executions]}")
+            print(f"   尝试查询所有执行记录...")
+            all_all = db.query(TestExecution).order_by(TestExecution.id.desc()).limit(10).all()
+            print(f"   数据库中所有执行记录: {[e.id for e in all_all]}")
+            return
+        
+        print(f"✅ 找到执行记录: id={execution.id}, status={execution.status}, executor_type={execution.executor_type}")
+        
+        print(f"▶️  开始执行UI测试 (ID: {execution_id})")
+        print(f"   测试名称: {test_name}")
+        print(f"   项目ID: {project_id}")
+        
+        # 创建执行器
+        print(f"   步骤1: 创建RobotFrameworkExecutor...")
+        executor = RobotFrameworkExecutor()
+        print(f"   ✅ 执行器创建成功")
+        
+        # 构建Test IR
+        print(f"   步骤2: 构建Test IR...")
+        test_ir = {
+            "test_type": "robot_framework",
+            "name": test_name,
+            "description": test_description,
+            "robot_script": robot_script,
+            "variables": {},
+            "timeout": 300
+        }
+        print(f"   ✅ Test IR构建完成")
+        
+        # 执行测试（在同步函数中运行异步代码）
+        print(f"   步骤3: 开始执行测试...")
+        try:
+            # 尝试获取当前事件循环
+            try:
+                loop = asyncio.get_event_loop()
+                print(f"   步骤3.1: 获取到事件循环，检查是否运行中...")
+                if loop.is_running():
+                    # 如果事件循环正在运行，创建新的事件循环
+                    print(f"   步骤3.2: 事件循环正在运行，创建新的事件循环...")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    print(f"   步骤3.3: 在新事件循环中执行...")
+                    result = loop.run_until_complete(executor.execute(test_ir, {}))
+                else:
+                    print(f"   步骤3.4: 事件循环未运行，直接执行...")
+                    result = loop.run_until_complete(executor.execute(test_ir, {}))
+            except RuntimeError as e:
+                # 如果没有事件循环，创建新的事件循环
+                print(f"   步骤3.5: 没有事件循环 (RuntimeError: {e})，创建新的事件循环...")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                print(f"   步骤3.6: 在新事件循环中执行...")
+                result = loop.run_until_complete(executor.execute(test_ir, {}))
+        except Exception as e:
+            # 如果所有方法都失败，使用 asyncio.run()
+            print(f"   步骤3.7: 所有方法失败 (Exception: {e})，使用 asyncio.run()...")
+            result = asyncio.run(executor.execute(test_ir, {}))
+        
+        print(f"   ✅ 测试执行完成，开始更新执行记录...")
+        
+        # 更新执行记录
+        execution.status = "completed" if result["passed"] else "failed"
+        execution.completed_at = datetime.utcnow()
+        execution.duration_seconds = time.time() - start_time
+        
+        if result["passed"]:
+            execution.passed_tests = 1
+            execution.failed_tests = 0
+        else:
+            execution.passed_tests = 0
+            execution.failed_tests = 1
+        
+        if result.get("error_message"):
+            execution.error_message = result["error_message"]
+        
+        if result.get("logs"):
+            if not execution.extra_data:
+                execution.extra_data = {}
+            execution.extra_data["logs"] = result["logs"]
+        
+        if result.get("artifacts"):
+            if not execution.extra_data:
+                execution.extra_data = {}
+            execution.extra_data["artifacts"] = result["artifacts"]
+        
+        db.commit()
+        
+        print(f"✅ UI测试完成 (ID: {execution_id})")
+        print(f"   状态: {execution.status}")
+        print(f"   通过: {execution.passed_tests}, 失败: {execution.failed_tests}")
+        if execution.error_message:
+            print(f"   错误: {execution.error_message}")
+        
+    except Exception as e:
+        print(f"❌ UI测试失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        if execution:
+            execution.status = "failed"
+            execution.error_message = str(e)
+            execution.completed_at = datetime.utcnow()
+            execution.duration_seconds = time.time() - start_time
+            if not execution.extra_data:
+                execution.extra_data = {}
+            execution.extra_data["error_traceback"] = traceback.format_exc()
             db.commit()
     
     finally:

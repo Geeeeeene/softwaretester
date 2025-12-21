@@ -1,7 +1,6 @@
 """执行器工厂"""
 from typing import Dict
 from app.executors.base import BaseExecutor
-from app.executors.spix_adapter import SpixAdapter
 from app.executors.utbot_adapter import UTBotAdapter
 from app.executors.static_analyzer import StaticAnalyzer
 from app.executors.clazy_executor import ClazyExecutor
@@ -12,7 +11,6 @@ class ExecutorFactory:
     """执行器工厂类"""
     
     _executors: Dict[str, type] = {
-        "spix": SpixAdapter,
         "utbot": UTBotAdapter,
         "static_analyzer": StaticAnalyzer,
         "clazy": ClazyExecutor,

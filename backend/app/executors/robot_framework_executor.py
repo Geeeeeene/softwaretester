@@ -137,13 +137,33 @@ class RobotFrameworkExecutor(BaseExecutor):
                     except (OSError, PermissionError):
                         continue
         
-        # 方法4: 尝试从PATH中查找java.exe
+        # 方法4: 尝试从PATH中查找java
         java_exe = shutil.which("java")
         if java_exe:
             java_exe_path = Path(java_exe)
-            # java.exe通常在bin目录下，JAVA_HOME是bin的父目录
+            # java通常在bin目录下，JAVA_HOME是bin的父目录
             if java_exe_path.parent.name == "bin":
-                return java_exe_path.parent.parent.resolve()
+                java_home = java_exe_path.parent.parent.resolve()
+                # 验证这是有效的Java安装（检查是否有lib目录）
+                if (java_home / "lib").exists() or (java_home / "jre").exists():
+                    return java_home
+        
+        # 方法5: Linux/Docker环境下的常见路径
+        if sys.platform != "win32":
+            linux_paths = [
+                Path("/usr/lib/jvm/default-java"),
+                Path("/usr/lib/jvm/java-11-openjdk-amd64"),
+                Path("/usr/lib/jvm/java-17-openjdk-amd64"),
+                Path("/usr/lib/jvm/java-21-openjdk-amd64"),
+                Path("/usr/lib/jvm/java-8-openjdk-amd64"),
+                Path("/opt/java"),
+            ]
+            
+            for java_path in linux_paths:
+                if java_path.exists():
+                    java_bin = java_path / "bin" / "java"
+                    if java_bin.exists():
+                        return java_path.resolve()
         
         return None
     
@@ -186,18 +206,29 @@ class RobotFrameworkExecutor(BaseExecutor):
             backend_dir = Path(__file__).parent.parent.parent  # backend目录
             examples_resources = backend_dir / "examples" / "robot_resources"
             
+            logs_list = []  # 使用列表收集日志
+            print(f"[执行器] 步骤1: 准备图像资源...")
+            
             if examples_resources.exists():
                 # 复制所有图像文件
-                for image_file in examples_resources.glob("*.png"):
+                image_files = list(examples_resources.glob("*.png"))
+                print(f"[执行器] 找到 {len(image_files)} 个图像文件")
+                for image_file in image_files:
                     target_file = resources_dir / image_file.name
                     shutil.copy2(image_file, target_file)
-                logs = f"已复制 {len(list(examples_resources.glob('*.png')))} 个图像文件到工作目录\n"
+                logs_list.append(f"已复制 {len(image_files)} 个图像文件到工作目录")
+                print(f"[执行器] ✅ 图像资源复制完成")
             else:
-                logs = f"警告: 图像资源目录不存在: {examples_resources}\n"
+                logs_list.append(f"警告: 图像资源目录不存在: {examples_resources}")
+                print(f"[执行器] ⚠️ 图像资源目录不存在: {examples_resources}")
             
             # 2. 修改脚本中的图像路径为工作目录中的路径
+            print(f"[执行器] 步骤2: 生成Robot Framework脚本...")
             robot_script = self._generate_robot_script(test_ir)
+            print(f"[执行器] ✅ 脚本生成完成，长度: {len(robot_script)} 字符")
+            
             # 替换脚本中的图像路径
+            print(f"[执行器] 步骤3: 替换图像路径...")
             robot_script = robot_script.replace(
                 "${IMAGE_PATH}         examples/robot_resources",
                 f"${{IMAGE_PATH}}         {str(resources_dir).replace(chr(92), '/')}"  # 使用正斜杠
@@ -206,18 +237,78 @@ class RobotFrameworkExecutor(BaseExecutor):
                 "examples/robot_resources",
                 str(resources_dir).replace(chr(92), '/')  # 使用正斜杠
             )
+            print(f"[执行器] ✅ 图像路径替换完成")
+            
+            # 2.1 检查并转换Windows路径（包括变量定义和所有使用路径的地方）
+            # 判断是否在Docker容器内运行
+            import re
+            is_docker = Path('/.dockerenv').exists() or os.environ.get('DOCKER_CONTAINER') == 'true'
+            print(f"[执行器] 步骤4: 转换Windows路径 (is_docker={is_docker})...")
+            
+            # 匹配Windows路径（包括变量定义和Start Process中的路径）
+            # 匹配模式：C:/或C:\开头的路径，包括.exe文件
+            # 需要匹配变量定义中的路径，如：${APP_PATH}           C:\Users\...\file.exe
+            windows_path_pattern = re.compile(r'([A-Z]:[/\\][^\s\n"\']+\.exe)', re.IGNORECASE)
+            
+            def convert_windows_path(match):
+                win_path = match.group(1)
+                original_path = win_path
+                
+                if is_docker:
+                    # 在Docker容器内：将Windows路径转换为容器内挂载路径
+                    # C:/Users/Lenovo/Desktop/... -> /host/Desktop/...
+                    if win_path.startswith(('C:/Users/Lenovo/Desktop/', 'C:\\Users\\Lenovo\\Desktop\\')):
+                        container_path = win_path.replace('C:/Users/Lenovo/Desktop/', '/host/Desktop/').replace('C:\\Users\\Lenovo\\Desktop\\', '/host/Desktop/')
+                        # 检查容器内路径是否存在
+                        if Path(container_path).exists():
+                            logs_list.append(f"路径映射: {original_path} -> {container_path}")
+                            return container_path
+                        else:
+                            # 即使路径不存在，也尝试转换（可能是卷挂载问题，但路径格式正确）
+                            logs_list.append(f"警告: 容器内路径不存在: {container_path}，但将尝试使用该路径（请检查Docker卷挂载）")
+                            return container_path
+                else:
+                    # 在Windows主机上：确保路径格式正确
+                    # Robot Framework的Start Process需要路径使用正斜杠
+                    # 将反斜杠统一转换为正斜杠
+                    win_path_normalized = win_path.replace('\\', '/')
+                    # 检查路径是否存在（需要将正斜杠转回反斜杠来检查）
+                    check_path = Path(win_path_normalized.replace('/', '\\'))
+                    if check_path.exists():
+                        logs_list.append(f"使用Windows路径（正斜杠格式）: {win_path_normalized}")
+                        return win_path_normalized
+                    elif Path(win_path).exists():
+                        logs_list.append(f"使用Windows路径（转换后）: {win_path_normalized}")
+                        return win_path_normalized
+                    else:
+                        # 即使路径不存在，也尝试使用正斜杠格式
+                        logs_list.append(f"警告: Windows路径不存在: {original_path}，将尝试使用正斜杠格式: {win_path_normalized}")
+                        return win_path_normalized
+                
+                return win_path
+            
+            # 应用路径转换
+            robot_script = windows_path_pattern.sub(convert_windows_path, robot_script)
+            print(f"[执行器] ✅ Windows路径转换完成")
+            
+            # 将日志列表转换为字符串
+            logs = "\n".join(logs_list) + "\n"
             
             # 3. 写入Robot Framework脚本
+            print(f"[执行器] 步骤5: 写入Robot Framework脚本文件...")
             robot_file = temp_path / f"{test_ir['name']}.robot"
             robot_file.write_text(robot_script, encoding='utf-8')
+            print(f"[执行器] ✅ 脚本文件已写入: {robot_file}")
             
             # 4. 如果test_ir中指定了额外的资源文件，也复制它们
             if 'resources' in test_ir:
                 await self._copy_resources(test_ir['resources'], resources_dir)
             
             # 5. 构建Robot Framework命令
+            print(f"[执行器] 步骤6: 构建Robot Framework命令...")
             output_dir = (self.output_dir / test_ir['name']).resolve()
             output_dir.mkdir(parents=True, exist_ok=True)
+            print(f"[执行器] 输出目录: {output_dir}")
             
             cmd = self._build_robot_command(
                 robot_file=robot_file,
@@ -225,6 +316,7 @@ class RobotFrameworkExecutor(BaseExecutor):
                 variables=test_ir.get('variables', {}),
                 timeout=test_ir.get('timeout', 300)
             )
+            print(f"[执行器] ✅ 命令构建完成: {' '.join(cmd)}")
             
             # 6. 执行Robot Framework
             logs += f"执行Robot Framework测试: {test_ir['name']}\n"
@@ -233,6 +325,7 @@ class RobotFrameworkExecutor(BaseExecutor):
             logs += f"Robot可执行文件: {self.robot_executable}\n"
             logs += f"完整命令: {' '.join(cmd)}\n"
             logs += f"命令参数数量: {len(cmd)}\n\n"
+            print(f"[执行器] 步骤7: 准备执行Robot Framework...")
             
             # 检查robot命令是否可用
             robot_cmd = self.robot_executable
@@ -253,16 +346,19 @@ class RobotFrameworkExecutor(BaseExecutor):
                     )
             
             logs += f"✓ 命令检查通过，开始执行...\n\n"
+            print(f"[执行器] ✅ 命令检查通过，开始执行Robot Framework...")
             
             try:
                 # 执行Robot Framework命令
                 # 注意：在Windows的BackgroundTasks线程中，事件循环可能不支持异步子进程
                 # 因此使用同步的subprocess.run()，通过线程执行以避免阻塞
                 env = os.environ.copy()
+                print(f"[执行器] 步骤8: 准备执行subprocess...")
                 
                 # 使用同步的subprocess.run()，在线程中执行
                 def run_robot_sync():
                     nonlocal logs  # 允许修改外层的logs变量
+                    print(f"[执行器] [subprocess] 开始执行Robot Framework命令...")
                     
                     # 如果使用系统Python，需要清除VIRTUAL_ENV环境变量
                     # 这样py命令会使用系统Python而不是虚拟环境
@@ -309,7 +405,10 @@ class RobotFrameworkExecutor(BaseExecutor):
                         logs += f"   - 常见路径: D:/Downloads/java\n"
                         logs += f"   请确保Java已安装并配置JAVA_HOME环境变量\n"
                     
-                    return subprocess.run(
+                    print(f"[执行器] [subprocess] 执行命令: {' '.join(cmd)}")
+                    print(f"[执行器] [subprocess] 工作目录: {temp_path}")
+                    print(f"[执行器] [subprocess] 超时设置: {test_ir.get('timeout', 300)}秒")
+                    result = subprocess.run(
                         cmd,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
@@ -319,6 +418,10 @@ class RobotFrameworkExecutor(BaseExecutor):
                         encoding='utf-8',
                         errors='replace'
                     )
+                    print(f"[执行器] [subprocess] ✅ 命令执行完成，返回码: {result.returncode}")
+                    print(f"[执行器] [subprocess] stdout长度: {len(result.stdout)} 字符")
+                    print(f"[执行器] [subprocess] stderr长度: {len(result.stderr)} 字符")
+                    return result
                 
                 # 在线程中运行同步函数，避免阻塞事件循环
                 # 在BackgroundTasks中，可能没有事件循环，所以需要处理这种情况
@@ -326,27 +429,34 @@ class RobotFrameworkExecutor(BaseExecutor):
                     # 尝试获取事件循环
                     try:
                         loop = asyncio.get_event_loop()
+                        print(f"[执行器] 获取到事件循环，尝试在线程中执行...")
                         # Python 3.9+ 使用 asyncio.to_thread
                         if hasattr(asyncio, 'to_thread'):
+                            print(f"[执行器] 使用 asyncio.to_thread...")
                             result = await asyncio.to_thread(run_robot_sync)
                         else:
                             # Python 3.7-3.8 使用 run_in_executor
+                            print(f"[执行器] 使用 run_in_executor...")
                             result = await loop.run_in_executor(None, run_robot_sync)
-                    except RuntimeError:
+                    except RuntimeError as e:
                         # 没有事件循环，直接同步运行（在BackgroundTasks线程中）
+                        print(f"[执行器] 没有事件循环 (RuntimeError: {e})，直接同步运行...")
                         result = run_robot_sync()
                     
                     stdout_text = result.stdout
                     stderr_text = result.stderr
                     return_code = result.returncode
+                    print(f"[执行器] ✅ 获取到执行结果，返回码: {return_code}")
                     
                 except Exception as e:
                     # 如果所有异步方法都失败，直接同步运行
                     # 这在BackgroundTasks线程中是安全的
+                    print(f"[执行器] 异步方法失败 (Exception: {e})，直接同步运行...")
                     result = run_robot_sync()
                     stdout_text = result.stdout
                     stderr_text = result.stderr
                     return_code = result.returncode
+                    print(f"[执行器] ✅ 获取到执行结果，返回码: {return_code}")
                 
             except FileNotFoundError as e:
                 # 命令找不到
@@ -368,6 +478,7 @@ class RobotFrameworkExecutor(BaseExecutor):
             
             # 7. 解析结果
             # stdout_text 和 stderr_text 已经在上面获取了
+            print(f"[执行器] 步骤9: 解析Robot Framework输出...")
             
             # 添加详细的输出信息
             logs += "=== Robot Framework 标准输出 ===\n"
@@ -383,6 +494,7 @@ class RobotFrameworkExecutor(BaseExecutor):
                 return_code=return_code,
                 test_name=test_ir['name']
             )
+            print(f"[执行器] ✅ 输出解析完成，测试结果: {'通过' if result.get('passed') else '失败'}")
             
             logs += result['logs']
             

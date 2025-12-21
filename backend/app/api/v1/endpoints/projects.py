@@ -37,7 +37,8 @@ def list_projects(
         query = query.filter(Project.is_active == is_active)
     
     total = query.count()
-    items = query.offset(skip).limit(limit).all()
+    # 按创建时间倒序排序，确保新创建的项目在前面
+    items = query.order_by(Project.created_at.desc()).offset(skip).limit(limit).all()
     
     return ProjectListResponse(total=total, items=items)
 
@@ -65,16 +66,7 @@ async def create_project(
         body = await request.json()
         project_data = ProjectCreate(**body)
         
-        project = Project(
-            name=project_data.name,
-            description=project_data.description,
-            project_type=project_data.project_type,
-            language=project_data.language,
-            framework=project_data.framework,
-            source_path=project_data.source_path,
-            build_path=project_data.build_path,
-            binary_path=project_data.binary_path
-        )
+        base_name = project_data.name
         source_file = None
         extract = "true"
     else:
@@ -85,17 +77,10 @@ async def create_project(
         if not name:
             raise HTTPException(status_code=400, detail="name为必填项")
         
+        base_name = name
         project_type = form.get("project_type")
         if not project_type:
             raise HTTPException(status_code=400, detail="project_type为必填项")
-        
-        project = Project(
-            name=name,
-            description=form.get("description") or None,
-            project_type=project_type,
-            language=form.get("language") or None,
-            framework=form.get("framework") or None
-        )
         
         # 获取上传的文件
         source_file = form.get("source_file")
@@ -110,6 +95,46 @@ async def create_project(
             pass
         else:
             extract = "true"
+    
+    # 检查项目名称是否重复，如果重复则自动添加编号
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    final_name = base_name
+    counter = 1
+    
+    # 检查是否有重复名称
+    while db.query(Project).filter(Project.name == final_name).first():
+        counter += 1
+        final_name = f"{base_name}_{counter}"
+        logger.debug(f"项目名称 '{base_name}' 重复，尝试 '{final_name}'")
+    
+    # 如果名称被修改，记录日志
+    if final_name != base_name:
+        logger.info(f"✅ 项目名称重复，自动重命名: '{base_name}' -> '{final_name}'")
+    else:
+        logger.info(f"✅ 项目名称唯一，使用原始名称: '{final_name}'")
+    
+    # 创建项目对象
+    if "application/json" in content_type:
+        project = Project(
+            name=final_name,
+            description=project_data.description,
+            project_type=project_data.project_type,
+            language=project_data.language,
+            framework=project_data.framework,
+            source_path=project_data.source_path,
+            build_path=project_data.build_path,
+            binary_path=project_data.binary_path
+        )
+    else:
+        project = Project(
+            name=final_name,
+            description=form.get("description") or None,
+            project_type=project_type,
+            language=form.get("language") or None,
+            framework=form.get("framework") or None
+        )
     
     db.add(project)
     db.flush()  # 获取项目ID
@@ -202,6 +227,31 @@ def update_project(
         raise HTTPException(status_code=404, detail="项目不存在")
     
     update_data = project_in.model_dump(exclude_unset=True)
+    
+    # 如果更新了名称，检查是否重复
+    if 'name' in update_data and update_data['name'] != project.name:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        base_name = update_data['name']
+        final_name = base_name
+        counter = 1
+        
+        # 检查是否有重复名称（排除当前项目）
+        while db.query(Project).filter(
+            Project.name == final_name,
+            Project.id != project_id
+        ).first():
+            counter += 1
+            final_name = f"{base_name}_{counter}"
+            logger.debug(f"更新项目名称 '{base_name}' 重复，尝试 '{final_name}'")
+        
+        # 如果名称被修改，记录日志
+        if final_name != base_name:
+            logger.info(f"✅ 更新项目名称重复，自动重命名: '{base_name}' -> '{final_name}' (project_id={project_id})")
+        
+        update_data['name'] = final_name
+    
     for field, value in update_data.items():
         setattr(project, field, value)
     

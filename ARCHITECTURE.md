@@ -129,17 +129,9 @@ class BaseExecutor(ABC):
         """验证IR格式"""
         pass
 
-class SpixAdapter(BaseExecutor):
-    def execute(self, test_ir):
-        # 1. 转换IR到Spix脚本
-        # 2. 启动应用
-        # 3. 执行RPC调用
-        # 4. 收集结果
-        return result
-
 class ExecutorFactory:
     _executors = {
-        "spix": SpixAdapter,
+        "robot_framework": RobotFrameworkAdapter,
         "utbot": UTBotAdapter,
         "static_analyzer": StaticAnalyzer
     }

@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 import shutil
@@ -152,8 +153,8 @@ def upload_artifact(
 def upload_static_zip(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    name: str | None = Form(None),
-    description: str | None = Form(None),
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
     tool: str = Form("cppcheck"),
     db: Session = Depends(get_db),
 ):
@@ -237,10 +238,22 @@ def upload_static_zip(
     # Clazy 特有配置
     if tool == "clazy":
          test_ir["checks"] = ["level1"] # 默认 level1
+    
+    # 检查名称是否重复，如果重复则自动添加编号
+    base_name = f"静态分析（{tool.capitalize()}）"
+    final_name = base_name
+    counter = 1
+    
+    while db.query(TestCase).filter(
+        TestCase.project_id == project.id,
+        TestCase.name == final_name
+    ).first():
+        counter += 1
+        final_name = f"{base_name}_{counter}"
          
     testcase = TestCase(
         project_id=project.id,
-        name=f"静态分析（{tool.capitalize()}）",
+        name=final_name,
         description="上传压缩包自动创建",
         test_type="static",
         test_ir=test_ir,

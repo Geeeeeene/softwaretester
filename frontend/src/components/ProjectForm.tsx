@@ -56,6 +56,10 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
         )
         const { project_id } = res.data as any
         
+        // 刷新项目列表缓存，确保新项目会被显示
+        await queryClient.invalidateQueries({ queryKey: ['projects'] })
+        await queryClient.refetchQueries({ queryKey: ['projects'] })
+        
         if (onSuccess) onSuccess()
         
         // 跳转到项目详情页（分析会在后台进行）
@@ -77,7 +81,9 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
         
         // 在跳转前刷新项目列表缓存，确保新项目会被显示
         // 使用 invalidateQueries 来刷新所有项目列表查询（包括不同 project_type 的查询）
-        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        await queryClient.invalidateQueries({ queryKey: ['projects'] })
+        // 等待缓存刷新完成
+        await queryClient.refetchQueries({ queryKey: ['projects'] })
         
         // 调用 onSuccess 回调（在跳转前调用，确保能执行）
         if (onSuccess) {
@@ -99,8 +105,10 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
 
         await projectsApi.create(project)
         
-        // 刷新项目列表缓存
-        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        // 刷新项目列表缓存，确保新项目会被显示
+        await queryClient.invalidateQueries({ queryKey: ['projects'] })
+        // 等待缓存刷新完成
+        await queryClient.refetchQueries({ queryKey: ['projects'] })
         
         if (onSuccess) {
           onSuccess(projectType)

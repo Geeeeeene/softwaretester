@@ -6,7 +6,7 @@ python-multipart==0.0.6
 # Database
 sqlalchemy==2.0.23
 alembic==1.13.0
-psycopg2-binary==2.9.9
+psycopg2-binary>=2.9.9
 neo4j==5.14.1
 
 # Redis and task queue
@@ -44,4 +44,4 @@ httpx==0.25.2
 # Robot Framework and Sikuli
 robotframework==6.1.1
 robotframework-sikulilibrary==2.0.0
-Pillow==10.1.0  # 图像处理，SikuliLibrary依赖
+Pillow>=10.1.0  # 图像处理，SikuliLibrary依赖

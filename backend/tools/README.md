@@ -6,8 +6,6 @@
 
 ```
 backend/tools/
-├── spix/              # Spix UI 测试框架
-│   └── spix/
 ├── utbot/             # UTBotCpp 单元测试工具
 │   └── UTBotCpp/
 ├── clazy/             # Clazy 静态分析工具
@@ -23,33 +21,7 @@ backend/tools/
 
 ## 工具列表
 
-### 1. Spix
-
-**用途**: Qt/QML 应用 UI 测试框架
-
-**状态**: ✅ 已下载（从 `backend/spix/` 移动）
-
-**官方文档**: https://github.com/faaxm/spix
-
-**使用说明**:
-- Spix 是一个最小侵入性的 UI 测试库
-- 支持通过 C++ 代码或 HTTP RPC 接口控制 Qt/QML 应用
-- 需要编译后才能使用
-
-**编译步骤**:
-```bash
-cd backend/tools/spix/spix
-mkdir build
-cd build
-cmake ..
-cmake --build .
-```
-
-**配置路径**: `SPIX_PATH` (在 `backend/app/core/config.py` 中配置)
-
----
-
-### 2. UTBotCpp
+### 1. UTBotCpp
 
 **用途**: C++ 单元测试自动生成工具
 
@@ -84,7 +56,7 @@ cmake --build .
 
 ---
 
-### 3. Clazy
+### 2. Clazy
 
 **用途**: Qt 代码静态分析工具（基于 Clang）
 
@@ -118,7 +90,7 @@ cmake --build .
 
 ---
 
-### 4. Cppcheck
+### 3. Cppcheck
 
 **用途**: C/C++ 静态代码分析工具
 
@@ -147,7 +119,7 @@ cd backend/tools/cppcheck/cppcheck
 
 ---
 
-### 5. gcov + lcov
+### 4. gcov + lcov
 
 **用途**: 代码覆盖率工具
 
@@ -175,7 +147,7 @@ cd backend/tools/cppcheck/cppcheck
 
 ---
 
-### 6. Valgrind / Dr. Memory
+### 5. Valgrind / Dr. Memory
 
 **用途**: 内存调试和性能分析工具
 
@@ -199,7 +171,7 @@ Windows 不支持原生 Valgrind，使用 Dr. Memory 作为替代。
 
 ---
 
-### 7. GammaRay
+### 6. GammaRay
 
 **用途**: Qt 应用程序调试和检查工具
 
@@ -259,7 +231,6 @@ python backend/scripts/check_tools.py
 
 ```env
 TOOLS_BASE_PATH=./tools
-SPIX_PATH=./tools/spix/spix
 UTBOT_PATH=./tools/utbot/UTBotCpp
 # ... 其他工具路径
 ```
@@ -280,7 +251,7 @@ UTBOT_PATH=./tools/utbot/UTBotCpp
    - 下载: https://cmake.org/download/
    - 或使用 Chocolatey: `choco install cmake`
 
-3. **Qt** (用于 Spix, Clazy, GammaRay)
+3. **Qt** (用于 Clazy, GammaRay)
    - 下载: https://www.qt.io/download
    - 或使用在线安装器
 

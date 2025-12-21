@@ -137,15 +137,6 @@ class ToolChecker:
         print("🔍 开始检测工具...")
         print(f"工具基础路径: {self.tools_base}\n")
         
-        # Spix
-        self.results["spix"] = self.check_tool(
-            "Spix",
-            settings.SPIX_PATH,
-            executable="",
-            download_url="https://github.com/faaxm/spix",
-            needs_build=True
-        )
-        
         # UTBotCpp
         self.results["utbot"] = self.check_tool(
             "UTBotCpp",

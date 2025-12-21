@@ -27,12 +27,16 @@ class UITestAIGenerator:
         self.base_url = base_url or settings.CLAUDE_BASE_URL
         
         if not self.api_key:
-            raise ValueError("未配置Claude API密钥，请在config.py中设置CLAUDE_API_KEY")
-        
-        self.client = anthropic.Anthropic(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
+            # 允许在没有API Key的情况下初始化，但在调用时会失败
+            pass
+            
+        if self.api_key:
+            self.client = anthropic.Anthropic(
+                api_key=self.api_key,
+                base_url=self.base_url
+            )
+        else:
+            self.client = None
     
     def generate_robot_script(
         self,
@@ -54,6 +58,9 @@ class UITestAIGenerator:
         Returns:
             生成的Robot Framework脚本内容
         """
+        if not self.client:
+            raise ValueError("未配置Claude API密钥，无法生成脚本")
+
         prompt = self._build_prompt(test_name, test_description, project_info)
         
         try:
@@ -95,8 +102,14 @@ class UITestAIGenerator:
     ) -> str:
         """构建AI提示词"""
         project_name = project_info.get('name', '未知项目')
-        app_path = project_info.get('source_path', 'C:\\\\path\\\\to\\\\app.exe')
+        app_path = project_info.get('source_path', 'C:\\path\\to\\app.exe')
         project_desc = project_info.get('description', '无')
+        
+        # 处理路径，避免在f-string中使用反斜杠 (Python 3.9兼容性)
+        if app_path:
+            app_path_clean = app_path.replace('\\', '/')
+        else:
+            app_path_clean = 'C:/path/to/app.exe'
         
         prompt = f"""你是一个Robot Framework + SikuliLibrary专家。请根据以下需求生成一个完整的UI自动化测试脚本。
 
@@ -125,7 +138,7 @@ Library    Process
 Library    OperatingSystem
 
 *** Variables ***
-${{APP_PATH}}           {app_path.replace('\\\\', '/') if app_path else 'C:/path/to/app.exe'}
+${{APP_PATH}}           {app_path_clean}
 ${{IMAGE_PATH}}         examples/robot_resources
 ${{TIMEOUT}}            30
 
@@ -201,7 +214,7 @@ ${{TIMEOUT}}            30
         
         return "\n".join(lines)
     
-    def validate_script(self, script: str) -> tuple[bool, Optional[str]]:
+    def validate_script(self, script: str) -> tuple:
         """
         验证生成的脚本是否符合基本要求
         
@@ -222,4 +235,3 @@ ${{TIMEOUT}}            30
             return False, "未导入SikuliLibrary"
         
         return True, None
-

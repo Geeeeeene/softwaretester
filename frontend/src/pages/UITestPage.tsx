@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Plus, Play, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react'
-import { projectsApi, uiTestApi } from '@/lib/api'
+import { ArrowLeft, Plus, Play, CheckCircle, XCircle, Clock, Loader2, FileText, RefreshCw, Trash2 } from 'lucide-react'
+import { projectsApi, uiTestApi, testCasesApi } from '@/lib/api'
 import { UITestDialog } from '@/components/ui-test/UITestDialog'
 
 export default function UITestPage() {
@@ -38,8 +38,78 @@ export default function UITestPage() {
     refetchInterval: 5000, // 每5秒刷新
   })
 
+  // 获取UI测试用例列表
+  const { data: testCasesData, isLoading: testCasesLoading, refetch: refetchTestCases } = useQuery({
+    queryKey: ['ui-test-cases', projectId],
+    queryFn: async () => {
+      if (!projectId) throw new Error('无效的项目ID')
+      const response = await testCasesApi.list({ project_id: projectId, test_type: 'ui' })
+      return response.data
+    },
+    enabled: !!projectId,
+  })
+
   const handleTestComplete = () => {
     refetchExecutions()
+    refetchTestCases()
+  }
+
+  // 重新执行测试用例
+  const handleReExecute = async (testCase: any) => {
+    if (!testCase.test_ir?.robot_script) {
+      alert('测试用例缺少Robot Framework脚本')
+      return
+    }
+
+    try {
+      const response = await uiTestApi.executeTest(projectId!, {
+        name: testCase.name,
+        description: testCase.description || '',
+        robot_script: testCase.test_ir.robot_script
+      })
+      
+      if (response.data.execution_id) {
+        alert('测试已开始执行')
+        refetchExecutions()
+      }
+    } catch (error: any) {
+      console.error('执行测试失败:', error)
+      alert(`执行失败: ${error.response?.data?.detail || error.message || '未知错误'}`)
+    }
+  }
+
+  // 删除测试用例
+  const handleDeleteTestCase = async (testCaseId: number) => {
+    if (!confirm('确定要删除这个测试用例吗？此操作不可恢复。')) {
+      return
+    }
+
+    try {
+      await testCasesApi.delete(testCaseId)
+      alert('测试用例已删除')
+      refetchTestCases()
+      // 同时刷新执行记录，因为统计可能会变化
+      refetchExecutions()
+    } catch (error: any) {
+      console.error('删除测试用例失败:', error)
+      alert(`删除失败: ${error.response?.data?.detail || error.message || '未知错误'}`)
+    }
+  }
+
+  // 删除执行记录
+  const handleDeleteExecution = async (executionId: number) => {
+    if (!confirm('确定要删除这个执行记录吗？此操作不可恢复。')) {
+      return
+    }
+
+    try {
+      await uiTestApi.deleteExecution(projectId!, executionId)
+      alert('执行记录已删除')
+      refetchExecutions()
+    } catch (error: any) {
+      console.error('删除执行记录失败:', error)
+      alert(`删除失败: ${error.response?.data?.detail || error.message || '未知错误'}`)
+    }
   }
 
   if (!projectId) {
@@ -65,6 +135,9 @@ export default function UITestPage() {
     passed_executions: 0,
     pass_rate: 0
   }
+
+  // 测试用例数量（从测试用例列表获取）
+  const testCaseCount = testCasesData?.total || 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -176,16 +249,85 @@ export default function UITestPage() {
             <CardContent className="space-y-3">
               <div>
                 <div className="text-sm font-medium text-gray-700">测试用例</div>
-                <div className="text-2xl font-bold text-gray-900">{statistics.total_executions}</div>
+                <div className="text-2xl font-bold text-gray-900">{testCaseCount}</div>
               </div>
               <div>
-                <div className="text-sm font-medium text-gray-700">执行记录</div>
-                <div className="text-2xl font-bold text-gray-900">{statistics.completed_executions}</div>
+                <div className="text-sm font-medium text-gray-700">执行次数</div>
+                <div className="text-2xl font-bold text-gray-900">{statistics.total_executions}</div>
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-700">通过率</div>
                 <div className="text-2xl font-bold text-green-600">{statistics.pass_rate.toFixed(1)}%</div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 测试用例目录 */}
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                测试用例目录
+              </CardTitle>
+              <CardDescription>管理和重复执行已生成的测试用例</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {testCasesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                </div>
+              ) : testCasesData?.items && testCasesData.items.length > 0 ? (
+                <div className="space-y-3">
+                  {testCasesData.items.map((testCase) => (
+                    <div
+                      key={testCase.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-blue-500" />
+                            <span className="font-medium text-gray-900">{testCase.name}</span>
+                          </div>
+                          {testCase.description && (
+                            <p className="text-sm text-gray-600 mt-1">{testCase.description}</p>
+                          )}
+                          <div className="mt-2 text-xs text-gray-500">
+                            创建时间：{new Date(testCase.created_at).toLocaleString('zh-CN')}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReExecute(testCase)}
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            执行
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteTestCase(testCase.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            删除
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500">暂无测试用例</p>
+                  <p className="text-sm text-gray-400 mt-1">点击"UI测试"按钮创建第一个测试用例</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -250,16 +392,27 @@ export default function UITestPage() {
                               )}
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // 可以实现查看详情功能
-                              navigate(`/projects/${projectId}/ui-test/results/${execution.id}`)
-                            }}
-                          >
-                            查看详情
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // 可以实现查看详情功能
+                                navigate(`/projects/${projectId}/ui-test/results/${execution.id}`)
+                              }}
+                            >
+                              查看详情
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteExecution(execution.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              删除
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )

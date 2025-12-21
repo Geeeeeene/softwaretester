@@ -11,9 +11,11 @@ from datetime import datetime
 from app.db.session import get_db
 from app.db.models.project import Project
 from app.db.models.test_execution import TestExecution
+from app.db.models.test_case import TestCase
 from app.core.config import settings
 from app.executors.robot_framework_executor import RobotFrameworkExecutor
 from app.ui_test.ai_generator import UITestAIGenerator
+from app.workers.task_queue import enqueue_ui_test
 
 router = APIRouter()
 
@@ -125,7 +127,6 @@ async def generate_ui_test_case(
 async def execute_ui_test(
     project_id: int,
     request: UITestExecuteRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -140,6 +141,56 @@ async def execute_ui_test(
         raise HTTPException(status_code=400, detail="该项目不是UI测试项目")
     
     try:
+        # 保存或更新测试用例（如果不存在则创建，存在则更新）
+        test_case = db.query(TestCase).filter(
+            TestCase.project_id == project_id,
+            TestCase.name == request.name,
+            TestCase.test_type == "ui"
+        ).first()
+        
+        # 构建Test IR
+        test_ir = {
+            "test_type": "robot_framework",
+            "name": request.name,
+            "description": request.description,
+            "robot_script": request.robot_script,
+            "variables": {},
+            "timeout": 300
+        }
+        
+        if test_case:
+            # 更新现有测试用例
+            test_case.description = request.description
+            test_case.test_ir = test_ir
+            test_case.updated_at = datetime.utcnow()
+        else:
+            # 检查名称是否重复，如果重复则自动添加编号
+            base_name = request.name
+            final_name = base_name
+            counter = 1
+            
+            while db.query(TestCase).filter(
+                TestCase.project_id == project_id,
+                TestCase.name == final_name,
+                TestCase.test_type == "ui"
+            ).first():
+                counter += 1
+                final_name = f"{base_name}_{counter}"
+            
+            # 创建新测试用例
+            test_case = TestCase(
+                project_id=project_id,
+                name=final_name,
+                description=request.description,
+                test_type="ui",
+                test_ir=test_ir,
+                priority="medium",
+                tags=["ui", "robot_framework", "ai_generated"]
+            )
+            db.add(test_case)
+        
+        db.flush()  # 确保测试用例已保存
+        
         # 创建测试执行记录
         execution = TestExecution(
             project_id=project_id,
@@ -155,15 +206,57 @@ async def execute_ui_test(
         db.commit()
         db.refresh(execution)
         
-        # 在后台执行测试
-        background_tasks.add_task(
-            run_robot_framework_test,
-            execution_id=execution.id,
-            project_id=project_id,
-            test_name=request.name,
-            test_description=request.description,
-            robot_script=request.robot_script
-        )
+        # 提交到worker队列执行（在Windows主机上的worker中执行）
+        try:
+            job_id = enqueue_ui_test(
+                execution_id=execution.id,
+                project_id=project_id,
+                test_name=request.name,
+                test_description=request.description,
+                robot_script=request.robot_script
+            )
+            print(f"✅ UI测试任务已提交到worker队列: job_id={job_id}, execution_id={execution.id}")
+        except Exception as e:
+            # 如果worker队列不可用，回退到直接执行（同步方式，不推荐）
+            print(f"⚠️  Worker队列不可用，直接执行: {str(e)}")
+            import asyncio
+            from app.executors.robot_framework_executor import RobotFrameworkExecutor
+            
+            # 在后台线程中执行
+            import threading
+            def run_in_thread():
+                try:
+                    executor = RobotFrameworkExecutor()
+                    test_ir = {
+                        "test_type": "robot_framework",
+                        "name": request.name,
+                        "description": request.description,
+                        "robot_script": request.robot_script,
+                        "variables": {},
+                        "timeout": 300
+                    }
+                    result = asyncio.run(executor.execute(test_ir, {}))
+                    # 更新执行记录
+                    from app.db.session import SessionLocal
+                    db = SessionLocal()
+                    execution = db.query(TestExecution).filter(TestExecution.id == execution.id).first()
+                    if execution:
+                        execution.status = "completed" if result["passed"] else "failed"
+                        execution.completed_at = datetime.utcnow()
+                        if result["passed"]:
+                            execution.passed_tests = 1
+                            execution.failed_tests = 0
+                        else:
+                            execution.passed_tests = 0
+                            execution.failed_tests = 1
+                        execution.error_message = result.get("error_message")
+                        db.commit()
+                    db.close()
+                except Exception as e:
+                    print(f"❌ 直接执行失败: {str(e)}")
+            
+            thread = threading.Thread(target=run_in_thread, daemon=True)
+            thread.start()
         
         return UITestExecuteResponse(
             execution_id=execution.id,
@@ -252,14 +345,16 @@ async def list_ui_test_executions(
     executions = query.offset(skip).limit(limit).all()
     
     # 计算通过率
+    # 获取所有已完成的执行记录（包括completed和failed状态）
     completed_executions = db.query(TestExecution).filter(
         TestExecution.project_id == project_id,
         TestExecution.executor_type == "robot_framework",
-        TestExecution.status == "completed"
+        TestExecution.status.in_(["completed", "failed"])
     ).all()
     
     total_completed = len(completed_executions)
-    passed_count = sum(1 for e in completed_executions if e.failed_tests == 0)
+    # 通过的执行记录：status为completed且failed_tests为0
+    passed_count = sum(1 for e in completed_executions if e.status == "completed" and e.failed_tests == 0)
     pass_rate = (passed_count / total_completed * 100) if total_completed > 0 else 0
     
     return {
@@ -272,6 +367,37 @@ async def list_ui_test_executions(
             "pass_rate": round(pass_rate, 2)
         }
     }
+
+
+@router.delete("/projects/{project_id}/ui-test/executions/{execution_id}", status_code=204)
+async def delete_ui_test_execution(
+    project_id: int,
+    execution_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    删除UI测试执行记录
+    """
+    # 验证项目存在
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    # 查询执行记录
+    execution = db.query(TestExecution).filter(
+        TestExecution.id == execution_id,
+        TestExecution.project_id == project_id,
+        TestExecution.executor_type == "robot_framework"
+    ).first()
+    
+    if not execution:
+        raise HTTPException(status_code=404, detail="执行记录不存在")
+    
+    # 删除执行记录
+    db.delete(execution)
+    db.commit()
+    
+    return None
 
 
 def run_robot_framework_test(

@@ -111,7 +111,7 @@ export default function HomePage() {
           <ol className="list-decimal list-inside space-y-2 text-gray-700">
             <li>创建一个新项目，上传源代码或二进制文件</li>
             <li>编写测试用例，使用Test IR格式（JSON/YAML）</li>
-            <li>选择执行器（Spix、UTBot、Static Analyzer）</li>
+            <li>选择执行器（Robot Framework、UTBot、Static Analyzer）</li>
             <li>运行测试并查看实时进度</li>
             <li>分析测试结果、覆盖率和趋势</li>
           </ol>

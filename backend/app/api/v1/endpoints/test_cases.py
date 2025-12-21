@@ -58,7 +58,40 @@ def create_test_case(test_case_in: TestCaseCreate, db: Session = Depends(get_db)
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
     
-    test_case = TestCase(**test_case_in.model_dump())
+    # 检查名称是否重复，如果重复则自动添加编号
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    base_name = test_case_in.name
+    final_name = base_name
+    counter = 1
+    
+    # 在同一项目内检查是否有重复名称
+    existing_count = db.query(TestCase).filter(
+        TestCase.project_id == test_case_in.project_id,
+        TestCase.name == base_name
+    ).count()
+    
+    logger.info(f"创建测试用例: project_id={test_case_in.project_id}, 原始名称='{base_name}', 已存在同名用例数={existing_count}")
+    
+    while db.query(TestCase).filter(
+        TestCase.project_id == test_case_in.project_id,
+        TestCase.name == final_name
+    ).first():
+        counter += 1
+        final_name = f"{base_name}_{counter}"
+        logger.debug(f"名称 '{base_name}' 重复，尝试 '{final_name}'")
+    
+    # 如果名称被修改，记录日志
+    if final_name != base_name:
+        logger.info(f"✅ 测试用例名称重复，自动重命名: '{base_name}' -> '{final_name}' (project_id={test_case_in.project_id})")
+    else:
+        logger.info(f"✅ 测试用例名称唯一，使用原始名称: '{final_name}' (project_id={test_case_in.project_id})")
+    
+    # 使用处理后的名称创建测试用例
+    test_case_data = test_case_in.model_dump()
+    test_case_data['name'] = final_name
+    test_case = TestCase(**test_case_data)
     db.add(test_case)
     db.commit()
     db.refresh(test_case)
@@ -77,6 +110,33 @@ def update_test_case(
         raise HTTPException(status_code=404, detail="测试用例不存在")
     
     update_data = test_case_in.model_dump(exclude_unset=True)
+    
+    # 如果更新了名称，检查是否与其他测试用例重复
+    if 'name' in update_data and update_data['name']:
+        new_name = update_data['name']
+        # 检查同一项目内是否有其他测试用例使用相同名称（排除自己）
+        existing = db.query(TestCase).filter(
+            TestCase.project_id == test_case.project_id,
+            TestCase.name == new_name,
+            TestCase.id != test_case_id
+        ).first()
+        
+        if existing:
+            # 如果重复，自动添加编号
+            base_name = new_name
+            final_name = base_name
+            counter = 1
+            
+            while db.query(TestCase).filter(
+                TestCase.project_id == test_case.project_id,
+                TestCase.name == final_name,
+                TestCase.id != test_case_id
+            ).first():
+                counter += 1
+                final_name = f"{base_name}_{counter}"
+            
+            update_data['name'] = final_name
+    
     for field, value in update_data.items():
         setattr(test_case, field, value)
     

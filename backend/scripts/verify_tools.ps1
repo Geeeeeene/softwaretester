@@ -6,12 +6,6 @@ Write-Host ""
 
 $tools = @(
     @{
-        Name = "Spix"
-        Path = "backend/tools/spix/spix"
-        KeyFiles = @("CMakeLists.txt", "README.md", "LICENSE.txt")
-        ExpectedFiles = 100
-    },
-    @{
         Name = "UTBotCpp"
         Path = "backend/tools/utbot/UTBotCpp"
         KeyFiles = @("CMakeLists.txt", "README.md")

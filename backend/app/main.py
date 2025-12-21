@@ -46,6 +46,13 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# 添加安全响应头中间件
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
 
 @app.on_event("startup")
 async def startup_event():

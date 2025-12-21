@@ -67,6 +67,9 @@ services:
       - ./backend:/app
       - artifacts_data:/app/artifacts
       - ./projects:/app/projects
+      # 挂载Windows主机路径到容器内（用于UI测试访问Windows应用程序）
+      # 注意：Windows路径需要使用正斜杠或双反斜杠
+      - C:/Users/Lenovo/Desktop:/host/Desktop:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,7 +110,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_BASE_URL: /api/v1
       VITE_WS_URL: ws://localhost:8000/ws
     volumes:
       - ./frontend:/app

@@ -1,7 +1,8 @@
 """应用配置"""
-from typing import List, Optional
+from typing import List, Optional, Union, Any
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl
+from pydantic import field_validator
+import json
 
 
 class Settings(BaseSettings):
@@ -17,7 +18,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # 数据库配置（默认使用SQLite，无需安装PostgreSQL）
+    # 数据库配置
     DATABASE_URL: str = "sqlite:///./homemade_tester.db"
     
     # Redis配置
@@ -28,13 +29,29 @@ class Settings(BaseSettings):
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str = "testpassword"
     
-    # CORS配置
-    BACKEND_CORS_ORIGINS: List[str] = [
+    # CORS配置 - 使用Any类型以避免Pydantic自动JSON解析错误
+    BACKEND_CORS_ORIGINS: Any = [
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
+        "*"
     ]
+    
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    return json.loads(v)
+                except json.JSONDecodeError:
+                    pass
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, list):
+            return v
+        raise ValueError(v)
     
     # 文件存储配置
     ARTIFACT_STORAGE_PATH: str = "./artifacts"
@@ -42,26 +59,27 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./artifacts/uploads"
     
     # 静态分析工具配置
-    CPPCHECK_PATH: Optional[str] = None  # Cppcheck安装路径（可选，为None时从PATH查找）
-    CPPCHECK_EXECUTABLE: str = "cppcheck"  # Cppcheck可执行文件名
-    CLAZY_PATH: Optional[str] = None  # Clazy安装路径（可选）
-    CLAZY_EXECUTABLE: str = "clazy-standalone"  # Clazy可执行文件名
+    CPPCHECK_PATH: Optional[str] = None
+    CPPCHECK_EXECUTABLE: str = "cppcheck"
+    CLAZY_PATH: Optional[str] = None
+    CLAZY_EXECUTABLE: str = "clazy-standalone"
     
-    # 大模型API配置（用于深度静态分析）
-    DASHSCOPE_API_KEY: Optional[str] = None  # 通义千问API密钥（可选，不使用大模型分析时可留空）
-    CLAUDE_API_KEY: Optional[str] = "sk-K8eYxw7bz3rPzQdyakgVoyL5TJ55lBDFW7asbnB7vXU6uJlL"  # Claude API密钥
-    CLAUDE_MODEL: str = "claude-sonnet-4-5-20250929"  # Claude模型名称
-    CLAUDE_BASE_URL: Optional[str] = "https://work.poloapi.com"  # Claude API base URL（不含/v1后缀）
+    # AI配置
+    DASHSCOPE_API_KEY: Optional[str] = None
+    CLAUDE_API_KEY: Optional[str] = "sk-K8eYxw7bz3rPzQdyakgVoyL5TJ55lBDFW7asbnB7vXU6uJlL"
+    CLAUDE_MODEL: str = "claude-sonnet-4-5-20250929"
+    CLAUDE_BASE_URL: Optional[str] = "https://work.poloapi.com"
     
-    # 静态分析存储配置
-    STATIC_ANALYSIS_STORAGE_PATH: str = "./artifacts/static_analysis"  # 静态分析结果存储路径
+    # 静态分析存储
+    STATIC_ANALYSIS_STORAGE_PATH: str = "./artifacts/static_analysis"
     
-    # Java配置（SikuliLibrary需要）
-    JAVA_HOME: Optional[str] = None  # Java安装路径（可选，为None时自动查找）
+    # Java配置
+    JAVA_HOME: Optional[str] = None
     
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 # 创建配置实例

@@ -14,6 +14,7 @@ default_queue = Queue('default', connection=redis_conn)
 test_execution_queue = Queue('test_execution', connection=redis_conn)
 static_analysis_queue = Queue('static_analysis', connection=redis_conn)
 report_generation_queue = Queue('report_generation', connection=redis_conn)
+windows_ui_queue = Queue('windows_ui', connection=redis_conn)  # Windows UI测试专用队列
 
 
 def enqueue_test_execution(testcase_id: int, config: dict = None):
@@ -36,6 +37,27 @@ def enqueue_static_analysis(project_id: int, config: dict = None):
         project_id=project_id,
         config=config or {},
         job_timeout='1h'
+    )
+    return job.id
+
+
+def enqueue_ui_test(
+    execution_id: int,
+    project_id: int,
+    test_name: str,
+    test_description: str,
+    robot_script: str
+):
+    """提交UI测试执行任务到windows_ui队列（Windows Worker专用）"""
+    from app.worker.tasks import run_ui_test
+    job = windows_ui_queue.enqueue(
+        run_ui_test,
+        execution_id=execution_id,
+        project_id=project_id,
+        test_name=test_name,
+        test_description=test_description,
+        robot_script=robot_script,
+        job_timeout='30m'
     )
     return job.id
 

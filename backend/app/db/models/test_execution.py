@@ -13,7 +13,7 @@ class TestExecution(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
     
-    # 执行器类型：spix, utbot, static_analyzer
+    # 执行器类型：robot_framework, utbot, static_analyzer
     executor_type = Column(String(50), nullable=False)
     
     # 状态：pending, running, completed, failed, cancelled

@@ -31,8 +31,29 @@ async def create_testcase(
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
     
-    # 创建测试用例
-    testcase = TestCase(**testcase_in.model_dump())
+    # 检查名称是否重复，如果重复则自动添加编号
+    base_name = testcase_in.name
+    final_name = base_name
+    counter = 1
+    
+    # 在同一项目内检查是否有重复名称
+    while True:
+        result = await db.execute(
+            select(TestCase).where(
+                TestCase.project_id == testcase_in.project_id,
+                TestCase.name == final_name
+            )
+        )
+        existing = result.scalar_one_or_none()
+        if not existing:
+            break
+        counter += 1
+        final_name = f"{base_name}_{counter}"
+    
+    # 使用处理后的名称创建测试用例
+    testcase_data = testcase_in.model_dump()
+    testcase_data['name'] = final_name
+    testcase = TestCase(**testcase_data)
     db.add(testcase)
     await db.commit()
     await db.refresh(testcase)

@@ -491,4 +491,8 @@ export const uiTestApi = {
     api.get<UITestExecutionListResponse>(`/projects/${projectId}/ui-test/executions`, {
       params: { skip, limit }
     }),
+  
+  // 删除UI测试执行记录
+  deleteExecution: (projectId: number, executionId: number) =>
+    api.delete(`/projects/${projectId}/ui-test/executions/${executionId}`),
 }

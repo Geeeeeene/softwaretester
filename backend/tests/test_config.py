@@ -33,7 +33,6 @@ class TestConfig:
     def test_tools_paths(self):
         """测试工具路径配置"""
         assert hasattr(settings, 'UTBOT_PATH')
-        assert hasattr(settings, 'SPIX_PATH')
         assert hasattr(settings, 'CLAZY_PATH')
         assert hasattr(settings, 'CPPCHECK_PATH')
 

@@ -7,7 +7,7 @@ import { formatDateTime } from '@/lib/utils'
 import { useState, useRef, useEffect } from 'react'
 import { getProject, getAllProjects, updateProject, type LocalProject, deleteProject, fileToBase64 } from '@/lib/localStorage'
 import { executionsApi, staticAnalysisApi, projectsApi, type TestExecution } from '@/lib/api'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosResponse } from 'axios'
 
 export default function ProjectDetailPage() {
@@ -193,12 +193,37 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleDelete = () => {
-    if (id && deleteProject(id)) {
-      alert('项目已删除')
-      navigate('/projects')
-    } else {
-      alert('删除失败')
+  const queryClient = useQueryClient()
+  
+  const handleDelete = async () => {
+    if (!id) {
+      alert('删除失败：项目ID不存在')
+      return
+    }
+    
+    try {
+      if (isBackendProject && backendProjectId) {
+        // 后端项目：调用API删除
+        await projectsApi.delete(backendProjectId)
+        // 刷新项目列表缓存
+        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        alert('项目已删除')
+        navigate('/projects')
+      } else {
+        // 本地项目：使用localStorage删除
+        if (deleteProject(id)) {
+          alert('项目已删除')
+          navigate('/projects')
+        } else {
+          alert('删除失败')
+        }
+      }
+    } catch (error: any) {
+      console.error('删除项目失败:', error)
+      const errorMessage = error.response?.data?.detail || error.message || '删除失败，请重试'
+      alert(`删除失败: ${errorMessage}`)
+    } finally {
+      setDeleteDialogOpen(false)
     }
   }
 
@@ -408,14 +433,6 @@ export default function ProjectDetailPage() {
           <p className="text-gray-600 mt-2">{project.description || '暂无描述'}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            上传源代码
-          </Button>
-          <Button variant="outline">
-            <Edit className="mr-2 h-4 w-4" />
-            编辑
-          </Button>
           <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             删除
@@ -536,7 +553,7 @@ export default function ProjectDetailPage() {
       )}
 
       {/* 静态分析结果 */}
-      {isBackendProject && (
+      {isBackendProject && project.project_type !== 'ui' && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -641,43 +658,45 @@ export default function ProjectDetailPage() {
       )}
 
       {/* 统计信息 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>测试用例</CardTitle>
-            <CardDescription>总数</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">0</p>
-            <Button variant="link" className="mt-2" onClick={() => setTestCaseDialogOpen(true)}>
-              创建测试用例
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>执行记录</CardTitle>
-            <CardDescription>总数</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">0</p>
-            {isBackendProject && (
-              <Link to={`/projects/${id}/static-analysis`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">
-                查看执行记录
-              </Link>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>通过率</CardTitle>
-            <CardDescription>最近7天</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">--%</p>
-          </CardContent>
-        </Card>
-      </div>
+      {project.project_type !== 'ui' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>测试用例</CardTitle>
+              <CardDescription>总数</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-bold">0</p>
+              <Button variant="link" className="mt-2" onClick={() => setTestCaseDialogOpen(true)}>
+                创建测试用例
+              </Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>执行记录</CardTitle>
+              <CardDescription>总数</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-bold">0</p>
+              {isBackendProject && (
+                <Link to={`/projects/${id}/static-analysis`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">
+                  查看执行记录
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>通过率</CardTitle>
+              <CardDescription>最近7天</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-bold">--%</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* 上传源代码对话框 */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>

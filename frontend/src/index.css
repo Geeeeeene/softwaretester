@@ -50,6 +50,10 @@
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%; /* Chrome, Safari, Edge */
+    text-size-adjust: 100%; /* Standard */
+  }
   * {
     @apply border-border;
   }

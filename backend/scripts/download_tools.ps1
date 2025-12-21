@@ -147,11 +147,7 @@ function Main {
     
     $results = @{}
     
-    # 1. Spix (已移动，跳过下载)
-    Write-Info "Spix 已存在于 backend/tools/spix/，跳过下载"
-    $results["spix"] = $true
-    
-    # 2. UTBotCpp
+    # 1. UTBotCpp
     Write-Host ""
     Write-ColorOutput Yellow "=== UTBotCpp ==="
     $utbotPath = Join-Path $ToolsBasePath "utbot/UTBotCpp"
