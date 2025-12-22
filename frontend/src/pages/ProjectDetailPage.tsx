@@ -631,10 +631,15 @@ export default function ProjectDetailPage() {
           <CardContent className="space-y-2">
             {project.source_path && (
               <div>
-                <p className="text-sm text-gray-500">源代码路径</p>
+                <p className="text-sm text-gray-500">
+                  {project.project_type === 'ui' ? '应用程序路径' : '源代码路径'}
+                </p>
                 <p className="text-base font-mono bg-gray-50 p-2 rounded">
                   {project.source_path}
                 </p>
+                {project.project_type === 'ui' && (
+                  <p className="text-xs text-gray-400 mt-1">指向待测试应用程序的可执行文件（.exe）</p>
+                )}
               </div>
             )}
             {project.build_path && (

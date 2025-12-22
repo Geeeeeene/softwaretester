@@ -3,6 +3,8 @@ UI测试AI生成器
 使用Claude API生成Robot Framework + SikuliLibrary测试脚本
 """
 import anthropic
+import json
+from pathlib import Path
 from typing import Dict, Any, Optional
 from app.core.config import settings
 import logging
@@ -11,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class UITestAIGenerator:
-    """UI测试AI生成器"""
+    """UI测试AI生成器 - 使用Claude Sonnet 4.5模型"""
     
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None, base_url: Optional[str] = None):
         """
@@ -26,6 +28,10 @@ class UITestAIGenerator:
         self.model = model or settings.CLAUDE_MODEL
         self.base_url = base_url or settings.CLAUDE_BASE_URL
         
+        # 当前使用的AI模型信息
+        self.ai_model_name = "Claude Sonnet 4.5"
+        self.ai_model_id = self.model or "claude-sonnet-4-5-20250929"
+        
         if not self.api_key:
             # 允许在没有API Key的情况下初始化，但在调用时会失败
             pass
@@ -37,6 +43,33 @@ class UITestAIGenerator:
             )
         else:
             self.client = None
+        
+        # 加载图片知识库
+        self.knowledge_base = self._load_knowledge_base()
+    
+    def _load_knowledge_base(self) -> Dict[str, Any]:
+        """
+        加载图片资源知识库
+        
+        Returns:
+            知识库字典，如果加载失败则返回空字典
+        """
+        try:
+            # 获取知识库文件路径
+            current_dir = Path(__file__).parent
+            kb_path = current_dir / "image_knowledge_base.json"
+            
+            if kb_path.exists():
+                with open(kb_path, 'r', encoding='utf-8') as f:
+                    kb = json.load(f)
+                logger.info(f"成功加载图片知识库，包含 {len(kb.get('categories', {}))} 个分类")
+                return kb
+            else:
+                logger.warning(f"知识库文件不存在: {kb_path}")
+                return {}
+        except Exception as e:
+            logger.error(f"加载知识库失败: {str(e)}")
+            return {}
     
     def generate_robot_script(
         self,
@@ -94,6 +127,86 @@ class UITestAIGenerator:
             logger.error(f"生成脚本失败: {str(e)}")
             raise
     
+    def _build_image_knowledge_section(self) -> str:
+        """
+        构建图片知识库部分，包含所有可用图片及其使用规则
+        
+        Returns:
+            知识库文本描述
+        """
+        if not self.knowledge_base:
+            return "【图片资源】\n暂无图片资源信息。\n"
+        
+        kb = self.knowledge_base
+        sections = []
+        
+        sections.append("【图片资源知识库】")
+        sections.append(f"当前AI模型: {kb.get('ai_model', self.ai_model_name)}")
+        sections.append(f"基础路径: {kb.get('base_path', 'robot_resources')}")
+        sections.append("")
+        
+        # 按分类列出所有图片
+        categories = kb.get('categories', {})
+        for cat_name, cat_info in categories.items():
+            sections.append(f"【{cat_name.upper()}】({cat_info.get('count', 0)}个文件) - {cat_info.get('description', '')}")
+            images = cat_info.get('images', [])
+            for img in images:
+                img_name = img.get('name', '')
+                img_path = img.get('path', '')
+                img_desc = img.get('description', '')
+                img_usage = img.get('usage', '')
+                
+                sections.append(f"  - {img_name}")
+                sections.append(f"    路径: {img_path}")
+                sections.append(f"    说明: {img_desc}")
+                sections.append(f"    用途: {img_usage}")
+                
+                # 如果有触发关系，说明
+                if 'triggers_select' in img:
+                    triggers = img['triggers_select']
+                    sections.append(f"    注意: 点击此按钮后会显示以下下拉菜单: {', '.join(triggers)}")
+                
+                sections.append("")
+        
+        # 添加使用规则
+        usage_rules = kb.get('usage_rules', {})
+        if usage_rules:
+            sections.append("【重要使用规则】")
+            
+            # selects需要先点击buttons的规则
+            selects_rules = usage_rules.get('selects_require_buttons', {})
+            if selects_rules:
+                rules_list = selects_rules.get('rules', [])
+                if rules_list:
+                    sections.append("1. 下拉菜单(selects)必须先点击对应的按钮(buttons)才能显示和使用：")
+                    for rule in rules_list:
+                        select_name = rule.get('select', '')
+                        required_buttons = rule.get('required_button', [])
+                        if isinstance(required_buttons, str):
+                            required_buttons = [required_buttons]
+                        description = rule.get('description', '')
+                        sections.append(f"   - {select_name} 需要先点击: {', '.join(required_buttons)}")
+                        sections.append(f"     说明: {description}")
+                    sections.append("")
+            
+            # 图片路径格式
+            path_format = usage_rules.get('image_path_format', {})
+            if path_format:
+                sections.append("2. 图片路径格式：")
+                sections.append(f"   格式: {path_format.get('format', '')}")
+                sections.append(f"   示例: {path_format.get('example', '')}")
+                sections.append(f"   注意: {path_format.get('note', '')}")
+                sections.append("")
+        
+        sections.append("【严格要求】")
+        sections.append("1. 生成脚本时，必须严格使用上述知识库中的图片，不能使用不存在的图片名称")
+        sections.append("2. 使用selects类图片时，必须先点击对应的buttons类图片")
+        sections.append("3. 图片路径必须使用知识库中提供的完整路径格式")
+        sections.append("4. 如果测试描述中提到的功能没有对应的图片，请在注释中说明，并使用最接近的图片")
+        sections.append("")
+        
+        return "\n".join(sections)
+    
     def _build_prompt(
         self,
         test_name: str,
@@ -111,7 +224,25 @@ class UITestAIGenerator:
         else:
             app_path_clean = 'C:/path/to/app.exe'
         
+        # 构建图片知识库部分
+        image_kb_section = self._build_image_knowledge_section()
+        
         prompt = f"""你是一个Robot Framework + SikuliLibrary专家。请根据以下需求生成一个完整的UI自动化测试脚本。
+
+【当前使用的AI模型】
+- AI模型: {self.ai_model_name} ({self.ai_model_id})
+- 说明: 本系统使用Claude Sonnet 4.5模型生成测试脚本，该模型具有强大的代码生成和理解能力
+
+{image_kb_section}
+
+【测试需求】
+测试用例名称：{test_name}
+测试描述：{test_description}
+
+【项目信息】
+- 项目名称：{project_name}
+- 应用程序路径：{app_path_clean}
+- 项目描述：{project_desc}
 
 【测试需求】
 测试用例名称：{test_name}
@@ -139,7 +270,7 @@ Library    OperatingSystem
 
 *** Variables ***
 ${{APP_PATH}}           {app_path_clean}
-${{IMAGE_PATH}}         examples/robot_resources
+${{IMAGE_PATH}}         robot_resources
 ${{TIMEOUT}}            30
 
 *** Test Cases ***
@@ -149,11 +280,11 @@ ${{TIMEOUT}}            30
     
     # 1. 启动应用程序
     Start Process    ${{APP_PATH}}    alias=app_under_test
-    Sleep    5s    # 等待应用启动
+    Sleep    8s    # 等待应用启动（增加等待时间确保程序完全加载）
     
     # 2. 设置图像识别参数
     Add Image Path    ${{IMAGE_PATH}}
-    Set Min Similarity    0.7
+    Set Min Similarity    0.6    # 降低相似度阈值提高识别成功率
     
     # 3. 执行测试步骤（根据测试描述生成具体步骤）
     # 例如：Wait Until Screen Contain    main_window.png    ${{TIMEOUT}}
@@ -166,12 +297,12 @@ ${{TIMEOUT}}            30
     [Teardown]    Terminate Process    app_under_test    kill=True
 
 【重要说明】
-1. 图像文件需要提前准备，放在 examples/robot_resources 目录下
+1. 图像文件需要提前准备，放在 robot_resources 目录下（执行时会自动复制到工作目录）
 2. 使用 Start Process 而不是 Run 来启动GUI应用
 3. 使用 Terminate Process 来确保应用被正确关闭
 4. 所有Windows路径使用双反斜杠（\\\\）或正斜杠（/）
-5. 添加适当的 Sleep 等待应用启动和响应
-6. 使用 Set Min Similarity 设置图像匹配相似度（建议0.7）
+5. 添加适当的 Sleep 等待应用启动和响应（建议8秒，确保程序完全加载）
+6. 使用 Set Min Similarity 设置图像匹配相似度（建议0.6，提高识别成功率）
 7. 在 [Teardown] 中确保应用被关闭，即使测试失败也要执行
 
 【常用SikuliLibrary关键字】
@@ -189,7 +320,20 @@ ${{TIMEOUT}}            30
 - Click 关键字会自动找到图像并移动鼠标到该位置，然后点击，所以不需要单独的移动鼠标步骤
 - 如果测试描述中提到"移动鼠标到XX位置"，直接使用 Click 即可，不需要先移动鼠标再点击
 
-请根据测试描述"{test_description}"生成具体的测试步骤。只输出Robot Framework脚本内容，不要包含markdown代码块标记或其他说明文字。"""
+【图片使用要求（严格遵守）】
+1. 必须使用上述知识库中列出的图片，不能使用知识库中不存在的图片名称
+2. 使用selects类图片时，必须先点击对应的buttons类图片（参考知识库中的使用规则）
+3. 图片路径格式：在Variables中定义 ${{IMAGE_PATH}} = robot_resources，然后使用 ${{IMAGE_PATH}}/buttons/add_line_button.png 这样的格式（执行器会自动将 robot_resources 替换为绝对路径）
+4. 如果测试描述中提到的功能没有对应的图片，请：
+   - 在注释中说明缺少的图片
+   - 使用知识库中最接近的图片替代
+   - 或者使用通用的等待和验证步骤
+
+【生成要求】
+请根据测试描述"{test_description}"生成具体的测试步骤。
+- 必须严格使用知识库中的图片
+- 必须遵守selects和buttons的使用顺序关系
+- 只输出Robot Framework脚本内容，不要包含markdown代码块标记或其他说明文字"""
         
         return prompt
     

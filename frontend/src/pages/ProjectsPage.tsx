@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { projectsApi, type Project } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, FolderOpen, Calendar, Code } from 'lucide-react'
+import { Plus, FolderOpen, Calendar, Code, Loader2 } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
 import ProjectForm from '@/components/ProjectForm'
 
@@ -29,7 +29,30 @@ export default function ProjectsPage() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['projects', projectType],
-    queryFn: () => projectsApi.list({ project_type: projectType }).then(res => res.data),
+    queryFn: async () => {
+      console.log('[项目管理] 开始请求项目列表...', { projectType })
+      const startTime = Date.now()
+      try {
+        const response = await projectsApi.list({ project_type: projectType })
+        const duration = Date.now() - startTime
+        console.log('[项目管理] ✅ 请求成功，耗时:', duration, 'ms', response.data)
+        return response.data
+      } catch (err: any) {
+        const duration = Date.now() - startTime
+        console.error('[项目管理] ❌ 请求失败，耗时:', duration, 'ms', err)
+        console.error('[项目管理] 错误详情:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          code: err.code
+        })
+        throw err
+      }
+    },
+    staleTime: 30000, // 30秒内不重新获取
+    gcTime: 5 * 60 * 1000, // 5分钟后清理缓存
+    retry: 2, // 失败时重试2次
+    retryDelay: 1000, // 重试延迟1秒
   })
 
   // 项目类型分类
@@ -100,13 +123,36 @@ export default function ProjectsPage() {
       {/* 项目列表 */}
       {isLoading && (
         <div className="text-center py-12">
+          <Loader2 className="h-8 w-8 mx-auto text-primary animate-spin mb-4" />
           <p className="text-gray-500">加载中...</p>
+          <p className="text-sm text-gray-400 mt-2">正在获取项目列表，请稍候</p>
         </div>
       )}
 
       {error && (
         <div className="text-center py-12">
-          <p className="text-red-500">加载失败，请稍后重试</p>
+          <p className="text-red-500 mb-2">加载失败</p>
+          <p className="text-sm text-gray-500 mb-2">
+            {error instanceof Error ? error.message : '请稍后重试'}
+          </p>
+          {(error as any)?.code === 'ECONNABORTED' && (
+            <p className="text-xs text-orange-500 mb-4">
+              ⚠️ 请求超时：后端响应时间过长，请检查后端服务是否正常运行
+            </p>
+          )}
+          {(error as any)?.code === 'ERR_NETWORK' && (
+            <p className="text-xs text-orange-500 mb-4">
+              ⚠️ 网络错误：无法连接到后端服务器，请确保后端服务正在运行
+            </p>
+          )}
+          <div className="flex gap-2 justify-center">
+            <Button variant="outline" onClick={() => refetch()}>
+              重试
+            </Button>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              刷新页面
+            </Button>
+          </div>
         </div>
       )}
 

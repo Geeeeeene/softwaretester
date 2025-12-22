@@ -194,33 +194,78 @@ class RobotFrameworkExecutor(BaseExecutor):
         try:
             # 使用永久工作目录而不是临时目录
             # 因为SikuliLibrary的Java进程可能还在使用文件，临时目录清理会失败
-            work_dir = self.output_dir / "work" / test_ir['name']
+            work_dir = (self.output_dir / "work" / test_ir['name']).resolve()  # 确保是绝对路径
             work_dir.mkdir(parents=True, exist_ok=True)
             temp_path = work_dir
+            print(f"[执行器] 工作目录（绝对路径）: {str(temp_path)}")
             
             # 1. 复制图像资源文件到工作目录
-            resources_dir = temp_path / "robot_resources"
+            resources_dir = (temp_path / "robot_resources").resolve()  # 确保是绝对路径
             resources_dir.mkdir(exist_ok=True)
             
-            # 查找并复制examples/robot_resources目录中的图像文件
+            # 查找并复制robot_resources目录中的图像文件
+            # 优先查找项目根目录下的robot_resources，其次查找backend/examples/robot_resources
             backend_dir = Path(__file__).parent.parent.parent  # backend目录
-            examples_resources = backend_dir / "examples" / "robot_resources"
+            project_root = backend_dir.parent  # 项目根目录
+            
+            # 尝试多个可能的资源目录
+            possible_resources_dirs = [
+                project_root / "robot_resources",  # 项目根目录下的robot_resources（分类后的）
+                backend_dir / "examples" / "robot_resources",  # backend/examples下的（旧位置）
+            ]
             
             logs_list = []  # 使用列表收集日志
             print(f"[执行器] 步骤1: 准备图像资源...")
             
-            if examples_resources.exists():
-                # 复制所有图像文件
-                image_files = list(examples_resources.glob("*.png"))
-                print(f"[执行器] 找到 {len(image_files)} 个图像文件")
-                for image_file in image_files:
-                    target_file = resources_dir / image_file.name
-                    shutil.copy2(image_file, target_file)
-                logs_list.append(f"已复制 {len(image_files)} 个图像文件到工作目录")
+            image_files_found = []
+            resources_source = None
+            
+            # 查找存在的资源目录
+            for resources_dir_path in possible_resources_dirs:
+                if resources_dir_path.exists():
+                    # 如果是分类后的目录（有子文件夹），需要递归查找
+                    if any(resources_dir_path.iterdir()):
+                        # 检查是否有子文件夹（分类后的结构）
+                        subdirs = [d for d in resources_dir_path.iterdir() if d.is_dir()]
+                        if subdirs:
+                            # 分类后的结构：递归查找所有子文件夹中的图片
+                            for subdir in subdirs:
+                                subdir_images = list(subdir.glob("*.png"))
+                                image_files_found.extend(subdir_images)
+                                # 保持目录结构：复制到对应的子文件夹
+                                for img_file in subdir_images:
+                                    target_subdir = resources_dir / subdir.name
+                                    target_subdir.mkdir(exist_ok=True)
+                                    target_file = target_subdir / img_file.name
+                                    shutil.copy2(img_file, target_file)
+                            resources_source = resources_dir_path
+                            break
+                        else:
+                            # 扁平结构：直接查找png文件
+                            flat_images = list(resources_dir_path.glob("*.png"))
+                            if flat_images:
+                                image_files_found.extend(flat_images)
+                                resources_source = resources_dir_path
+                                break
+                    else:
+                        # 空目录，跳过
+                        continue
+            
+            if image_files_found:
+                # 如果是扁平结构，需要复制文件
+                if not any((resources_dir / d).is_dir() for d in resources_dir.iterdir() if resources_dir.exists()):
+                    for image_file in image_files_found:
+                        target_file = resources_dir / image_file.name
+                        shutil.copy2(image_file, target_file)
+                
+                print(f"[执行器] 找到 {len(image_files_found)} 个图像文件（来源: {resources_source}）")
+                logs_list.append(f"已复制 {len(image_files_found)} 个图像文件到工作目录（来源: {resources_source}）")
                 print(f"[执行器] ✅ 图像资源复制完成")
             else:
-                logs_list.append(f"警告: 图像资源目录不存在: {examples_resources}")
-                print(f"[执行器] ⚠️ 图像资源目录不存在: {examples_resources}")
+                logs_list.append(f"警告: 未找到图像资源目录")
+                print(f"[执行器] ⚠️ 未找到图像资源目录，尝试的路径:")
+                for path in possible_resources_dirs:
+                    print(f"   - {path} (存在: {path.exists()})")
             
             # 2. 修改脚本中的图像路径为工作目录中的路径
             print(f"[执行器] 步骤2: 生成Robot Framework脚本...")
@@ -229,15 +274,43 @@ class RobotFrameworkExecutor(BaseExecutor):
             
             # 替换脚本中的图像路径
             print(f"[执行器] 步骤3: 替换图像路径...")
-            robot_script = robot_script.replace(
-                "${IMAGE_PATH}         examples/robot_resources",
-                f"${{IMAGE_PATH}}         {str(resources_dir).replace(chr(92), '/')}"  # 使用正斜杠
+            # 确保resources_dir是绝对路径
+            resources_dir_resolved = resources_dir.resolve()
+            resources_dir_str = str(resources_dir_resolved).replace(chr(92), '/')  # 使用正斜杠
+            print(f"[执行器] 图像资源绝对路径: {resources_dir_str}")
+            
+            # 替换变量定义中的路径（支持多种格式）
+            import re
+            # 匹配 ${IMAGE_PATH} 后面跟空格和路径的模式（支持 examples/robot_resources 或 robot_resources）
+            # 使用正则表达式匹配，支持不同的空格数量
+            robot_script = re.sub(
+                r'\$\{IMAGE_PATH\}\s+(examples/)?robot_resources',
+                f'${{IMAGE_PATH}}         {resources_dir_str}',
+                robot_script
             )
+            
+            # 如果脚本中直接使用了相对路径（不是通过变量），也需要替换
+            # 但要注意不要替换变量引用中的路径部分
+            # 替换独立的路径引用（在字符串或直接使用的地方）
             robot_script = robot_script.replace(
-                "examples/robot_resources",
-                str(resources_dir).replace(chr(92), '/')  # 使用正斜杠
+                "examples/robot_resources/",
+                f"{resources_dir_str}/"
             )
-            print(f"[执行器] ✅ 图像路径替换完成")
+            # 注意：robot_resources/ 的替换要小心，因为变量定义已经替换了
+            # 只替换直接使用的路径，不替换变量定义行
+            lines = robot_script.split('\n')
+            replaced_lines = []
+            for line in lines:
+                # 如果是变量定义行，已经通过上面的正则替换了，跳过
+                if re.match(r'\$\{IMAGE_PATH\}\s+', line):
+                    replaced_lines.append(line)
+                else:
+                    # 替换直接使用的路径
+                    line = line.replace("robot_resources/", f"{resources_dir_str}/")
+                    replaced_lines.append(line)
+            robot_script = '\n'.join(replaced_lines)
+            
+            print(f"[执行器] ✅ 图像路径替换完成，目标路径: {resources_dir_str}")
             
             # 2.1 检查并转换Windows路径（包括变量定义和所有使用路径的地方）
             # 判断是否在Docker容器内运行
@@ -272,16 +345,29 @@ class RobotFrameworkExecutor(BaseExecutor):
                     # Robot Framework的Start Process需要路径使用正斜杠
                     # 将反斜杠统一转换为正斜杠
                     win_path_normalized = win_path.replace('\\', '/')
+                    # 确保路径是绝对路径
+                    try:
+                        path_obj = Path(win_path_normalized.replace('/', '\\'))
+                        if not path_obj.is_absolute():
+                            # 如果是相对路径，尝试解析为绝对路径
+                            path_obj = path_obj.resolve()
+                            win_path_normalized = str(path_obj).replace('\\', '/')
+                    except (OSError, RuntimeError):
+                        pass
+                    
                     # 检查路径是否存在（需要将正斜杠转回反斜杠来检查）
                     check_path = Path(win_path_normalized.replace('/', '\\'))
                     if check_path.exists():
-                        logs_list.append(f"使用Windows路径（正斜杠格式）: {win_path_normalized}")
+                        logs_list.append(f"使用Windows绝对路径（正斜杠格式）: {win_path_normalized}")
                         return win_path_normalized
                     elif Path(win_path).exists():
-                        logs_list.append(f"使用Windows路径（转换后）: {win_path_normalized}")
+                        # 原始路径存在，转换为绝对路径
+                        abs_path = Path(win_path).resolve()
+                        win_path_normalized = str(abs_path).replace('\\', '/')
+                        logs_list.append(f"使用Windows绝对路径（转换后）: {win_path_normalized}")
                         return win_path_normalized
                     else:
-                        # 即使路径不存在，也尝试使用正斜杠格式
+                        # 即使路径不存在，也尝试使用正斜杠格式的绝对路径
                         logs_list.append(f"警告: Windows路径不存在: {original_path}，将尝试使用正斜杠格式: {win_path_normalized}")
                         return win_path_normalized
                 
@@ -296,9 +382,13 @@ class RobotFrameworkExecutor(BaseExecutor):
             
             # 3. 写入Robot Framework脚本
             print(f"[执行器] 步骤5: 写入Robot Framework脚本文件...")
-            robot_file = temp_path / f"{test_ir['name']}.robot"
+            robot_file = (temp_path / f"{test_ir['name']}.robot").resolve()  # 确保是绝对路径
             robot_file.write_text(robot_script, encoding='utf-8')
-            print(f"[执行器] ✅ 脚本文件已写入: {robot_file}")
+            robot_file_abs = str(robot_file)
+            print(f"[执行器] ✅ 脚本文件已写入: {robot_file_abs}")
+            logs_list.append(f"脚本文件位置（绝对路径）: {robot_file_abs}")
+            logs_list.append(f"图像资源目录（绝对路径）: {str(resources_dir.resolve())}")
+            logs_list.append(f"工作目录（绝对路径）: {str(temp_path.resolve())}")
             
             # 4. 如果test_ir中指定了额外的资源文件，也复制它们
             if 'resources' in test_ir:
@@ -320,8 +410,9 @@ class RobotFrameworkExecutor(BaseExecutor):
             
             # 6. 执行Robot Framework
             logs += f"执行Robot Framework测试: {test_ir['name']}\n"
-            logs += f"工作目录: {temp_path}\n"
-            logs += f"图像资源目录: {resources_dir}\n"
+            logs += f"工作目录（绝对路径）: {str(temp_path.resolve())}\n"
+            logs += f"脚本文件（绝对路径）: {robot_file_abs}\n"
+            logs += f"图像资源目录（绝对路径）: {str(resources_dir.resolve())}\n"
             logs += f"Robot可执行文件: {self.robot_executable}\n"
             logs += f"完整命令: {' '.join(cmd)}\n"
             logs += f"命令参数数量: {len(cmd)}\n\n"
@@ -406,7 +497,7 @@ class RobotFrameworkExecutor(BaseExecutor):
                         logs += f"   请确保Java已安装并配置JAVA_HOME环境变量\n"
                     
                     print(f"[执行器] [subprocess] 执行命令: {' '.join(cmd)}")
-                    print(f"[执行器] [subprocess] 工作目录: {temp_path}")
+                    print(f"[执行器] [subprocess] 工作目录（绝对路径）: {str(temp_path.resolve())}")
                     print(f"[执行器] [subprocess] 超时设置: {test_ir.get('timeout', 300)}秒")
                     result = subprocess.run(
                         cmd,
@@ -473,7 +564,8 @@ class RobotFrameworkExecutor(BaseExecutor):
                 # 其他执行错误
                 error_msg = f"执行Robot Framework命令时出错: {str(e)}\n"
                 error_msg += f"命令: {' '.join(cmd)}\n"
-                error_msg += f"工作目录: {temp_path}\n"
+                error_msg += f"工作目录（绝对路径）: {str(temp_path.resolve())}\n"
+                error_msg += f"脚本文件（绝对路径）: {robot_file_abs}\n"
                 raise RuntimeError(error_msg) from e
             
             # 7. 解析结果

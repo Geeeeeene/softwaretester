@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Plus, Play, CheckCircle, XCircle, Clock, Loader2, FileText, RefreshCw, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Play, CheckCircle, XCircle, Clock, Loader2, FileText, RefreshCw, Trash2, Eye } from 'lucide-react'
 import { projectsApi, uiTestApi, testCasesApi } from '@/lib/api'
 import { UITestDialog } from '@/components/ui-test/UITestDialog'
 
@@ -220,22 +220,23 @@ export default function UITestPage() {
             </CardContent>
           </Card>
 
-          {/* 第三栏：源代码文件 */}
+          {/* 第三栏：应用程序信息 */}
           <Card>
             <CardHeader>
-              <CardTitle>源代码文件</CardTitle>
-              <CardDescription>测试目标信息</CardDescription>
+              <CardTitle>应用程序信息</CardTitle>
+              <CardDescription>待测试应用程序的路径信息</CardDescription>
             </CardHeader>
             <CardContent>
               {project.source_path ? (
                 <div>
-                  <div className="text-sm font-medium text-gray-700 mb-1">源代码路径</div>
+                  <div className="text-sm font-medium text-gray-700 mb-1">应用程序路径</div>
                   <div className="text-sm text-gray-900 bg-gray-100 p-2 rounded border border-gray-200 break-all">
                     {project.source_path}
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">此路径指向待测试应用程序的可执行文件（.exe）</p>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">未配置源代码路径</p>
+                <p className="text-sm text-gray-500">未配置应用程序路径</p>
               )}
             </CardContent>
           </Card>
@@ -302,6 +303,14 @@ export default function UITestPage() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => navigate(`/projects/${projectId}/ui-test/cases/${testCase.id}`)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            详情
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleReExecute(testCase)}
                           >
                             <Play className="mr-2 h-4 w-4" />
@@ -346,10 +355,46 @@ export default function UITestPage() {
                 </div>
               ) : executionsData?.items && executionsData.items.length > 0 ? (
                 <div className="space-y-3">
-                  {executionsData.items.map((execution) => {
+                  {executionsData.items.map((execution, index) => {
                     const isPassed = execution.status === 'completed' && execution.failed_tests === 0
                     const isRunning = execution.status === 'running'
                     const isFailed = execution.status === 'failed' || (execution.status === 'completed' && execution.failed_tests > 0)
+                    
+                    // 尝试从test_results获取测试用例信息
+                    let testCase = null
+                    if (execution.test_results && execution.test_results.length > 0) {
+                      testCase = testCasesData?.items?.find(tc => tc.id === execution.test_results?.[0]?.test_case_id)
+                    }
+                    
+                    // 如果找不到，尝试通过test_ir中的name匹配（如果test_ir存在）
+                    if (!testCase && execution.result?.test_ir?.name) {
+                      testCase = testCasesData?.items?.find(tc => tc.name === execution.result.test_ir.name)
+                    }
+                    
+                    const testCaseName = testCase?.name || '未知用例'
+                    
+                    // 计算该用例的执行次数（统计该用例的所有执行记录，按时间排序）
+                    let executionCount = index + 1
+                    if (testCase) {
+                      // 找到该用例的所有执行记录，按时间排序
+                      const sameTestCaseExecutions = executionsData.items
+                        .filter(e => {
+                          // 通过test_results匹配
+                          if (e.test_results?.some(tr => tr.test_case_id === testCase.id)) {
+                            return true
+                          }
+                          // 通过test_ir中的name匹配
+                          if (e.result?.test_ir?.name === testCase.name) {
+                            return true
+                          }
+                          return false
+                        })
+                        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      
+                      // 找到当前执行记录在该用例执行记录中的位置
+                      const currentIndex = sameTestCaseExecutions.findIndex(e => e.id === execution.id)
+                      executionCount = currentIndex >= 0 ? currentIndex + 1 : sameTestCaseExecutions.length + 1
+                    }
 
                     return (
                       <div
@@ -358,12 +403,18 @@ export default function UITestPage() {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {isRunning && <Clock className="h-5 w-5 text-blue-500" />}
                               {isPassed && <CheckCircle className="h-5 w-5 text-green-500" />}
                               {isFailed && <XCircle className="h-5 w-5 text-red-500" />}
                               <span className="font-medium text-gray-900">
-                                执行 #{execution.id}
+                                序号：{index + 1}
+                              </span>
+                              <span className="font-medium text-gray-900">
+                                用例名称：{testCaseName}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                第 {executionCount} 次执行
                               </span>
                               <span className={`text-sm px-2 py-1 rounded ${
                                 isRunning ? 'bg-blue-100 text-blue-700' :

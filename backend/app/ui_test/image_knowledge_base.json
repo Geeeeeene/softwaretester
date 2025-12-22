@@ -1,0 +1,477 @@
+{
+  "version": "1.0",
+  "description": "UI测试图片资源知识库 - 包含所有可用图片的分类、路径和使用关系",
+  "ai_model": "Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)",
+  "base_path": "robot_resources",
+  "categories": {
+    "buttons": {
+      "description": "按钮类UI元素，可直接点击",
+      "count": 18,
+      "images": [
+        {
+          "name": "add_line_button.png",
+          "path": "robot_resources/buttons/add_line_button.png",
+          "description": "添加线条按钮",
+          "usage": "用于添加新的线条元素"
+        },
+        {
+          "name": "cancel_combination_button.png",
+          "path": "robot_resources/buttons/cancel_combination_button.png",
+          "description": "取消组合按钮",
+          "usage": "用于取消元素组合操作"
+        },
+        {
+          "name": "combination_button.png",
+          "path": "robot_resources/buttons/combination_button.png",
+          "description": "组合按钮",
+          "usage": "用于组合多个元素"
+        },
+        {
+          "name": "delete_button.png",
+          "path": "robot_resources/buttons/delete_button.png",
+          "description": "删除按钮",
+          "usage": "用于删除选中的元素"
+        },
+        {
+          "name": "edit_text_button.png",
+          "path": "robot_resources/buttons/edit_text_button.png",
+          "description": "编辑文本按钮",
+          "usage": "用于打开文本编辑功能，点击后可能显示edit_select下拉菜单",
+          "triggers_select": ["edit_select.png"]
+        },
+        {
+          "name": "exit_button.png",
+          "path": "robot_resources/buttons/exit_button.png",
+          "description": "退出按钮（图标）",
+          "usage": "用于退出应用或关闭窗口"
+        },
+        {
+          "name": "exit_text_button.png",
+          "path": "robot_resources/buttons/exit_text_button.png",
+          "description": "退出按钮（文本）",
+          "usage": "用于打开退出相关菜单，点击后可能显示exit_select下拉菜单",
+          "triggers_select": ["exit_select.png"]
+        },
+        {
+          "name": "export_image_button.png",
+          "path": "robot_resources/buttons/export_image_button.png",
+          "description": "导出图片按钮",
+          "usage": "用于导出当前内容为图片"
+        },
+        {
+          "name": "file_text_button.png",
+          "path": "robot_resources/buttons/file_text_button.png",
+          "description": "文件按钮（文本）",
+          "usage": "用于打开文件相关菜单，点击后可能显示file_select下拉菜单",
+          "triggers_select": ["file_select.png"]
+        },
+        {
+          "name": "find_button.png",
+          "path": "robot_resources/buttons/find_button.png",
+          "description": "查找按钮",
+          "usage": "用于打开查找功能"
+        },
+        {
+          "name": "graphic_fill_color_button.png",
+          "path": "robot_resources/buttons/graphic_fill_color_button.png",
+          "description": "图形填充颜色按钮",
+          "usage": "用于设置图形填充颜色"
+        },
+        {
+          "name": "help_text_button.png",
+          "path": "robot_resources/buttons/help_text_button.png",
+          "description": "帮助按钮（文本）",
+          "usage": "用于打开帮助相关菜单，点击后可能显示help_select下拉菜单",
+          "triggers_select": ["help_select.png"]
+        },
+        {
+          "name": "move_button.png",
+          "path": "robot_resources/buttons/move_button.png",
+          "description": "移动按钮",
+          "usage": "用于移动元素"
+        },
+        {
+          "name": "new_page_button.png",
+          "path": "robot_resources/buttons/new_page_button.png",
+          "description": "新建页面按钮",
+          "usage": "用于创建新页面"
+        },
+        {
+          "name": "text_bold_button.png",
+          "path": "robot_resources/buttons/text_bold_button.png",
+          "description": "文本加粗按钮",
+          "usage": "用于设置文本为加粗样式"
+        },
+        {
+          "name": "text_color_button.png",
+          "path": "robot_resources/buttons/text_color_button.png",
+          "description": "文本颜色按钮",
+          "usage": "用于设置文本颜色"
+        },
+        {
+          "name": "text_italic_button.png",
+          "path": "robot_resources/buttons/text_italic_button.png",
+          "description": "文本斜体按钮",
+          "usage": "用于设置文本为斜体样式"
+        },
+        {
+          "name": "text_underline_button.png",
+          "path": "robot_resources/buttons/text_underline_button.png",
+          "description": "文本下划线按钮",
+          "usage": "用于设置文本为下划线样式"
+        }
+      ]
+    },
+    "selects": {
+      "description": "下拉菜单/选择框类UI元素，通常需要先点击对应的按钮才能显示",
+      "count": 8,
+      "images": [
+        {
+          "name": "edit_select.png",
+          "path": "robot_resources/selects/edit_select.png",
+          "description": "编辑下拉菜单",
+          "usage": "编辑功能的下拉菜单选项",
+          "requires_button": ["edit_text_button.png"],
+          "usage_note": "必须先点击 edit_text_button.png 才能看到此下拉菜单"
+        },
+        {
+          "name": "exit_select.png",
+          "path": "robot_resources/selects/exit_select.png",
+          "description": "退出下拉菜单",
+          "usage": "退出功能的下拉菜单选项",
+          "requires_button": ["exit_text_button.png", "exit_button.png"],
+          "usage_note": "必须先点击 exit_text_button.png 或 exit_button.png 才能看到此下拉菜单"
+        },
+        {
+          "name": "file_select.png",
+          "path": "robot_resources/selects/file_select.png",
+          "description": "文件下拉菜单",
+          "usage": "文件操作的下拉菜单选项",
+          "requires_button": ["file_text_button.png"],
+          "usage_note": "必须先点击 file_text_button.png 才能看到此下拉菜单"
+        },
+        {
+          "name": "grid_lines_select.png",
+          "path": "robot_resources/selects/grid_lines_select.png",
+          "description": "网格线选择菜单",
+          "usage": "网格线设置的下拉菜单选项",
+          "requires_button": [],
+          "usage_note": "可能需要先点击某个设置按钮，具体取决于UI设计"
+        },
+        {
+          "name": "help_select.png",
+          "path": "robot_resources/selects/help_select.png",
+          "description": "帮助下拉菜单",
+          "usage": "帮助功能的下拉菜单选项",
+          "requires_button": ["help_text_button.png"],
+          "usage_note": "必须先点击 help_text_button.png 才能看到此下拉菜单"
+        },
+        {
+          "name": "scaling_select.png",
+          "path": "robot_resources/selects/scaling_select.png",
+          "description": "缩放选择菜单",
+          "usage": "缩放设置的下拉菜单选项",
+          "requires_button": [],
+          "usage_note": "可能需要先点击某个设置按钮，具体取决于UI设计"
+        },
+        {
+          "name": "text_size_select.png",
+          "path": "robot_resources/selects/text_size_select.png",
+          "description": "文本大小选择菜单",
+          "usage": "文本大小设置的下拉菜单选项",
+          "requires_button": [],
+          "usage_note": "通常需要先选中文本或点击文本相关按钮才能使用"
+        },
+        {
+          "name": "text_type_select.png",
+          "path": "robot_resources/selects/text_type_select.png",
+          "description": "文本类型选择菜单",
+          "usage": "文本类型设置的下拉菜单选项",
+          "requires_button": [],
+          "usage_note": "通常需要先选中文本或点击文本相关按钮才能使用"
+        }
+      ]
+    },
+    "windows": {
+      "description": "窗口类UI元素",
+      "count": 6,
+      "images": [
+        {
+          "name": "main_window.png",
+          "path": "robot_resources/windows/main_window.png",
+          "description": "主窗口",
+          "usage": "应用程序的主窗口，用于验证应用是否正常启动"
+        },
+        {
+          "name": "exit_ask_window.png",
+          "path": "robot_resources/windows/exit_ask_window.png",
+          "description": "退出确认窗口",
+          "usage": "退出应用时显示的确认对话框"
+        },
+        {
+          "name": "exit_ask_window_cancel.png",
+          "path": "robot_resources/windows/exit_ask_window_cancel.png",
+          "description": "退出确认窗口的取消按钮",
+          "usage": "退出确认对话框中的取消按钮"
+        },
+        {
+          "name": "exit_ask_window_close.png",
+          "path": "robot_resources/windows/exit_ask_window_close.png",
+          "description": "退出确认窗口的关闭按钮",
+          "usage": "退出确认对话框中的关闭按钮"
+        },
+        {
+          "name": "exit_ask_window_not_save.png",
+          "path": "robot_resources/windows/exit_ask_window_not_save.png",
+          "description": "退出确认窗口的不保存按钮",
+          "usage": "退出确认对话框中的不保存按钮"
+        },
+        {
+          "name": "exit_ask_window_save.png",
+          "path": "robot_resources/windows/exit_ask_window_save.png",
+          "description": "退出确认窗口的保存按钮",
+          "usage": "退出确认对话框中的保存按钮"
+        }
+      ]
+    },
+    "scrollbars": {
+      "description": "滚动条类UI元素",
+      "count": 3,
+      "images": [
+        {
+          "name": "element_set_scrollbar.png",
+          "path": "robot_resources/scrollbars/element_set_scrollbar.png",
+          "description": "元素设置滚动条",
+          "usage": "元素设置面板的滚动条"
+        },
+        {
+          "name": "workspace_bottom_scrollbar.png",
+          "path": "robot_resources/scrollbars/workspace_bottom_scrollbar.png",
+          "description": "工作区底部滚动条",
+          "usage": "工作区底部的水平滚动条"
+        },
+        {
+          "name": "workspace_right_scrollbar.png",
+          "path": "robot_resources/scrollbars/workspace_right_scrollbar.png",
+          "description": "工作区右侧滚动条",
+          "usage": "工作区右侧的垂直滚动条"
+        }
+      ]
+    },
+    "pages": {
+      "description": "页面类UI元素",
+      "count": 4,
+      "images": [
+        {
+          "name": "new_page_1.png",
+          "path": "robot_resources/pages/new_page_1.png",
+          "description": "新页面1",
+          "usage": "第一个新创建的页面"
+        },
+        {
+          "name": "new_page_1_delete.png",
+          "path": "robot_resources/pages/new_page_1_delete.png",
+          "description": "新页面1的删除按钮",
+          "usage": "第一个新页面的删除按钮"
+        },
+        {
+          "name": "new_page_2.png",
+          "path": "robot_resources/pages/new_page_2.png",
+          "description": "新页面2",
+          "usage": "第二个新创建的页面"
+        },
+        {
+          "name": "new_page_2_delete.png",
+          "path": "robot_resources/pages/new_page_2_delete.png",
+          "description": "新页面2的删除按钮",
+          "usage": "第二个新页面的删除按钮"
+        }
+      ]
+    },
+    "symbols": {
+      "description": "符号/图标类UI元素，包括各种流程图符号和图标",
+      "count": 24,
+      "images": [
+        {
+          "name": "card.png",
+          "path": "robot_resources/symbols/card.png",
+          "description": "卡片符号",
+          "usage": "流程图中的卡片元素"
+        },
+        {
+          "name": "cycle_boundary.png",
+          "path": "robot_resources/symbols/cycle_boundary.png",
+          "description": "循环边界符号",
+          "usage": "流程图中的循环边界元素"
+        },
+        {
+          "name": "data.png",
+          "path": "robot_resources/symbols/data.png",
+          "description": "数据符号",
+          "usage": "流程图中的数据元素"
+        },
+        {
+          "name": "direct_access_memory.png",
+          "path": "robot_resources/symbols/direct_access_memory.png",
+          "description": "直接访问内存符号",
+          "usage": "流程图中的直接访问内存元素"
+        },
+        {
+          "name": "disk.png",
+          "path": "robot_resources/symbols/disk.png",
+          "description": "磁盘符号",
+          "usage": "流程图中的磁盘元素"
+        },
+        {
+          "name": "display.png",
+          "path": "robot_resources/symbols/display.png",
+          "description": "显示符号",
+          "usage": "流程图中的显示元素"
+        },
+        {
+          "name": "endpoint_symbol.png",
+          "path": "robot_resources/symbols/endpoint_symbol.png",
+          "description": "端点符号",
+          "usage": "流程图中的端点元素"
+        },
+        {
+          "name": "file.png",
+          "path": "robot_resources/symbols/file.png",
+          "description": "文件符号",
+          "usage": "流程图中的文件元素"
+        },
+        {
+          "name": "grid_lines.png",
+          "path": "robot_resources/symbols/grid_lines.png",
+          "description": "网格线图标",
+          "usage": "网格线显示状态"
+        },
+        {
+          "name": "handle.png",
+          "path": "robot_resources/symbols/handle.png",
+          "description": "手柄符号",
+          "usage": "元素的手柄控制点"
+        },
+        {
+          "name": "hyphen.png",
+          "path": "robot_resources/symbols/hyphen.png",
+          "description": "连字符符号",
+          "usage": "流程图中的连字符元素"
+        },
+        {
+          "name": "internal_memory_storage.png",
+          "path": "robot_resources/symbols/internal_memory_storage.png",
+          "description": "内部内存存储符号",
+          "usage": "流程图中的内部内存存储元素"
+        },
+        {
+          "name": "judge.png",
+          "path": "robot_resources/symbols/judge.png",
+          "description": "判断符号",
+          "usage": "流程图中的判断/决策元素"
+        },
+        {
+          "name": "manual_input.png",
+          "path": "robot_resources/symbols/manual_input.png",
+          "description": "手动输入符号",
+          "usage": "流程图中的手动输入元素"
+        },
+        {
+          "name": "manual_operation.png",
+          "path": "robot_resources/symbols/manual_operation.png",
+          "description": "手动操作符号",
+          "usage": "流程图中的手动操作元素"
+        },
+        {
+          "name": "parallel_mode.png",
+          "path": "robot_resources/symbols/parallel_mode.png",
+          "description": "并行模式符号",
+          "usage": "流程图中的并行模式元素"
+        },
+        {
+          "name": "perforated_tape.png",
+          "path": "robot_resources/symbols/perforated_tape.png",
+          "description": "穿孔带符号",
+          "usage": "流程图中的穿孔带元素"
+        },
+        {
+          "name": "prepare.png",
+          "path": "robot_resources/symbols/prepare.png",
+          "description": "准备符号",
+          "usage": "流程图中的准备元素"
+        },
+        {
+          "name": "scaling.png",
+          "path": "robot_resources/symbols/scaling.png",
+          "description": "缩放图标",
+          "usage": "缩放显示状态"
+        },
+        {
+          "name": "sequential_access_memory.png",
+          "path": "robot_resources/symbols/sequential_access_memory.png",
+          "description": "顺序访问内存符号",
+          "usage": "流程图中的顺序访问内存元素"
+        },
+        {
+          "name": "store_data.png",
+          "path": "robot_resources/symbols/store_data.png",
+          "description": "存储数据符号",
+          "usage": "流程图中的存储数据元素"
+        },
+        {
+          "name": "text.png",
+          "path": "robot_resources/symbols/text.png",
+          "description": "文本符号",
+          "usage": "流程图中的文本元素"
+        },
+        {
+          "name": "text_size.png",
+          "path": "robot_resources/symbols/text_size.png",
+          "description": "文本大小图标",
+          "usage": "文本大小显示状态"
+        },
+        {
+          "name": "text_type.png",
+          "path": "robot_resources/symbols/text_type.png",
+          "description": "文本类型图标",
+          "usage": "文本类型显示状态"
+        }
+      ]
+    }
+  },
+  "usage_rules": {
+    "selects_require_buttons": {
+      "description": "下拉菜单(selects)必须先点击对应的按钮(buttons)才能显示和使用",
+      "rules": [
+        {
+          "select": "edit_select.png",
+          "required_button": "edit_text_button.png",
+          "description": "必须先点击 edit_text_button.png 才能看到 edit_select.png 下拉菜单"
+        },
+        {
+          "select": "exit_select.png",
+          "required_button": ["exit_text_button.png", "exit_button.png"],
+          "description": "必须先点击 exit_text_button.png 或 exit_button.png 才能看到 exit_select.png 下拉菜单"
+        },
+        {
+          "select": "file_select.png",
+          "required_button": "file_text_button.png",
+          "description": "必须先点击 file_text_button.png 才能看到 file_select.png 下拉菜单"
+        },
+        {
+          "select": "help_select.png",
+          "required_button": "help_text_button.png",
+          "description": "必须先点击 help_text_button.png 才能看到 help_select.png 下拉菜单"
+        }
+      ]
+    },
+    "image_path_format": {
+      "description": "在Robot Framework脚本中使用图片时，路径格式说明",
+      "format": "robot_resources/{category}/{image_name}",
+      "example": "robot_resources/buttons/add_line_button.png",
+      "note": "在脚本的 Variables 部分定义 ${IMAGE_PATH} = robot_resources，然后使用 ${IMAGE_PATH}/buttons/add_line_button.png"
+    }
+  }
+}
+
+

@@ -9,6 +9,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30秒超时
 })
 
 // 请求拦截器
@@ -33,19 +34,35 @@ api.interceptors.request.use(
 
 // 响应拦截器
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // 记录成功的请求
+    console.log(`[API] ✅ ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`)
+    return response
+  },
   (error) => {
     // 统一错误处理
-    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    const url = error.config?.url || 'unknown'
+    const method = error.config?.method?.toUpperCase() || 'UNKNOWN'
+    
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      console.error(`[API] ⏱️ 请求超时: ${method} ${url}`)
+      console.error('请求超时：后端响应时间过长，请检查后端服务状态')
+    } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.error(`[API] 🌐 网络错误: ${method} ${url}`)
       console.error('网络错误：无法连接到后端服务器，请确保后端正在运行')
       console.error('后端地址:', API_BASE_URL)
     } else if (error.response?.status === 401) {
+      console.error(`[API] 🔒 未授权: ${method} ${url}`)
       // 处理未授权
       console.error('未授权，请登录')
     } else if (error.response?.status === 404) {
+      console.error(`[API] ❌ 资源不存在: ${method} ${url}`)
       console.error('资源不存在')
     } else if (error.response?.status >= 500) {
-      console.error('服务器错误')
+      console.error(`[API] 💥 服务器错误: ${method} ${url} - ${error.response.status}`)
+      console.error('服务器错误:', error.response?.data)
+    } else {
+      console.error(`[API] ❌ 请求失败: ${method} ${url}`, error)
     }
     return Promise.reject(error)
   }
@@ -495,4 +512,10 @@ export const uiTestApi = {
   // 删除UI测试执行记录
   deleteExecution: (projectId: number, executionId: number) =>
     api.delete(`/projects/${projectId}/ui-test/executions/${executionId}`),
+  
+  // 获取UI测试报告文件内容
+  getReport: (projectId: number, executionId: number, reportType: 'log' | 'report' | 'output' = 'log') =>
+    api.get<{ content: string; type: string; path: string }>(`/projects/${projectId}/ui-test/report/${executionId}`, {
+      params: { report_type: reportType }
+    }),
 }

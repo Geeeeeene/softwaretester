@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Loader2, Play, FileCode, CheckCircle, XCircle } from 'lucide-react'
-import { uiTestApi, type UITestCaseGenerateResponse, type UITestResult } from '@/lib/api'
+import { uiTestApi, testCasesApi, type UITestCaseGenerateResponse, type UITestResult } from '@/lib/api'
 
 interface UITestDialogProps {
   open: boolean
@@ -13,11 +14,39 @@ interface UITestDialogProps {
 }
 
 export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITestDialogProps) {
+  const navigate = useNavigate()
   const [step, setStep] = useState<'input' | 'generated' | 'executing' | 'result'>('input')
   const [testName, setTestName] = useState('')
   const [testDescription, setTestDescription] = useState('')
   const [generatedTest, setGeneratedTest] = useState<UITestCaseGenerateResponse | null>(null)
   const [executionId, setExecutionId] = useState<number | null>(null)
+
+  // 保存测试用例
+  const saveTestCaseMutation = useMutation({
+    mutationFn: async (testData: UITestCaseGenerateResponse) => {
+      return testCasesApi.create({
+        project_id: projectId,
+        name: testData.name,
+        description: testData.description,
+        test_type: 'ui',
+        test_ir: testData.test_ir,
+        priority: 'medium',
+        tags: ['ui', 'robot_framework', 'ai_generated']
+      })
+    },
+    onSuccess: (response) => {
+      // 跳转到详情页面，并自动进入编辑模式
+      navigate(`/projects/${projectId}/ui-test/cases/${response.data.id}?edit=true`)
+      handleClose()
+      if (onTestComplete) {
+        onTestComplete()
+      }
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.detail || error.message || '未知错误'
+      alert(`保存测试用例失败: ${errorMessage}`)
+    }
+  })
 
   // 生成测试用例
   const generateMutation = useMutation({
@@ -29,7 +58,8 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
     },
     onSuccess: (response) => {
       setGeneratedTest(response.data)
-      setStep('generated')
+      // 自动保存并跳转到详情页面
+      saveTestCaseMutation.mutate(response.data)
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.detail || error.message || '未知错误'
@@ -184,49 +214,12 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
             </div>
           )}
 
-          {/* 步骤2: 显示生成的脚本 */}
+          {/* 步骤2: 显示生成的脚本（已移除，直接跳转到详情页面） */}
           {step === 'generated' && generatedTest && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-2">测试用例名称</h3>
-                <p className="text-sm text-gray-700">{generatedTest.name}</p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-2">测试描述</h3>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{generatedTest.description}</p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-2">Robot Framework 脚本</h3>
-                <div className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto">
-                  <pre className="text-sm">
-                    <code>{generatedTest.robot_script}</code>
-                  </pre>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleClose}>
-                  取消
-                </Button>
-                <Button
-                  onClick={handleExecute}
-                  disabled={executeMutation.isPending}
-                >
-                  {executeMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      启动中...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="mr-2 h-4 w-4" />
-                      执行UI测试
-                    </>
-                  )}
-                </Button>
-              </div>
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+              <p className="text-lg font-medium text-gray-900">正在保存测试用例...</p>
+              <p className="text-sm text-gray-600 mt-2">即将跳转到详情页面</p>
             </div>
           )}
 

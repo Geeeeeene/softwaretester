@@ -57,8 +57,13 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
         const { project_id } = res.data as any
         
         // 刷新项目列表缓存，确保新项目会被显示
-        await queryClient.invalidateQueries({ queryKey: ['projects'] })
-        await queryClient.refetchQueries({ queryKey: ['projects'] })
+        // 不等待refetch完成，避免阻塞
+        console.log('[创建项目] 刷新项目列表缓存...')
+        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        // 不等待refetch，让它在后台进行
+        queryClient.refetchQueries({ queryKey: ['projects'] }).catch(err => {
+          console.warn('[创建项目] 刷新项目列表失败（不影响创建）:', err)
+        })
         
         if (onSuccess) onSuccess()
         
@@ -67,7 +72,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
       } else if (projectType === 'ui') {
         // UI测试项目流程
         if (!sourcePath.trim()) {
-          throw new Error('UI测试项目需要指定源代码路径')
+          throw new Error('UI测试项目需要指定应用程序路径')
         }
         
         const project: ProjectCreate = {
@@ -77,13 +82,21 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
           source_path: sourcePath.trim(),
         }
 
+        console.log('[创建项目] 开始创建项目...', project)
+        const startTime = Date.now()
         const res = await projectsApi.create(project)
+        const createTime = Date.now() - startTime
+        console.log('[创建项目] ✅ 项目创建成功，耗时:', createTime, 'ms', res.data)
         
         // 在跳转前刷新项目列表缓存，确保新项目会被显示
         // 使用 invalidateQueries 来刷新所有项目列表查询（包括不同 project_type 的查询）
-        await queryClient.invalidateQueries({ queryKey: ['projects'] })
-        // 等待缓存刷新完成
-        await queryClient.refetchQueries({ queryKey: ['projects'] })
+        // 不等待refetch完成，避免阻塞
+        console.log('[创建项目] 刷新项目列表缓存...')
+        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        // 不等待refetch，让它在后台进行
+        queryClient.refetchQueries({ queryKey: ['projects'] }).catch(err => {
+          console.warn('[创建项目] 刷新项目列表失败（不影响创建）:', err)
+        })
         
         // 调用 onSuccess 回调（在跳转前调用，确保能执行）
         if (onSuccess) {
@@ -103,12 +116,20 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
           source_path: sourcePath.trim() || undefined,
         }
 
+        console.log('[创建项目] 开始创建项目...', project)
+        const startTime = Date.now()
         await projectsApi.create(project)
+        const createTime = Date.now() - startTime
+        console.log('[创建项目] ✅ 项目创建成功，耗时:', createTime, 'ms')
         
         // 刷新项目列表缓存，确保新项目会被显示
-        await queryClient.invalidateQueries({ queryKey: ['projects'] })
-        // 等待缓存刷新完成
-        await queryClient.refetchQueries({ queryKey: ['projects'] })
+        // 不等待refetch完成，避免阻塞
+        console.log('[创建项目] 刷新项目列表缓存...')
+        queryClient.invalidateQueries({ queryKey: ['projects'] })
+        // 不等待refetch，让它在后台进行
+        queryClient.refetchQueries({ queryKey: ['projects'] }).catch(err => {
+          console.warn('[创建项目] 刷新项目列表失败（不影响创建）:', err)
+        })
         
         if (onSuccess) {
           onSuccess(projectType)
@@ -296,7 +317,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  源代码路径 *
+                  应用程序路径 *
                 </label>
                 <input
                   type="text"
@@ -304,9 +325,13 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
                   onChange={(e) => setSourcePath(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="例如：./src 或 /path/to/source"
+                  placeholder="例如：D:\路径\应用程序.exe 或 C:\Program Files\MyApp\app.exe"
                 />
-                <p className="text-xs text-gray-500 mt-1">指定待测试应用的源代码路径</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  指定待测试应用程序的可执行文件（.exe）完整路径。系统将使用此路径启动应用程序进行UI自动化测试。
+                  <br />
+                  <span className="text-gray-400">提示：请确保路径指向实际存在的.exe文件，支持Windows绝对路径格式。</span>
+                </p>
               </div>
             </div>
           )}

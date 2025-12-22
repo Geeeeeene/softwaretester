@@ -1,6 +1,6 @@
 """UI测试API端点"""
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import json
@@ -53,12 +53,12 @@ class UITestResult(BaseModel):
     execution_id: int
     status: str
     passed: bool
-    logs: Optional[str]
-    error_message: Optional[str]
-    artifacts: list
-    duration_seconds: Optional[float]
-    created_at: str
-    completed_at: Optional[str]
+    logs: Optional[str] = None
+    error_message: Optional[str] = None
+    artifacts: list = []
+    duration_seconds: Optional[float] = None
+    created_at: Optional[str] = None
+    completed_at: Optional[str] = None
 
 
 @router.post("/projects/{project_id}/ui-test/generate", response_model=UITestCaseGenerateResponse)
@@ -318,6 +318,90 @@ async def get_ui_test_result(
         created_at=execution.created_at.isoformat() if execution.created_at else None,
         completed_at=execution.completed_at.isoformat() if execution.completed_at else None
     )
+
+
+@router.get("/projects/{project_id}/ui-test/report/{execution_id}")
+async def get_ui_test_report(
+    project_id: int,
+    execution_id: int,
+    report_type: str = Query("log", description="报告类型: log, report, output"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取UI测试报告文件内容
+    """
+    # 验证项目存在
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    # 获取执行记录
+    execution = db.query(TestExecution).filter(
+        TestExecution.id == execution_id,
+        TestExecution.project_id == project_id
+    ).first()
+    
+    if not execution:
+        raise HTTPException(status_code=404, detail="测试执行记录不存在")
+    
+    # 从artifacts中查找报告文件
+    artifacts = []
+    if execution.extra_data and "artifacts" in execution.extra_data:
+        artifacts = execution.extra_data["artifacts"]
+    
+    # 根据report_type查找对应的文件
+    report_file = None
+    if report_type == "log":
+        report_file = next((a for a in artifacts if a.get("type") == "robot_log"), None)
+    elif report_type == "report":
+        report_file = next((a for a in artifacts if a.get("type") == "robot_report"), None)
+    elif report_type == "output":
+        report_file = next((a for a in artifacts if a.get("type") == "robot_output"), None)
+    
+    if not report_file:
+        raise HTTPException(status_code=404, detail=f"未找到{report_type}报告文件")
+    
+    # 读取文件内容
+    from pathlib import Path
+    import os
+    
+    # 处理路径：可能是相对路径或绝对路径
+    report_path_str = report_file.get("path", "")
+    
+    # 获取项目根目录（backend的父目录）
+    backend_dir = Path(__file__).parent.parent.parent.parent  # 从endpoints -> v1 -> api -> app -> backend -> 项目根目录
+    project_root = backend_dir
+    
+    # 处理路径
+    report_path = None
+    if os.path.isabs(report_path_str):
+        # 绝对路径，直接使用
+        report_path = Path(report_path_str)
+    else:
+        # 相对路径，相对于项目根目录
+        # 去掉开头的斜杠
+        report_path_str = report_path_str.lstrip("/")
+        report_path = project_root / report_path_str
+    
+    # 尝试解析路径
+    try:
+        report_path = report_path.resolve()
+    except (OSError, RuntimeError):
+        pass
+    
+    if not report_path or not report_path.exists():
+        raise HTTPException(
+            status_code=404, 
+            detail=f"报告文件不存在: {report_path_str} (尝试路径: {report_path})"
+        )
+    
+    # 读取文件内容
+    try:
+        with open(report_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        return {"content": content, "type": report_type, "path": str(report_path)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"读取报告文件失败: {str(e)}")
 
 
 @router.get("/projects/{project_id}/ui-test/executions")

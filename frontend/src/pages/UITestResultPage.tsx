@@ -1,8 +1,10 @@
+import { useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, CheckCircle, XCircle, Loader2, FileCode, Clock } from 'lucide-react'
+import { Collapsible } from '@/components/ui/collapsible'
+import { ArrowLeft, CheckCircle, XCircle, Loader2, FileCode, Clock, FileText, FileJson } from 'lucide-react'
 import { uiTestApi, projectsApi } from '@/lib/api'
 
 export default function UITestResultPage() {
@@ -23,14 +25,21 @@ export default function UITestResultPage() {
   })
 
   // 获取测试结果
-  const { data: testResult, isLoading } = useQuery({
+  const { data: testResult, isLoading, error, isError } = useQuery({
     queryKey: ['ui-test-result', projectId, execId],
     queryFn: async () => {
       if (!projectId || !execId) throw new Error('无效的参数')
-      const response = await uiTestApi.getTestResult(projectId, execId)
-      return response.data
+      try {
+        const response = await uiTestApi.getTestResult(projectId, execId)
+        return response.data
+      } catch (err: any) {
+        console.error('[UITestResultPage] 获取测试结果失败:', err)
+        throw err
+      }
     },
     enabled: !!projectId && !!execId,
+    retry: 2,
+    retryDelay: 1000,
     refetchInterval: (data) => {
       // 如果状态是running，每2秒轮询一次
       if (data?.status === 'running') {
@@ -42,12 +51,45 @@ export default function UITestResultPage() {
 
   if (!projectId || !execId) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500">无效的参数</p>
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <Button variant="ghost" onClick={() => navigate(`/projects/${projectId || ''}/ui-test`)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            返回
+          </Button>
+        </div>
+        <div className="text-center py-12">
+          <p className="text-red-500">无效的参数</p>
+        </div>
       </div>
     )
   }
 
+  // 错误处理
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <Button variant="ghost" onClick={() => navigate(`/projects/${projectId}/ui-test`)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            返回
+          </Button>
+        </div>
+        <div className="text-center py-12">
+          <XCircle className="h-12 w-12 mx-auto text-red-400 mb-4" />
+          <p className="text-red-500 mb-2">加载测试结果失败</p>
+          <p className="text-sm text-gray-500 mb-4">
+            {error instanceof Error ? error.message : '未知错误'}
+          </p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            刷新页面
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // 加载中状态
   if (isLoading || !testResult) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -68,6 +110,16 @@ export default function UITestResultPage() {
   const isPassed = testResult.passed
   const isRunning = testResult.status === 'running'
   const isFailed = !testResult.passed
+  
+  // 日志自动滚动引用
+  const logsEndRef = useRef<HTMLDivElement>(null)
+  
+  // 执行中时，日志更新后自动滚动到底部
+  useEffect(() => {
+    if (isRunning && testResult.logs && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [testResult.logs, isRunning])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,7 +194,9 @@ export default function UITestResultPage() {
               <div>
                 <div className="text-sm font-medium text-gray-700">执行时间</div>
                 <div className="text-sm text-gray-900">
-                  {new Date(testResult.created_at).toLocaleString('zh-CN')}
+                  {testResult.created_at 
+                    ? new Date(testResult.created_at).toLocaleString('zh-CN')
+                    : '未知'}
                 </div>
               </div>
             </div>
@@ -164,63 +218,189 @@ export default function UITestResultPage() {
           </Card>
         )}
 
-        {/* 测试日志 */}
-        {testResult.logs && (
+        {/* 运行日志 - 执行中时也显示 */}
+        <Collapsible 
+          title={
+            <div className="flex items-center gap-2">
+              <span>{isRunning ? "运行日志（实时更新）" : "测试执行日志"}</span>
+              {isRunning && (
+                <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+              )}
+            </div>
+          } 
+          defaultOpen={true}
+        >
+          {isRunning && !testResult.logs && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 text-blue-400 animate-spin mr-2" />
+              <span className="text-gray-600">等待日志输出...</span>
+            </div>
+          )}
+          {testResult.logs ? (
+            <div className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto max-h-[600px] overflow-y-auto">
+              <pre className="text-xs whitespace-pre-wrap font-mono">
+                <code>{testResult.logs}</code>
+              </pre>
+              {/* 用于自动滚动的锚点 */}
+              <div ref={logsEndRef} />
+            </div>
+          ) : !isRunning && (
+            <div className="text-center py-8 text-gray-500">
+              <p>暂无日志信息</p>
+            </div>
+          )}
+        </Collapsible>
+
+        {/* Robot Framework 输出文件 - 执行结束后折叠式展示 */}
+        {!isRunning && (
           <Card>
             <CardHeader>
-              <CardTitle>测试日志</CardTitle>
-              <CardDescription>完整的测试执行日志</CardDescription>
+              <CardTitle>Robot Framework 输出文件</CardTitle>
+              <CardDescription>
+                {testResult.artifacts && testResult.artifacts.filter(a => ['robot_log', 'robot_report', 'robot_output'].includes(a.type)).length > 0
+                  ? '测试执行完成后生成的报告和日志文件'
+                  : '执行完成后将显示Robot Framework生成的报告和日志文件'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto max-h-[600px] overflow-y-auto">
-                <pre className="text-xs">
-                  <code>{testResult.logs}</code>
-                </pre>
-              </div>
+              {testResult.artifacts && testResult.artifacts.filter(artifact => ['robot_log', 'robot_report', 'robot_output'].includes(artifact.type)).length > 0 ? (
+                <div className="space-y-3">
+                  {testResult.artifacts
+                    .filter(artifact => ['robot_log', 'robot_report', 'robot_output'].includes(artifact.type))
+                    .map((artifact, index) => (
+                      <ReportViewer
+                        key={index}
+                        projectId={projectId!}
+                        executionId={execId!}
+                        artifact={artifact}
+                      />
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FileCode className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p>暂无Robot Framework输出文件</p>
+                  <p className="text-sm text-gray-400 mt-2">文件可能正在生成中，请稍后刷新</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* 生成的文件 */}
-        {testResult.artifacts && testResult.artifacts.length > 0 && (
+        {/* 其他生成的文件 */}
+        {testResult.artifacts && testResult.artifacts.filter(a => !['robot_log', 'robot_report', 'robot_output'].includes(a.type)).length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>生成的文件</CardTitle>
-              <CardDescription>测试执行过程中生成的报告和截图</CardDescription>
+              <CardTitle>其他生成的文件</CardTitle>
+              <CardDescription>测试执行过程中生成的其他文件（截图等）</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {testResult.artifacts.map((artifact, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileCode className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {artifact.name || artifact.path.split('/').pop()}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {artifact.type === 'robot_output' && 'Robot Framework 输出文件'}
-                          {artifact.type === 'robot_log' && 'Robot Framework 日志'}
-                          {artifact.type === 'robot_report' && 'Robot Framework 报告'}
-                          {artifact.type === 'screenshot' && '测试截图'}
-                          {!['robot_output', 'robot_log', 'robot_report', 'screenshot'].includes(artifact.type) && artifact.type}
+                {testResult.artifacts
+                  .filter(a => !['robot_log', 'robot_report', 'robot_output'].includes(a.type))
+                  .map((artifact, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileCode className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {artifact.name || artifact.path.split('/').pop()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {artifact.type === 'screenshot' && '测试截图'}
+                            {artifact.type !== 'screenshot' && artifact.type}
+                          </div>
                         </div>
                       </div>
+                      <div className="text-xs text-gray-500">
+                        {artifact.path}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {artifact.path}
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
         )}
       </div>
     </div>
+  )
+}
+
+// 报告查看器组件
+function ReportViewer({ 
+  projectId, 
+  executionId, 
+  artifact 
+}: { 
+  projectId: number
+  executionId: number
+  artifact: { type: string; path: string; name?: string }
+}) {
+  const reportType = artifact.type === 'robot_log' ? 'log' : 
+                     artifact.type === 'robot_report' ? 'report' : 'output'
+  
+  const { data: reportData, isLoading } = useQuery({
+    queryKey: ['ui-test-report', projectId, executionId, reportType],
+    queryFn: async () => {
+      const response = await uiTestApi.getReport(projectId, executionId, reportType as 'log' | 'report' | 'output')
+      return response.data
+    },
+    enabled: !!projectId && !!executionId,
+  })
+
+  const getTitle = () => {
+    if (artifact.type === 'robot_log') return 'Robot Framework 日志 (log.html)'
+    if (artifact.type === 'robot_report') return 'Robot Framework 报告 (report.html)'
+    if (artifact.type === 'robot_output') return 'Robot Framework 输出 (output.xml)'
+    return artifact.name || '报告文件'
+  }
+
+  const getIcon = () => {
+    if (artifact.type === 'robot_output') return <FileJson className="h-5 w-5 text-blue-500" />
+    return <FileText className="h-5 w-5 text-green-500" />
+  }
+
+  return (
+    <Collapsible title={getTitle()} defaultOpen={false}>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+          <span className="ml-2 text-gray-600">加载报告内容中...</span>
+        </div>
+      ) : reportData ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            {getIcon()}
+            <span>文件路径: {reportData.path}</span>
+          </div>
+          {artifact.type === 'robot_output' ? (
+            // XML输出文件，使用代码格式显示
+            <div className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto max-h-[600px] overflow-y-auto">
+              <pre className="text-xs whitespace-pre-wrap">
+                <code>{reportData.content}</code>
+              </pre>
+            </div>
+          ) : (
+            // HTML报告文件，使用iframe显示
+            <div className="border border-gray-200 rounded-md overflow-hidden">
+              <iframe
+                srcDoc={reportData.content}
+                className="w-full h-[600px] border-0"
+                title={getTitle()}
+                sandbox="allow-same-origin allow-scripts"
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-500">
+          <p>无法加载报告内容</p>
+        </div>
+      )}
+    </Collapsible>
   )
 }
 
