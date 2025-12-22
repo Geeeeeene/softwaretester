@@ -24,7 +24,7 @@ def upload_project_source(
     extract: str = Form("true"),  # 是否解压ZIP文件（字符串格式）
     db: Session = Depends(get_db)
 ):
-    """上传项目源代码（支持ZIP文件自动解压）"""
+    """上传项目源代码（支持ZIP文件自动解压）- 参考静态分析的处理方式"""
     # 验证项目
     from sqlalchemy import select
     result = db.execute(
@@ -34,87 +34,98 @@ def upload_project_source(
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
     
-    # 验证文件大小
-    file.file.seek(0, 2)
+    # 校验文件类型（仅支持ZIP）
+    if not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="仅支持 zip 压缩包")
+    
+    # 校验文件大小
+    file.file.seek(0, os.SEEK_END)
     file_size = file.file.tell()
     file.file.seek(0)
-    
     if file_size > settings.MAX_UPLOAD_SIZE:
         raise HTTPException(
             status_code=413,
-            detail=f"文件过大，最大支持 {settings.MAX_UPLOAD_SIZE / 1024 / 1024}MB"
+            detail=f"文件过大，最大支持 {settings.MAX_UPLOAD_SIZE / 1024 / 1024:.0f}MB"
         )
     
-    # 创建项目上传目录
-    project_upload_dir = Path(settings.UPLOAD_DIR) / str(project_id)
+    # 路径准备（与单元测试保持一致）
+    uploads_dir = Path(settings.UPLOAD_DIR)
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 创建项目上传目录（与单元测试保持一致）
+    project_upload_dir = uploads_dir / str(project_id)
     project_upload_dir.mkdir(parents=True, exist_ok=True)
     
+    # 解压目录
+    extract_dir = project_upload_dir / "source"
+    if extract_dir.exists() and any(extract_dir.iterdir()):
+        # 如果目录已存在且有内容，先清理（允许重新上传）
+        shutil.rmtree(extract_dir)
+    extract_dir.mkdir(parents=True, exist_ok=True)
+    
+    zip_path = project_upload_dir / f"{uuid.uuid4().hex}.zip"
+    
+    # 保存ZIP文件
     try:
-        file_ext = Path(file.filename or '').suffix.lower()
-        
-        # 如果是ZIP文件且需要解压（extract可能是字符串"true"或布尔值）
-        should_extract = extract == "true" or extract is True
-        if file_ext == '.zip' and should_extract:
-            # 保存ZIP文件到临时位置
-            temp_zip = project_upload_dir / f"{uuid.uuid4()}.zip"
-            with open(temp_zip, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            
-            # 解压ZIP文件
-            extract_dir = project_upload_dir / "source"
-            if extract_dir.exists():
-                shutil.rmtree(extract_dir)
-            extract_dir.mkdir(parents=True, exist_ok=True)
-            
-            with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
-            
-            # 删除临时ZIP文件
-            temp_zip.unlink()
-            
-            # 更新项目source_path为解压后的目录
-            project.source_path = str(extract_dir)
-            
-            # 尝试自动检测构建路径
-            build_path = extract_dir / "build"
-            if not build_path.exists():
-                build_path.mkdir(parents=True, exist_ok=True)
-            
-            db.commit()
-            
-            return {
-                "message": "ZIP文件上传并解压成功",
-                "filename": file.filename,
-                "extracted_path": str(extract_dir),
-                "size": file_size,
-                "extracted": True
-            }
-        else:
-            # 普通文件上传
-            unique_filename = f"{uuid.uuid4()}{file_ext}"
-            file_path = project_upload_dir / unique_filename
-            
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            
-            # 更新项目source_path
-            project.source_path = str(file_path)
-            db.commit()
-            
-            return {
-                "message": "文件上传成功",
-                "filename": file.filename,
-                "path": str(file_path),
-                "size": file_size,
-                "extracted": False
-            }
-            
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="无效的ZIP文件")
+        with open(zip_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文件处理失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"文件保存失败: {str(e)}")
     finally:
         file.file.close()
+    
+    # 解压ZIP文件，防止目录穿越（参考静态分析的安全检查）
+    should_extract = extract == "true" or extract is True
+    if should_extract:
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                # 安全检查：防止目录穿越攻击
+                for member in zip_ref.namelist():
+                    if member.startswith("/") or ".." in Path(member).parts:
+                        zip_path.unlink()  # 删除临时ZIP文件
+                        raise HTTPException(status_code=400, detail="检测到不安全的压缩路径")
+                zip_ref.extractall(extract_dir)
+        except HTTPException:
+            raise
+        except zipfile.BadZipFile:
+            zip_path.unlink()
+            raise HTTPException(status_code=400, detail="无效的ZIP文件")
+        except Exception as e:
+            zip_path.unlink()
+            raise HTTPException(status_code=500, detail=f"解压失败: {str(e)}")
+        
+        # 删除临时ZIP文件
+        zip_path.unlink()
+        
+        # 更新项目source_path（使用绝对路径，确保跨平台兼容）
+        project.source_path = str(extract_dir.resolve())
+        
+        # 创建构建目录
+        build_path = extract_dir / "build"
+        if not build_path.exists():
+            build_path.mkdir(parents=True, exist_ok=True)
+        project.build_path = str(build_path.resolve())
+        
+        db.commit()
+        db.refresh(project)
+        
+        # 记录上传成功信息
+        import sys
+        print(f"✅ ZIP文件上传成功: {file.filename}", file=sys.stderr, flush=True)
+        print(f"✅ 解压路径: {extract_dir}", file=sys.stderr, flush=True)
+        print(f"✅ 项目source_path已更新: {project.source_path}", file=sys.stderr, flush=True)
+        
+        return {
+            "message": "ZIP文件上传并解压成功",
+            "filename": file.filename,
+            "extracted_path": str(extract_dir),
+            "size": file_size,
+            "extracted": True
+        }
+    else:
+        # 不需要解压的情况（理论上不应该到达这里，因为只支持ZIP）
+        zip_path.unlink()
+        raise HTTPException(status_code=400, detail="仅支持ZIP压缩包，且必须解压")
 
 
 @router.post("/artifact")

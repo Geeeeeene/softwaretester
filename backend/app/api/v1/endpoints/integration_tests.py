@@ -1,7 +1,7 @@
-from typing import Optional, List, Dict, Any
+"""集成测试API端点"""
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-import os
 import sys
 import traceback
 from pathlib import Path
@@ -10,24 +10,33 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.db.models.project import Project
 from app.core.config import settings
+from app.test_ir.schemas import IntegrationTestIR
 from app.services.test_generation import TestGenerationService
 from app.executors.catch2_executor import Catch2Executor
 
 router = APIRouter()
 
-class GenerateRequest(BaseModel):
-    file_path: str
+
+# 保留原有的GenerateIntegrationTestRequest用于基于Test IR的生成（如果需要）
+class GenerateIntegrationTestRequest(BaseModel):
+    """生成集成测试请求（基于Test IR）"""
+    test_ir: IntegrationTestIR
     additional_info: Optional[str] = None
 
+
 class ExecuteRequest(BaseModel):
+    """执行集成测试请求（与单元测试保持一致）"""
     file_path: str
     test_code: str
 
+
 def log(msg: str):
+    """日志输出"""
     print(f"DEBUG_LOG: {msg}", file=sys.stderr, flush=True)
 
+
 def _get_source_path(project_id: int, project: Project) -> Optional[Path]:
-    """获取项目源码路径"""
+    """获取项目源码路径（与单元测试保持一致）"""
     log(f"📂 数据库路径记录: {project.source_path}")
     
     source_path = None
@@ -70,7 +79,7 @@ def _get_source_path(project_id: int, project: Project) -> Optional[Path]:
 
 
 def _build_file_tree(project_path: Path) -> list:
-    """构建文件树结构（参考集成测试实现）"""
+    """构建文件树结构（参考静态分析实现）"""
     if not project_path.exists():
         return []
     
@@ -149,13 +158,20 @@ async def list_source_files(project_id: int, db: Session = Depends(get_db)):
     log(f"✅ 扫描完成: 构建文件树，包含 {len(file_tree)} 个根节点")
     return {"project_id": project_id, "file_tree": file_tree}
 
+
+class GenerateRequest(BaseModel):
+    """生成集成测试请求（与单元测试保持一致）"""
+    file_path: str
+    additional_info: Optional[str] = None
+
+
 @router.post("/{project_id}/generate")
 async def generate_tests(
     project_id: int, 
     request: GenerateRequest,
     db: Session = Depends(get_db)
 ):
-    """为指定文件生成测试用例"""
+    """为指定文件生成集成测试用例（与单元测试API结构一致）"""
     log(f"收到生成请求: ID={project_id}, File={request.file_path}")
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -173,7 +189,16 @@ async def generate_tests(
 
     service = TestGenerationService()
     try:
-        test_code = await service.generate_catch2_test(content, request.file_path)
+        test_code = await service.generate_integration_test_from_code(
+            file_content=content,
+            file_name=request.file_path,
+            project_info={
+                "name": project.name,
+                "source_path": project.source_path,
+                "language": project.language or "cpp"
+            },
+            additional_info=request.additional_info
+        )
         return {
             "project_id": project_id,
             "file_path": request.file_path,
@@ -183,13 +208,14 @@ async def generate_tests(
         log(f"❌ AI 生成失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/{project_id}/execute")
 async def execute_tests(
     project_id: int,
     request: ExecuteRequest,
     db: Session = Depends(get_db)
 ):
-    """编译并运行生成的测试"""
+    """编译并运行生成的集成测试（与单元测试API结构一致）"""
     log(f"收到执行请求: ID={project_id}, File={request.file_path}")
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -209,3 +235,4 @@ async def execute_tests(
         error_detail = traceback.format_exc()
         log(f"❌ 执行异常详情:\n{error_detail}")
         raise HTTPException(status_code=500, detail=f"执行失败: {str(e)}")
+

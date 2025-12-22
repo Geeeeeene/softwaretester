@@ -4,12 +4,12 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Play, Loader2, AlertCircle, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Upload } from 'lucide-react'
-import { unitTestsApi, projectsApi, uploadApi } from '@/lib/api'
+import { integrationTestsApi, projectsApi, uploadApi } from '@/lib/api'
 import { FileTree } from '@/components/static-analysis/FileTree'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
-export default function UnitTestPage() {
+export default function IntegrationTestPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const projectId = id ? parseInt(id, 10) : null
@@ -32,10 +32,10 @@ export default function UnitTestPage() {
 
   // 获取源文件列表（文件树）
   const { data: filesData, isLoading: filesLoading, refetch: refetchFiles, error: filesError } = useQuery({
-    queryKey: ['unit-test-files', projectId],
+    queryKey: ['integration-test-files', projectId],
     queryFn: async () => {
       if (!projectId) throw new Error('无效的项目ID')
-      const response = await unitTestsApi.getFiles(projectId)
+      const response = await integrationTestsApi.getFiles(projectId)
       return response.data
     },
     enabled: !!projectId,
@@ -84,16 +84,16 @@ export default function UnitTestPage() {
     }
   }
 
-  // 生成测试用例（AI分析代码）
+  // 生成集成测试用例（AI分析代码）
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!projectId || !selectedFile) throw new Error('请选择文件')
-      return unitTestsApi.generate(projectId, selectedFile)
+      return integrationTestsApi.generate(projectId, selectedFile)
     },
     onSuccess: (data) => {
       setGeneratedCode(data.data.test_code)
       setTestResult(null)
-      setLogs('✅ 单元测试用例生成成功！AI已分析代码并生成测试用例。\n\n现在可以点击"开始测试"按钮执行测试。')
+      setLogs('✅ 集成测试用例生成成功！AI已分析代码并生成测试用例。\n\n现在可以点击"开始测试"按钮执行测试。')
     },
     onError: (error: any) => {
       const errorMsg = error.response?.data?.detail || error.message || '生成失败'
@@ -102,11 +102,11 @@ export default function UnitTestPage() {
     }
   })
 
-  // 执行单元测试
+  // 执行集成测试
   const executeMutation = useMutation({
     mutationFn: async () => {
       if (!projectId || !selectedFile || !generatedCode) throw new Error('缺少必要参数：请先生成测试用例')
-      return unitTestsApi.execute(projectId, selectedFile, generatedCode)
+      return integrationTestsApi.execute(projectId, selectedFile, generatedCode)
     },
     onSuccess: (data) => {
       setTestResult(data.data)
@@ -133,7 +133,7 @@ export default function UnitTestPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Catch2 单元测试</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Catch2 集成测试</h1>
             <p className="text-gray-500">{project?.name || '加载中...'}</p>
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function UnitTestPage() {
               源文件列表
             </CardTitle>
             <CardDescription className="text-xs">
-              选择文件后，AI将分析代码并生成单元测试用例
+              选择文件后，AI将分析代码并生成集成测试用例
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1 p-0 overflow-hidden">
@@ -234,7 +234,7 @@ export default function UnitTestPage() {
                   generateMutation.mutate()
                 }}
                 className="flex-1"
-                title={!selectedFile ? '请先选择一个源文件' : 'AI将分析代码并生成单元测试用例'}
+                title={!selectedFile ? '请先选择一个源文件' : 'AI将分析代码并生成集成测试用例'}
               >
                 {generateMutation.isPending ? (
                   <>
@@ -280,7 +280,7 @@ export default function UnitTestPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Code className="h-4 w-4" />
-                生成的 Catch2 单元测试代码
+                生成的 Catch2 集成测试代码
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -298,7 +298,7 @@ export default function UnitTestPage() {
                 <div className="h-[300px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
                   <Beaker className="h-12 w-12 mb-2 opacity-20" />
                   <p>请先选择一个源文件并点击"生成测试用例"</p>
-                  <p className="text-xs mt-2 opacity-60">AI将分析代码并生成单元测试用例</p>
+                  <p className="text-xs mt-2 opacity-60">AI将分析代码并生成集成测试用例</p>
                 </div>
               )}
             </CardContent>
@@ -405,4 +405,3 @@ export default function UnitTestPage() {
     </div>
   )
 }
-

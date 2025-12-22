@@ -8,9 +8,10 @@ interface FileTreeProps {
   selectedPath?: string
   onFileSelect: (path: string) => void
   className?: string
+  showTitle?: boolean
 }
 
-export function FileTree({ tree, selectedPath, onFileSelect, className }: FileTreeProps) {
+export function FileTree({ tree, selectedPath, onFileSelect, className, showTitle = true }: FileTreeProps) {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
 
   const toggleExpand = (path: string) => {
@@ -81,9 +82,11 @@ export function FileTree({ tree, selectedPath, onFileSelect, className }: FileTr
   }
 
   return (
-    <div className="h-full overflow-y-auto border-r border-gray-200 bg-white">
+    <div className="h-full overflow-y-auto bg-white">
       <div className="p-2">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">文件树</h3>
+        {showTitle && (
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">文件树</h3>
+        )}
         {tree.length === 0 ? (
           <p className="text-sm text-gray-500">暂无文件</p>
         ) : (

@@ -97,9 +97,10 @@ async def health_check():
 
 
 # 强制注册上传和单元测试路由（修复路由未生效问题）
-from app.api.v1.endpoints import upload, unit_tests
+from app.api.v1.endpoints import upload, unit_tests, integration_tests
 app.include_router(unit_tests.router, prefix="/api/v1/unit-tests", tags=["unit-tests"])
 app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
+app.include_router(integration_tests.router, prefix="/api/v1/integration-tests", tags=["integration-tests"])
 
 # 注册API路由
 app.include_router(api_router, prefix="/api/v1")

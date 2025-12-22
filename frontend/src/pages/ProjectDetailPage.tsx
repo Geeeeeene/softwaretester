@@ -396,7 +396,8 @@ export default function ProjectDetailPage() {
         break
       case 'integration':
         options.push(
-          { icon: TestTube, label: '创建集成测试', action: () => setTestCaseDialogOpen(true), color: 'blue' },
+          { icon: TestTube, label: '集成测试 (Catch2)', action: () => navigate(`/projects/${id}/integration-test`), color: 'blue' },
+          { icon: TestTube, label: '创建集成测试用例', action: () => setTestCaseDialogOpen(true), color: 'purple' },
           { icon: Play, label: '执行集成测试', action: () => setExecuteDialogOpen(true), color: 'green' }
         )
         break
