@@ -458,6 +458,47 @@ export const integrationTestsApi = {
       `/integration-tests/${projectId}/execute`,
       { file_path: filePath, test_code: testCode }
     ),
+  
+  // 分析整个项目并生成测试用例
+  generateProject: (projectId: number, additionalInfo?: string) =>
+    api.post<{
+      project_id: number;
+      file_path: string | null;
+      test_code: string;
+      project_files_count: number;
+    }>(
+      `/integration-tests/${projectId}/generate-project`,
+      { additional_info: additionalInfo }
+    ),
+  
+  // 使用AI执行测试用例
+  executeWithAI: (projectId: number, testCode: string) =>
+    api.post<{
+      success: boolean;
+      logs: string;
+      summary: any;
+      ai_analysis?: string;
+    }>(
+      `/integration-tests/${projectId}/execute-ai`,
+      { file_path: "", test_code: testCode }
+    ),
+  
+  // 生成并执行集成测试（一步完成，保留兼容性）
+  generateAndExecute: (projectId: number, filePath?: string, additionalInfo?: string) =>
+    api.post<{
+      project_id: number;
+      file_path: string | null;
+      test_code: string;
+      execution_result: any;
+      success: boolean;
+      logs: string;
+      summary: any;
+      ai_analysis?: string;
+      project_files_count?: number;
+    }>(
+      `/integration-tests/${projectId}/generate-and-execute`,
+      { file_path: filePath, additional_info: additionalInfo }
+    ),
 }
 
 // ============ 上传API ============

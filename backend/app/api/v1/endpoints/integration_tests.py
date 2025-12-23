@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 import sys
+import os
 import traceback
 from pathlib import Path
 from pydantic import BaseModel
@@ -76,6 +77,37 @@ def _get_source_path(project_id: int, project: Project) -> Optional[Path]:
         return None
     
     return source_path
+
+
+def _collect_project_files(project_path: Path) -> Dict[str, str]:
+    """收集项目中的所有源代码文件内容"""
+    code_extensions = {'.cpp', '.cc', '.cxx', '.c++', '.C', '.c', '.h', '.hpp', '.hh', '.hxx'}
+    exclude_dirs = {'.git', 'node_modules', '__pycache__', '.venv', 'venv', 
+                    'build', 'dist', '.pytest_cache', '.mypy_cache', '.idea', '.vscode',
+                    'cmake-build', 'vendor', 'third_party'}
+    
+    files_content = {}
+    
+    try:
+        for root, dirs, files in os.walk(project_path):
+            # 过滤排除的目录
+            dirs[:] = [d for d in dirs if d not in exclude_dirs and not d.startswith('.')]
+            
+            for file in files:
+                file_path = Path(root) / file
+                if file_path.suffix.lower() in code_extensions:
+                    try:
+                        # 计算相对路径
+                        rel_path = file_path.relative_to(project_path)
+                        content = file_path.read_text(encoding='utf-8', errors='ignore')
+                        files_content[str(rel_path)] = content
+                    except Exception as e:
+                        log(f"⚠️  无法读取文件 {file_path}: {e}")
+                        continue
+    except Exception as e:
+        log(f"⚠️  收集项目文件时出错: {e}")
+    
+    return files_content
 
 
 def _build_file_tree(project_path: Path) -> list:
@@ -161,7 +193,12 @@ async def list_source_files(project_id: int, db: Session = Depends(get_db)):
 
 class GenerateRequest(BaseModel):
     """生成集成测试请求（与单元测试保持一致）"""
-    file_path: str
+    file_path: Optional[str] = None  # 可选，如果为空则分析整个项目
+    additional_info: Optional[str] = None
+
+
+class GenerateProjectRequest(BaseModel):
+    """生成项目级别集成测试请求"""
     additional_info: Optional[str] = None
 
 
@@ -235,4 +272,245 @@ async def execute_tests(
         error_detail = traceback.format_exc()
         log(f"❌ 执行异常详情:\n{error_detail}")
         raise HTTPException(status_code=500, detail=f"执行失败: {str(e)}")
+
+
+@router.post("/{project_id}/generate-project")
+async def generate_project_tests(
+    project_id: int,
+    request: GenerateProjectRequest,
+    db: Session = Depends(get_db)
+):
+    """分析整个项目并生成测试用例"""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    source_path = _get_source_path(project_id, project)
+    if not source_path:
+        raise HTTPException(status_code=404, detail="项目源代码路径不存在")
+    
+    service = TestGenerationService()
+    
+    try:
+        # 分析整个项目
+        log(f"收到项目级别生成请求: ID={project_id}")
+        
+        # 1. 收集项目中的所有源代码文件
+        log("📂 开始收集项目源代码文件...")
+        project_files = _collect_project_files(source_path)
+        log(f"✅ 收集到 {len(project_files)} 个源代码文件")
+        
+        if not project_files:
+            raise HTTPException(status_code=404, detail="项目中未找到源代码文件")
+        
+        # 2. 生成项目级别的测试用例
+        log("🤖 开始生成项目级别测试用例...")
+        test_code = await service.generate_integration_test_from_project(
+            project_files=project_files,
+            project_info={
+                "name": project.name,
+                "source_path": str(source_path),
+                "language": project.language or "cpp"
+            },
+            additional_info=request.additional_info
+        )
+        log("✅ 测试用例生成成功")
+        
+        return {
+            "project_id": project_id,
+            "file_path": None,
+            "test_code": test_code,
+            "project_files_count": len(project_files)
+        }
+            
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        log(f"❌ 生成失败: {str(e)}\n{error_detail}")
+        raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
+
+
+@router.post("/{project_id}/execute-ai")
+async def execute_tests_with_ai(
+    project_id: int,
+    request: ExecuteRequest,
+    db: Session = Depends(get_db)
+):
+    """使用AI执行测试用例"""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    source_path = _get_source_path(project_id, project)
+    if not source_path:
+        raise HTTPException(status_code=404, detail="项目源代码路径不存在")
+    
+    service = TestGenerationService()
+    
+    try:
+        log(f"收到AI执行请求: ID={project_id}")
+        
+        # 收集项目中的所有源代码文件用于AI分析
+        log("📂 开始收集项目源代码文件...")
+        project_files = _collect_project_files(source_path)
+        log(f"✅ 收集到 {len(project_files)} 个源代码文件")
+        
+        # 将所有文件内容合并用于AI分析
+        all_source_code = "\n\n".join([f"// === {path} ===\n{content}" for path, content in list(project_files.items())[:20]])
+        
+        # 使用AI执行测试用例
+        log("🤖 开始使用AI执行测试用例...")
+        result = await service.execute_tests_with_ai(
+            test_code=request.test_code,
+            source_code=all_source_code,
+            source_file_name="整个项目",
+            project_info={
+                "name": project.name,
+                "source_path": str(source_path),
+                "language": project.language or "cpp",
+                "file_count": len(project_files)
+            }
+        )
+        log("✅ AI执行完成")
+        
+        return {
+            "success": result.get("success", False),
+            "logs": result.get("logs", "") + "\n\n--- AI分析 ---\n" + result.get("analysis", ""),
+            "summary": result.get("summary", {}),
+            "ai_analysis": result.get("analysis", "")
+        }
+        
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        log(f"❌ 执行失败: {str(e)}\n{error_detail}")
+        raise HTTPException(status_code=500, detail=f"执行失败: {str(e)}")
+
+
+@router.post("/{project_id}/generate-and-execute")
+async def generate_and_execute_tests(
+    project_id: int,
+    request: GenerateRequest,
+    db: Session = Depends(get_db)
+):
+    """生成测试用例并自动执行（一步完成）"""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    source_path = _get_source_path(project_id, project)
+    if not source_path:
+        raise HTTPException(status_code=404, detail="项目源代码路径不存在")
+    
+    service = TestGenerationService()
+    
+    try:
+        # 判断是分析单个文件还是整个项目
+        if request.file_path:
+            # 分析单个文件
+            log(f"收到生成并执行请求: ID={project_id}, File={request.file_path}")
+            full_path = source_path / request.file_path
+            if not full_path.exists():
+                log(f"❌ 文件不存在: {full_path}")
+                raise HTTPException(status_code=404, detail=f"文件不存在: {request.file_path}")
+            
+            try:
+                content = full_path.read_text(encoding='utf-8', errors='ignore')
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"读取文件失败: {str(e)}")
+            
+            # 1. 生成测试用例
+            log("🤖 开始生成测试用例（单文件）...")
+            test_code = await service.generate_integration_test_from_code(
+                file_content=content,
+                file_name=request.file_path,
+                project_info={
+                    "name": project.name,
+                    "source_path": str(source_path),
+                    "language": project.language or "cpp"
+                },
+                additional_info=request.additional_info
+            )
+            log("✅ 测试用例生成成功")
+            
+            # 2. 使用AI执行测试用例
+            log("🤖 开始使用AI执行测试用例...")
+            result = await service.execute_tests_with_ai(
+                test_code=test_code,
+                source_code=content,
+                source_file_name=request.file_path,
+                project_info={
+                    "name": project.name,
+                    "source_path": str(source_path),
+                    "language": project.language or "cpp"
+                }
+            )
+            log("✅ AI执行完成")
+            
+            return {
+                "project_id": project_id,
+                "file_path": request.file_path,
+                "test_code": test_code,
+                "execution_result": result,
+                "success": result.get("success", False),
+                "logs": result.get("logs", "") + "\n\n--- AI分析 ---\n" + result.get("analysis", ""),
+                "summary": result.get("summary", {}),
+                "ai_analysis": result.get("analysis", "")
+            }
+        else:
+            # 分析整个项目
+            log(f"收到生成并执行请求: ID={project_id}, 分析整个项目")
+            
+            # 1. 收集项目中的所有源代码文件
+            log("📂 开始收集项目源代码文件...")
+            project_files = _collect_project_files(source_path)
+            log(f"✅ 收集到 {len(project_files)} 个源代码文件")
+            
+            if not project_files:
+                raise HTTPException(status_code=404, detail="项目中未找到源代码文件")
+            
+            # 2. 生成项目级别的测试用例
+            log("🤖 开始生成项目级别测试用例...")
+            test_code = await service.generate_integration_test_from_project(
+                project_files=project_files,
+                project_info={
+                    "name": project.name,
+                    "source_path": str(source_path),
+                    "language": project.language or "cpp"
+                },
+                additional_info=request.additional_info
+            )
+            log("✅ 测试用例生成成功")
+            
+            # 3. 使用AI执行测试用例
+            log("🤖 开始使用AI执行测试用例...")
+            # 将所有文件内容合并用于AI分析
+            all_source_code = "\n\n".join([f"// === {path} ===\n{content}" for path, content in list(project_files.items())[:20]])  # 限制文件数量
+            result = await service.execute_tests_with_ai(
+                test_code=test_code,
+                source_code=all_source_code,
+                source_file_name="整个项目",
+                project_info={
+                    "name": project.name,
+                    "source_path": str(source_path),
+                    "language": project.language or "cpp",
+                    "file_count": len(project_files)
+                }
+            )
+            log("✅ AI执行完成")
+            
+            return {
+                "project_id": project_id,
+                "file_path": None,  # 项目级别，没有单个文件路径
+                "test_code": test_code,
+                "execution_result": result,
+                "success": result.get("success", False),
+                "logs": result.get("logs", "") + "\n\n--- AI分析 ---\n" + result.get("analysis", ""),
+                "summary": result.get("summary", {}),
+                "ai_analysis": result.get("analysis", ""),
+                "project_files_count": len(project_files)
+            }
+            
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        log(f"❌ 生成或执行失败: {str(e)}\n{error_detail}")
+        raise HTTPException(status_code=500, detail=f"生成或执行失败: {str(e)}")
 

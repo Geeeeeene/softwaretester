@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Play, Loader2, AlertCircle, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Upload } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertCircle, FileCode, Beaker, Code, Terminal, Upload } from 'lucide-react'
 import { integrationTestsApi, projectsApi, uploadApi } from '@/lib/api'
 import { FileTree } from '@/components/static-analysis/FileTree'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -18,6 +18,7 @@ export default function IntegrationTestPage() {
   const [generatedCode, setGeneratedCode] = useState<string>('')
   const [testResult, setTestResult] = useState<any>(null)
   const [logs, setLogs] = useState<string>('')
+  const [aiAnalysis, setAiAnalysis] = useState<string>('')
 
   // 获取项目信息
   const { data: project } = useQuery({
@@ -84,43 +85,28 @@ export default function IntegrationTestPage() {
     }
   }
 
-  // 生成集成测试用例（AI分析代码）
-  const generateMutation = useMutation({
+  // 生成并执行集成测试（一步完成）- 分析整个项目
+  const generateAndExecuteMutation = useMutation({
     mutationFn: async () => {
-      if (!projectId || !selectedFile) throw new Error('请选择文件')
-      return integrationTestsApi.generate(projectId, selectedFile)
+      if (!projectId) throw new Error('项目ID无效')
+      // 不传file_path，表示分析整个项目
+      return integrationTestsApi.generateAndExecute(projectId, undefined)
     },
     onSuccess: (data) => {
       setGeneratedCode(data.data.test_code)
-      setTestResult(null)
-      setLogs('✅ 集成测试用例生成成功！AI已分析代码并生成测试用例。\n\n现在可以点击"开始测试"按钮执行测试。')
-    },
-    onError: (error: any) => {
-      const errorMsg = error.response?.data?.detail || error.message || '生成失败'
-      alert('生成失败: ' + errorMsg)
-      setLogs('❌ 生成失败: ' + errorMsg)
-    }
-  })
-
-  // 执行集成测试
-  const executeMutation = useMutation({
-    mutationFn: async () => {
-      if (!projectId || !selectedFile || !generatedCode) throw new Error('缺少必要参数：请先生成测试用例')
-      return integrationTestsApi.execute(projectId, selectedFile, generatedCode)
-    },
-    onSuccess: (data) => {
-      setTestResult(data.data)
+      setTestResult(data.data.execution_result)
       setLogs(data.data.logs || '测试执行完成')
+      setAiAnalysis(data.data.ai_analysis || '')  // 设置AI分析结果
       if (data.data.success) {
-        alert('✅ 测试执行成功！请查看下方测试结果。')
+        alert('✅ 测试用例生成并执行成功！AI已分析结果，请查看下方详细信息。')
       } else {
-        alert('⚠️ 测试执行完成，但部分测试用例失败。请查看下方详细结果。')
+        alert('⚠️ 测试用例已生成。AI已分析原因，请查看下方详细结果。')
       }
     },
     onError: (error: any) => {
-      const errorMsg = error.response?.data?.detail || error.message || '执行失败'
-      alert('执行失败: ' + errorMsg)
-      setLogs('❌ 执行失败: ' + errorMsg + '\n\n请检查：\n1. 测试代码是否正确\n2. 源代码路径是否存在\n3. Catch2环境是否配置正确')
+      const errorMsg = error.response?.data?.detail || error.message || '生成或执行失败'
+      alert('生成或执行失败: ' + errorMsg)
+      setLogs('❌ 生成或执行失败: ' + errorMsg + '\n\n请检查：\n1. 测试代码是否正确\n2. 源代码路径是否存在')
     }
   })
 
@@ -225,50 +211,23 @@ export default function IntegrationTestPage() {
           <Card>
             <CardContent className="p-4 flex gap-4">
               <Button 
-                disabled={!selectedFile || generateMutation.isPending}
+                disabled={generateAndExecuteMutation.isPending}
                 onClick={() => {
-                  if (!selectedFile) {
-                    alert('请先选择一个源文件')
-                    return
-                  }
-                  generateMutation.mutate()
+                  // 不传file_path，表示分析整个项目
+                  generateAndExecuteMutation.mutate()
                 }}
                 className="flex-1"
-                title={!selectedFile ? '请先选择一个源文件' : 'AI将分析代码并生成集成测试用例'}
+                title="AI将分析整个项目，生成测试用例并自动执行"
               >
-                {generateMutation.isPending ? (
+                {generateAndExecuteMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    AI分析中...
+                    AI分析整个项目并执行中...
                   </>
                 ) : (
                   <>
                     <Beaker className="mr-2 h-4 w-4" />
-                    生成测试用例
-                  </>
-                )}
-              </Button>
-              <Button 
-                disabled={!generatedCode || executeMutation.isPending}
-                onClick={() => {
-                  if (!generatedCode) {
-                    alert('请先生成测试用例')
-                    return
-                  }
-                  executeMutation.mutate()
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                title={!generatedCode ? '请先生成测试用例' : '使用Catch2编译并执行测试用例'}
-              >
-                {executeMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    执行中...
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-4 w-4" />
-                    开始测试
+                    分析整个项目并执行测试
                   </>
                 )}
               </Button>
@@ -297,7 +256,6 @@ export default function IntegrationTestPage() {
               ) : (
                 <div className="h-[300px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
                   <Beaker className="h-12 w-12 mb-2 opacity-20" />
-                  <p>请先选择一个源文件并点击"生成测试用例"</p>
                   <p className="text-xs mt-2 opacity-60">AI将分析代码并生成集成测试用例</p>
                 </div>
               )}
@@ -307,41 +265,6 @@ export default function IntegrationTestPage() {
           {/* 结果和日志 */}
           {testResult && (
             <div className="space-y-4">
-              <Card className={testResult.summary?.failed > 0 ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    {testResult.summary?.failed > 0 ? (
-                      <XCircle className="text-red-500 h-6 w-6" />
-                    ) : (
-                      <CheckCircle2 className="text-green-500 h-6 w-6" />
-                    )}
-                    测试结果摘要
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-4 gap-4 text-center">
-                    <div className="p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold">{testResult.summary?.total || 0}</div>
-                      <div className="text-xs text-gray-500">总用例</div>
-                    </div>
-                    <div className="p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold text-green-600">{testResult.summary?.passed || 0}</div>
-                      <div className="text-xs text-gray-500">通过</div>
-                    </div>
-                    <div className="p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold text-red-600">{testResult.summary?.failed || 0}</div>
-                      <div className="text-xs text-gray-500">失败</div>
-                    </div>
-                    <div className="p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold">
-                        {testResult.summary?.assertions?.successes || 0} / {(testResult.summary?.assertions?.successes || 0) + (testResult.summary?.assertions?.failures || 0)}
-                      </div>
-                      <div className="text-xs text-gray-500">断言通过 / 总数</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* 详细用例与分节列表 */}
               {Array.isArray(testResult.summary?.cases) && testResult.summary.cases.length > 0 && (
                 <Card>
@@ -397,6 +320,24 @@ export default function IntegrationTestPage() {
                 <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[300px] overflow-y-auto">
                   {logs}
                 </pre>
+              </CardContent>
+            </Card>
+          )}
+
+          {aiAnalysis && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Beaker className="h-4 w-4" />
+                  AI 分析结果
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="prose prose-sm max-w-none">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm whitespace-pre-wrap">
+                    {aiAnalysis}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
