@@ -8,7 +8,7 @@ class ProjectBase(BaseModel):
     """项目基础Schema"""
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    project_type: str = Field(..., pattern="^(ui|unit|integration|static)$")
+    project_type: str = Field(..., pattern="^(ui|unit|integration|static|system)$")
     language: Optional[str] = None
     framework: Optional[str] = None
 

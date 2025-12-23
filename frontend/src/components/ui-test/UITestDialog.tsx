@@ -87,8 +87,9 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
     }
   })
 
-  // 轮询测试结果
-  const { data: testResult } = useQuery<UITestResult>({
+  // 轮询测试结果（添加超时处理）
+  const [pollStartTime, setPollStartTime] = useState<number | null>(null)
+  const { data: testResult, error: testResultError } = useQuery<UITestResult>({
     queryKey: ['ui-test-result', projectId, executionId],
     queryFn: async () => {
       if (!executionId) throw new Error('无执行ID')
@@ -101,12 +102,26 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
       // 注意：初始时 query.state.data 可能为 undefined，需要继续轮询
       const data = query.state.data
       if (!data || data.status === 'running') {
+        // 检查超时（5分钟）
+        if (pollStartTime && Date.now() - pollStartTime > 5 * 60 * 1000) {
+          alert('⚠️ 测试执行超时（超过5分钟）。\n\n可能的原因：\n1. Windows Worker未运行\n2. Worker无法连接到Redis\n3. 测试执行时间过长\n\n解决方案：\n1. 检查Windows Worker是否正在运行\n2. 运行: cd backend && .\\start_worker.ps1\n3. 或运行: python -m app.worker.worker')
+          return false
+        }
         return 2000
       }
       // 否则停止轮询（completed 或 failed）
       return false
     }
   })
+
+  // 当开始执行时，记录轮询开始时间
+  useEffect(() => {
+    if (executionId && step === 'executing') {
+      setPollStartTime(Date.now())
+    } else {
+      setPollStartTime(null)
+    }
+  }, [executionId, step])
 
   // 监听测试结果状态变化
   useEffect(() => {

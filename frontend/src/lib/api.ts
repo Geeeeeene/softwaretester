@@ -9,7 +9,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30秒超时
+  timeout: 300000, // 5分钟超时（AI生成需要较长时间）
 })
 
 // 请求拦截器
@@ -491,9 +491,11 @@ export interface UITestExecutionListResponse {
 }
 
 export const uiTestApi = {
-  // 使用AI生成UI测试用例
+  // 使用AI生成UI测试用例（设置更长的超时时间，因为AI生成需要较长时间）
   generateTestCase: (projectId: number, request: UITestCaseGenerateRequest) =>
-    api.post<UITestCaseGenerateResponse>(`/projects/${projectId}/ui-test/generate`, request),
+    api.post<UITestCaseGenerateResponse>(`/projects/${projectId}/ui-test/generate`, request, {
+      timeout: 300000, // 5分钟超时（AI生成可能需要较长时间）
+    }),
   
   // 执行UI测试
   executeTest: (projectId: number, request: UITestExecuteRequest) =>

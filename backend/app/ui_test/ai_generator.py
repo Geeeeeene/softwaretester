@@ -4,6 +4,8 @@ UI测试AI生成器
 """
 import anthropic
 import json
+import httpx
+import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 from app.core.config import settings
@@ -37,9 +39,21 @@ class UITestAIGenerator:
             pass
             
         if self.api_key:
+            # 设置超时时间：连接超时30秒，读取超时300秒（5分钟）
+            # 因为通过代理可能较慢，且AI生成需要较长时间
+            import httpx
+            http_client = httpx.Client(
+                timeout=httpx.Timeout(
+                    connect=30.0,  # 连接超时30秒
+                    read=300.0,    # 读取超时300秒（5分钟）
+                    write=30.0,    # 写入超时30秒
+                    pool=30.0      # 连接池超时30秒
+                )
+            )
             self.client = anthropic.Anthropic(
                 api_key=self.api_key,
-                base_url=self.base_url
+                base_url=self.base_url,
+                http_client=http_client
             )
         else:
             self.client = None
@@ -96,36 +110,73 @@ class UITestAIGenerator:
 
         prompt = self._build_prompt(test_name, test_description, project_info)
         
-        try:
-            logger.info(f"开始生成Robot Framework脚本: {test_name}")
-            
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=4096,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            
-            # 提取生成的脚本
-            robot_script = message.content[0].text.strip()
-            
-            # 清理markdown代码块标记
-            robot_script = self._clean_script(robot_script)
-            
-            logger.info(f"成功生成Robot Framework脚本，长度: {len(robot_script)} 字符")
-            
-            return robot_script
-            
-        except anthropic.APIError as e:
-            logger.error(f"Claude API调用失败: {str(e)}")
-            raise
-        except Exception as e:
-            logger.error(f"生成脚本失败: {str(e)}")
-            raise
+        # 重试机制：最多重试3次
+        max_retries = 3
+        retry_delay = 2  # 重试延迟（秒）
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"开始生成Robot Framework脚本: {test_name} (尝试 {attempt + 1}/{max_retries})")
+                logger.info(f"提示词长度: {len(prompt)} 字符")
+                
+                message = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=4096,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                )
+                
+                # 提取生成的脚本
+                robot_script = message.content[0].text.strip()
+                
+                # 清理markdown代码块标记
+                robot_script = self._clean_script(robot_script)
+                
+                logger.info(f"成功生成Robot Framework脚本，长度: {len(robot_script)} 字符")
+                
+                return robot_script
+                
+            except anthropic.APIError as e:
+                error_msg = str(e)
+                logger.error(f"Claude API调用失败 (尝试 {attempt + 1}/{max_retries}): {error_msg}")
+                
+                # 如果是超时错误且还有重试机会，则重试
+                if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                    if attempt < max_retries - 1:
+                        logger.info(f"检测到超时错误，{retry_delay}秒后重试...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # 指数退避
+                        continue
+                    else:
+                        raise ValueError(f"Claude API请求超时（已重试{max_retries}次）。可能原因：\n1. 网络连接不稳定\n2. 代理服务器响应慢\n3. 提示词内容过大\n\n建议：\n1. 检查网络连接\n2. 尝试简化测试描述\n3. 稍后重试")
+                else:
+                    # 其他API错误直接抛出
+                    raise ValueError(f"Claude API调用失败: {error_msg}")
+                    
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"生成脚本失败 (尝试 {attempt + 1}/{max_retries}): {error_msg}")
+                
+                # 如果是超时相关的错误且还有重试机会，则重试
+                if ("timeout" in error_msg.lower() or "timed out" in error_msg.lower() or 
+                    "interrupted" in error_msg.lower() or "connection" in error_msg.lower()):
+                    if attempt < max_retries - 1:
+                        logger.info(f"检测到网络错误，{retry_delay}秒后重试...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # 指数退避
+                        continue
+                    else:
+                        raise ValueError(f"请求超时或被中断（已重试{max_retries}次）。可能原因：\n1. 网络连接不稳定\n2. 代理服务器响应慢\n3. 提示词内容过大\n\n建议：\n1. 检查网络连接和代理设置\n2. 尝试简化测试描述\n3. 稍后重试")
+                else:
+                    # 其他错误直接抛出
+                    raise ValueError(f"生成测试用例失败: {error_msg}")
+        
+        # 如果所有重试都失败，抛出错误
+        raise ValueError(f"生成测试用例失败：已重试{max_retries}次，均失败")
     
     def _build_image_knowledge_section(self) -> str:
         """
