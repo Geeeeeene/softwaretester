@@ -1,9 +1,18 @@
 """FastAPI主应用入口"""
 import os
 import sys
-from fastapi import FastAPI
+import asyncio
+
+# Windows 平台异步子进程支持修复 (必须在任何事件循环创建前设置)
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+import json
+import sys
 
 # 设置Python默认编码为UTF-8，解决中文乱码问题
 if sys.platform != 'win32':
@@ -97,12 +106,40 @@ async def health_check():
     )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """处理请求验证错误，记录详细信息"""
+    print(f"❌ 请求验证失败: {request.method} {request.url}", file=sys.stderr, flush=True)
+    print(f"❌ 错误详情: {json.dumps(exc.errors(), indent=2, ensure_ascii=False)}", file=sys.stderr, flush=True)
+    
+    # 尝试读取请求体
+    try:
+        body = await request.body()
+        if body:
+            try:
+                body_json = json.loads(body.decode('utf-8'))
+                print(f"❌ 请求体内容: {json.dumps(body_json, indent=2, ensure_ascii=False)[:1000]}", file=sys.stderr, flush=True)
+            except:
+                print(f"❌ 请求体（无法解析JSON）: {body[:500]}", file=sys.stderr, flush=True)
+    except Exception as e:
+        print(f"⚠️ 无法读取请求体: {str(e)}", file=sys.stderr, flush=True)
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": json.loads(body.decode('utf-8')) if body else None
+        }
+    )
+
+
+# 强制注册上传和单元测试路由（修复路由未生效问题）
+from app.api.v1.endpoints import upload, unit_tests
+app.include_router(unit_tests.router, prefix="/api/v1/unit-tests", tags=["unit-tests"])
+app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
+
 # 注册API路由
 app.include_router(api_router, prefix="/api/v1")
-
-# 强制注册上传路由（修复路由未生效问题）
-from app.api.v1.endpoints import upload
-app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
 
 
 if __name__ == "__main__":

@@ -56,8 +56,13 @@ api.interceptors.response.use(
       // 处理未授权
       console.error('未授权，请登录')
     } else if (error.response?.status === 404) {
-      console.error(`[API] ❌ 资源不存在: ${method} ${url}`)
-      console.error('资源不存在')
+      // 404 错误通常是正常的（如测试文件不存在），只在非测试文件相关的请求时记录
+      const requestUrl = error.config?.url || url
+      if (!requestUrl.includes('/test-file')) {
+        console.error(`[API] ❌ 资源不存在: ${method} ${requestUrl}`)
+        console.error('资源不存在')
+      }
+      // 对于测试文件不存在的 404，静默处理，不输出错误
     } else if (error.response?.status >= 500) {
       console.error(`[API] 💥 服务器错误: ${method} ${url} - ${error.response.status}`)
       console.error('服务器错误:', error.response?.data)
@@ -407,6 +412,72 @@ export const staticAnalysisApi = {
     api.get<FileContent>(`/projects/${projectId}/static-analysis/file-content`, {
       params: { file_path: filePath },
     }),
+}
+
+// ============ 单元测试API ============
+
+export const unitTestsApi = {
+  // 获取项目文件列表
+  getFiles: (projectId: number) =>
+    api.get<{ project_id: number; files: any[] }>(`/unit-tests/${projectId}/files`),
+  
+  // 生成测试代码
+  generate: (projectId: number, filePath: string, additionalInfo?: string) =>
+    api.post<{ project_id: number; file_path: string; test_code: string; test_file_path?: string }>(
+      `/unit-tests/${projectId}/generate`,
+      { file_path: filePath, additional_info: additionalInfo }
+    ),
+  
+  // 获取测试文件内容
+  getTestFile: (projectId: number, filePath: string) =>
+    api.get<{ project_id: number; file_path: string; test_file_path: string; test_code: string }>(
+      `/unit-tests/${projectId}/test-file`,
+      { params: { file_path: filePath } }
+    ),
+  
+  // 更新测试文件内容
+  updateTestFile: (projectId: number, filePath: string, testCode: string) =>
+    api.put<{ project_id: number; file_path: string; test_file_path: string; message: string }>(
+      `/unit-tests/${projectId}/test-file`,
+      { file_path: filePath, test_code: testCode }
+    ),
+  
+  // 执行测试（testCode可选，如果不提供则从文件读取）
+  execute: (projectId: number, filePath: string, testCode?: string) => {
+    const body: any = { file_path: filePath }
+    // 只有当 testCode 有值时才添加到请求体中
+    if (testCode !== undefined && testCode !== null && testCode !== '') {
+      body.test_code = testCode
+    }
+    console.log('执行测试请求:', { projectId, filePath, hasTestCode: testCode !== undefined, body })
+    return api.post<{ success: boolean; logs: string; summary: any; raw_output: string }>(
+      `/unit-tests/${projectId}/execute`,
+      body
+    )
+  },
+  
+  // 上传设计文档
+  uploadDocument: (projectId: number, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<{ project_id: number; filename: string; summary: string; message: string }>(
+      `/unit-tests/${projectId}/upload-document`,
+      formData
+    )
+  },
+  
+  // 获取文档要点
+  getDocumentSummary: (projectId: number) =>
+    api.get<{ project_id: number; summary: string | null; has_summary: boolean; message?: string }>(
+      `/unit-tests/${projectId}/document-summary`
+    ),
+  
+  // 更新文档要点
+  updateDocumentSummary: (projectId: number, summary: string) =>
+    api.put<{ project_id: number; summary: string; has_summary: boolean; message: string }>(
+      `/unit-tests/${projectId}/document-summary`,
+      { summary }
+    ),
 }
 
 // ============ 上传API ============
