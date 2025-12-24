@@ -43,7 +43,12 @@ api.interceptors.response.use(
       // 处理未授权
       console.error('未授权，请登录')
     } else if (error.response?.status === 404) {
-      console.error('资源不存在')
+      // 404 错误通常是正常的（如测试文件不存在），只在非测试文件相关的请求时记录
+      const url = error.config?.url || ''
+      if (!url.includes('/test-file')) {
+        console.error('资源不存在:', url)
+      }
+      // 对于测试文件不存在的 404，静默处理，不输出错误
     } else if (error.response?.status >= 500) {
       console.error('服务器错误')
     }

@@ -293,51 +293,79 @@ async def generate_tests(
 ):
     """为指定文件生成测试用例"""
     log(f"收到生成请求: ID={project_id}, File={request.file_path}")
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="项目不存在")
-    
-    full_path = Path(project.source_path) / request.file_path
-    if not full_path.exists():
-        log(f"❌ 文件不存在: {full_path}")
-        raise HTTPException(status_code=404, detail=f"文件不存在: {request.file_path}")
-    
     try:
-        content = full_path.read_text(encoding='utf-8', errors='ignore')
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"读取文件失败: {str(e)}")
-
-    # 加载文档要点（如果存在）
-    doc_summary = load_document_summary(project.source_path)
-    
-    service = TestGenerationService()
-    try:
-        test_code = await service.generate_catch2_test(content, request.file_path, doc_summary)
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            log(f"❌ 项目不存在: {project_id}")
+            raise HTTPException(status_code=404, detail="项目不存在")
         
-        # 保存测试文件到文件系统
-        test_file_path = get_test_file_path(project.source_path, request.file_path)
+        if not project.source_path:
+            log(f"❌ 项目没有源码路径: {project_id}")
+            raise HTTPException(status_code=404, detail="项目没有源码路径，请先上传源代码")
+        
+        full_path = Path(project.source_path) / request.file_path
+        if not full_path.exists():
+            log(f"❌ 文件不存在: {full_path}")
+            raise HTTPException(status_code=404, detail=f"文件不存在: {request.file_path}")
+        
+        log(f"📖 读取源文件: {full_path}")
         try:
-            # 确保目录存在
-            test_file_path.parent.mkdir(parents=True, exist_ok=True)
-            test_file_path.write_text(test_code, encoding='utf-8')
-            log(f"💾 测试文件已保存到: {test_file_path}")
-            log(f"💾 文件大小: {test_file_path.stat().st_size} 字节")
-            log(f"💾 文件是否存在: {test_file_path.exists()}")
-        except Exception as save_error:
+            content = full_path.read_text(encoding='utf-8', errors='ignore')
+            log(f"✅ 文件读取成功，长度: {len(content)} 字符")
+        except Exception as e:
             error_detail = traceback.format_exc()
-            log(f"❌ 保存测试文件失败: {str(save_error)}")
+            log(f"❌ 读取文件失败: {str(e)}")
             log(f"❌ 详细错误:\n{error_detail}")
-            raise HTTPException(status_code=500, detail=f"保存测试文件失败: {str(save_error)}")
+            raise HTTPException(status_code=500, detail=f"读取文件失败: {str(e)}")
+
+        # 加载文档要点（如果存在）
+        doc_summary = load_document_summary(project.source_path)
+        if doc_summary:
+            log(f"📄 已加载文档要点，长度: {len(doc_summary)} 字符")
         
-        return {
-            "project_id": project_id,
-            "file_path": request.file_path,
-            "test_code": test_code,
-            "test_file_path": str(test_file_path.relative_to(Path(project.source_path))).replace('\\', '/')
-        }
+        log(f"🤖 开始调用 AI 生成测试用例...")
+        service = TestGenerationService()
+        try:
+            test_code = await service.generate_catch2_test(content, request.file_path, doc_summary)
+            log(f"✅ AI 生成成功，测试代码长度: {len(test_code)} 字符")
+            
+            # 保存测试文件到文件系统
+            test_file_path = get_test_file_path(project.source_path, request.file_path)
+            try:
+                # 确保目录存在
+                test_file_path.parent.mkdir(parents=True, exist_ok=True)
+                test_file_path.write_text(test_code, encoding='utf-8')
+                log(f"💾 测试文件已保存到: {test_file_path}")
+                log(f"💾 文件大小: {test_file_path.stat().st_size} 字节")
+                log(f"💾 文件是否存在: {test_file_path.exists()}")
+            except Exception as save_error:
+                error_detail = traceback.format_exc()
+                log(f"❌ 保存测试文件失败: {str(save_error)}")
+                log(f"❌ 详细错误:\n{error_detail}")
+                raise HTTPException(status_code=500, detail=f"保存测试文件失败: {str(save_error)}")
+            
+            return {
+                "project_id": project_id,
+                "file_path": request.file_path,
+                "test_code": test_code,
+                "test_file_path": str(test_file_path.relative_to(Path(project.source_path))).replace('\\', '/')
+            }
+        except HTTPException:
+            # 重新抛出 HTTP 异常
+            raise
+        except Exception as e:
+            error_detail = traceback.format_exc()
+            log(f"❌ AI 生成失败: {str(e)}")
+            log(f"❌ 详细错误:\n{error_detail}")
+            raise HTTPException(status_code=500, detail=f"AI 生成失败: {str(e)}")
+    except HTTPException:
+        # 重新抛出 HTTP 异常
+        raise
     except Exception as e:
-        log(f"❌ AI 生成失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_detail = traceback.format_exc()
+        log(f"❌ 生成测试用例异常: {str(e)}")
+        log(f"❌ 详细错误:\n{error_detail}")
+        raise HTTPException(status_code=500, detail=f"生成测试用例失败: {str(e)}")
 
 @router.get("/{project_id}/test-file")
 async def get_test_file(

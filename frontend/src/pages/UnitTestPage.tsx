@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Play, Loader2, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Save, Upload, FileText, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Play, Loader2, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Save, Upload, FileText, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
 import { unitTestsApi, projectsApi } from '@/lib/api'
 
 export default function UnitTestPage() {
@@ -178,7 +178,15 @@ export default function UnitTestPage() {
     mutationFn: async () => {
       if (!projectId || !selectedFile) throw new Error('请选择文件')
       setIsGenerating(true)
-      return unitTestsApi.generate(projectId, selectedFile)
+      setLogs('🤖 正在生成测试用例，请稍候...')
+      try {
+        const response = await unitTestsApi.generate(projectId, selectedFile)
+        return response
+      } catch (error: any) {
+        const errorMsg = error.response?.data?.detail || error.message || '未知错误'
+        setLogs(`❌ 生成失败: ${errorMsg}`)
+        throw error
+      }
     },
     onSuccess: (data) => {
       if (!selectedFile) return
@@ -201,7 +209,9 @@ export default function UnitTestPage() {
     },
     onError: (error: any) => {
       setIsGenerating(false)
-      alert('生成失败: ' + (error.response?.data?.detail || error.message))
+      const errorMsg = error.response?.data?.detail || error.message || '未知错误'
+      console.error('生成测试用例失败:', error)
+      alert(`生成失败: ${errorMsg}\n\n请检查后端日志查看详细错误信息。`)
     }
   })
 
@@ -225,9 +235,11 @@ export default function UnitTestPage() {
         }
       }))
     } catch (error: any) {
+      // 404 错误是正常的（测试文件不存在），不需要提示用户
       if (error.response?.status !== 404) {
         alert('加载测试文件失败: ' + (error.response?.data?.detail || error.message))
       }
+      // 404 错误静默处理，不输出到控制台
     }
   }, [projectId, selectedFile])
 
@@ -728,6 +740,78 @@ export default function UnitTestPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 行覆盖率统计 */}
+              {testResult.coverage_data && (
+                <Card className="border-blue-200 bg-blue-50/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <BarChart3 className="text-blue-500 h-6 w-6" />
+                      行覆盖率统计
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {testResult.coverage_data.percentage !== undefined && (
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium">总体行覆盖率</span>
+                          <span className="text-2xl font-bold text-blue-600">
+                            {testResult.coverage_data.percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-4">
+                          <div
+                            className="bg-blue-600 h-4 rounded-full transition-all"
+                            style={{ width: `${testResult.coverage_data.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-4">
+                      {testResult.coverage_data.lines_total !== undefined && (
+                        <div className="p-3 bg-white rounded-lg shadow-sm">
+                          <p className="text-sm text-gray-500">行覆盖率</p>
+                          <p className="text-lg font-bold">
+                            {testResult.coverage_data.lines_covered || 0} / {testResult.coverage_data.lines_total}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {Math.round(((testResult.coverage_data.lines_covered || 0) / testResult.coverage_data.lines_total) * 100)}%
+                          </p>
+                        </div>
+                      )}
+                      {testResult.coverage_data.branches_total !== undefined && (
+                        <div className="p-3 bg-white rounded-lg shadow-sm">
+                          <p className="text-sm text-gray-500">分支覆盖率</p>
+                          <p className="text-lg font-bold">
+                            {testResult.coverage_data.branches_covered || 0} / {testResult.coverage_data.branches_total}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {Math.round(((testResult.coverage_data.branches_covered || 0) / testResult.coverage_data.branches_total) * 100)}%
+                          </p>
+                        </div>
+                      )}
+                      {testResult.coverage_data.functions_total !== undefined && (
+                        <div className="p-3 bg-white rounded-lg shadow-sm">
+                          <p className="text-sm text-gray-500">函数覆盖率</p>
+                          <p className="text-lg font-bold">
+                            {testResult.coverage_data.functions_covered || 0} / {testResult.coverage_data.functions_total}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {Math.round(((testResult.coverage_data.functions_covered || 0) / testResult.coverage_data.functions_total) * 100)}%
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {testResult.coverage_data.warning && (
+                      <div className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
+                        ⚠️ {testResult.coverage_data.warning}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 详细用例与分节列表 */}
               {Array.isArray(testResult.summary?.cases) && testResult.summary.cases.length > 0 && (

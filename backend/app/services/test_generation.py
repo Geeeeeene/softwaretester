@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import anthropic
@@ -61,7 +62,13 @@ class TestGenerationService:
    - 对于指针参数，如果没有合适对象，请传 `nullptr`，不要省略参数。
    - **不要伪造不存在的构造函数**。例：`DiagramPath` 的构造函数需要 5 个参数 (`DiagramItem*, DiagramItem*, DiagramItem::TransformState, DiagramItem::TransformState, QGraphicsItem*`)，如果无法提供合法参数，请跳过这类测试，不要编译一个错误签名。
    - 如果某个类型的正确用法不清楚，宁可跳过该用例，也不要写出不能编译的代码。
-5. **Catch2 语法**：在 `CHECK` / `REQUIRE` 中出现逻辑运算（`||`, `&&`）必须加外层双括号，如 `CHECK((a == b || c == d))`。
+5. **Catch2 语法（极其重要）**：在 `CHECK` / `REQUIRE` 中出现逻辑运算（`||`, `&&`）**必须**加外层双括号！
+   - ❌ **错误示例**：`CHECK(a == b || c == d)` - 这会导致编译错误！
+   - ❌ **错误示例**：`CHECK(value > 0 && value < 100)` - 这会导致编译错误！
+   - ✅ **正确示例**：`CHECK((a == b || c == d))` - 注意双括号！
+   - ✅ **正确示例**：`CHECK((value > 0 && value < 100))` - 注意双括号！
+   - **规则**：如果断言表达式中包含 `||` 或 `&&`，整个表达式必须用双括号包裹：`CHECK((表达式))` 或 `REQUIRE((表达式))`
+   - **检查清单**：生成代码后，检查每一行包含 `||` 或 `&&` 的 `CHECK`/`REQUIRE` 语句，确保它们都有双括号！
 6. **代码格式与可编译性（必须保证可直接编译）**：
    - 所有构造/函数调用必须写全，行尾有分号，不能留下悬空的括号或未完成的语句。
    - `TEST_CASE` / `SECTION` 的花括号必须成对匹配，文件末尾必须补齐所有右括号。
@@ -71,7 +78,16 @@ class TestGenerationService:
 8. **只返回 C++ 测试代码**，不写解释或 Markdown。代码必须完整，不能截断。
 9. 测试宏使用 `TEST_CASE` 和 `SECTION`。
 
-**最后提醒**：在生成代码前，请仔细检查源代码中的访问修饰符（`public:`, `protected:`, `private:`）。**绝对不要**生成任何访问 protected 或 private 成员的代码。如果某个测试需要访问非 public 成员，请直接跳过该测试用例。
+**最后提醒**：
+1. 在生成代码前，请仔细检查源代码中的访问修饰符（`public:`, `protected:`, `private:`）。**绝对不要**生成任何访问 protected 或 private 成员的代码。
+2. **必须检查**：生成代码后，逐行检查所有包含 `||` 或 `&&` 的 `CHECK`/`REQUIRE` 语句，确保它们都使用双括号格式：`CHECK((表达式))` 或 `REQUIRE((表达式))`。这是编译通过的必要条件！
+3. 如果某个测试需要访问非 public 成员，请直接跳过该测试用例。
+
+**生成代码后自检清单**：
+- [ ] 所有包含 `||` 的 `CHECK`/`REQUIRE` 都使用了双括号？
+- [ ] 所有包含 `&&` 的 `CHECK`/`REQUIRE` 都使用了双括号？
+- [ ] 没有访问任何 protected 或 private 成员？
+- [ ] 所有括号都正确匹配？
 
 请生成测试代码："""
 
@@ -142,6 +158,119 @@ class TestGenerationService:
                         print(f"⚠️ 警告: 未找到代码块结束标记，保留所有内容", file=sys.stderr, flush=True)
             
             test_code = test_code.strip()
+            
+            # 自动修复 Catch2 断言中的逻辑运算符问题
+            # 使用更简单直接的方法：正则表达式替换
+            def fix_logical_operators_in_assertions(code: str) -> str:
+                """修复 Catch2 断言中的逻辑运算符问题"""
+                original_code = code
+                fixes_count = 0
+                
+                # 首先，找到所有包含逻辑运算符的 CHECK/REQUIRE 语句
+                # 使用多行模式，逐行处理
+                lines = code.split('\n')
+                fixed_lines = []
+                
+                for line_num, line in enumerate(lines, 1):
+                    original_line = line
+                    stripped = line.strip()
+                    
+                    # 跳过注释和空行
+                    if not stripped or stripped.startswith('//') or stripped.startswith('/*'):
+                        fixed_lines.append(line)
+                        continue
+                    
+                    # 检查是否包含 CHECK 或 REQUIRE，并且包含 || 或 &&
+                    if ('CHECK' in stripped or 'REQUIRE' in stripped) and ('||' in stripped or '&&' in stripped):
+                        # 检查是否已经用双括号包裹
+                        if re.search(r'(CHECK|REQUIRE)\s*\(\([^)]*(?:\|\||&&)', stripped):
+                            # 已经正确包裹，跳过
+                            fixed_lines.append(line)
+                            continue
+                        
+                        # 使用更直接的方法：找到 CHECK/REQUIRE 后的第一个 ( 和匹配的 )
+                        # 然后检查内容是否包含逻辑运算符，如果是则添加括号
+                        new_line = line
+                        pos = 0
+                        
+                        while pos < len(new_line):
+                            # 查找 CHECK 或 REQUIRE
+                            check_idx = new_line.find('CHECK', pos)
+                            require_idx = new_line.find('REQUIRE', pos)
+                            
+                            if check_idx == -1 and require_idx == -1:
+                                break
+                            
+                            # 找到最近的宏
+                            if check_idx != -1 and (require_idx == -1 or check_idx < require_idx):
+                                macro_start = check_idx
+                                macro_end = check_idx + 5
+                                macro = 'CHECK'
+                            else:
+                                macro_start = require_idx
+                                macro_end = require_idx + 7
+                                macro = 'REQUIRE'
+                            
+                            # 跳过空格，找到左括号
+                            paren_start = macro_end
+                            while paren_start < len(new_line) and new_line[paren_start] in ' \t':
+                                paren_start += 1
+                            
+                            if paren_start >= len(new_line) or new_line[paren_start] != '(':
+                                pos = macro_end
+                                continue
+                            
+                            # 使用栈找到匹配的右括号
+                            stack = 0
+                            paren_end = -1
+                            for i in range(paren_start, len(new_line)):
+                                if new_line[i] == '(':
+                                    stack += 1
+                                elif new_line[i] == ')':
+                                    stack -= 1
+                                    if stack == 0:
+                                        paren_end = i
+                                        break
+                            
+                            if paren_end > paren_start:
+                                content = new_line[paren_start + 1:paren_end]
+                                
+                                # 检查内容中是否包含 || 或 &&
+                                if ('||' in content or '&&' in content):
+                                    # 检查是否已经有双括号包裹
+                                    content_stripped = content.strip()
+                                    if not (content_stripped.startswith('(') and content_stripped.endswith(')')):
+                                        # 需要修复：在内容外添加括号
+                                        before = new_line[:paren_start + 1]
+                                        after = new_line[paren_end:]
+                                        new_line = before + '(' + content + ')' + after
+                                        
+                                        fixes_count += 1
+                                        print(f"🔧 修复逻辑运算符 (行 {line_num}): {original_line.strip()[:70]}...", file=sys.stderr, flush=True)
+                                        print(f"   -> {new_line.strip()[:70]}...", file=sys.stderr, flush=True)
+                                        # 修复后重新开始扫描（因为位置改变了）
+                                        break
+                            
+                            pos = macro_end
+                        
+                        if new_line != line:
+                            print(f"   -> {new_line.strip()[:70]}...", file=sys.stderr, flush=True)
+                        
+                        fixed_lines.append(new_line)
+                    else:
+                        fixed_lines.append(line)
+                
+                if fixes_count > 0:
+                    print(f"✅ 自动修复了 {fixes_count} 处逻辑运算符问题", file=sys.stderr, flush=True)
+                else:
+                    # 即使没有修复，也检查一下是否有遗漏
+                    if '||' in code or '&&' in code:
+                        print(f"⚠️ 检测到逻辑运算符，但可能未完全修复，请检查代码", file=sys.stderr, flush=True)
+                
+                return '\n'.join(fixed_lines)
+            
+            # 执行自动修复
+            test_code = fix_logical_operators_in_assertions(test_code)
             
             # 基本完整性检查：检查括号是否匹配
             open_braces = test_code.count('{')
