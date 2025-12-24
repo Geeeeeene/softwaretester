@@ -417,9 +417,9 @@ export const staticAnalysisApi = {
 // ============ 单元测试API ============
 
 export const unitTestsApi = {
-  // 获取项目文件列表
+  // 获取项目文件列表（文件树结构）
   getFiles: (projectId: number) =>
-    api.get<{ project_id: number; files: any[] }>(`/unit-tests/${projectId}/files`),
+    api.get<{ project_id: number; file_tree: FileTreeNode[] }>(`/unit-tests/${projectId}/files`),
   
   // 生成测试代码
   generate: (projectId: number, filePath: string, additionalInfo?: string) =>
@@ -477,6 +477,93 @@ export const unitTestsApi = {
     api.put<{ project_id: number; summary: string; has_summary: boolean; message: string }>(
       `/unit-tests/${projectId}/document-summary`,
       { summary }
+    ),
+}
+
+// ============ 集成测试API ============
+
+export interface IntegrationTestIR {
+  type: 'integration'
+  name: string
+  description?: string
+  flow: Array<{
+    name: string
+    url: string
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+    headers?: Record<string, string>
+    body?: Record<string, any>
+  }>
+  validations: Array<{
+    type: 'equals' | 'not_equals' | 'contains' | 'throws' | 'custom'
+    expected: any
+    actual?: string
+    message?: string
+  }>
+  required_services?: string[]
+  tags?: string[]
+  priority?: 'low' | 'medium' | 'high' | 'critical'
+}
+
+export const integrationTestsApi = {
+  // 获取源文件列表（文件树结构）
+  getFiles: (projectId: number) =>
+    api.get<{ project_id: number; file_tree: FileTreeNode[] }>(
+      `/integration-tests/${projectId}/files`
+    ),
+  
+  // 生成集成测试用例（AI分析代码，与单元测试API结构一致）
+  generate: (projectId: number, filePath: string, additionalInfo?: string) =>
+    api.post<{ project_id: number; file_path: string; test_code: string }>(
+      `/integration-tests/${projectId}/generate`,
+      { file_path: filePath, additional_info: additionalInfo }
+    ),
+  
+  // 执行集成测试（与单元测试API结构一致）
+  execute: (projectId: number, filePath: string, testCode: string) =>
+    api.post<{ success: boolean; logs: string; summary: any; raw_output: string }>(
+      `/integration-tests/${projectId}/execute`,
+      { file_path: filePath, test_code: testCode }
+    ),
+  
+  // 分析整个项目并生成测试用例
+  generateProject: (projectId: number, additionalInfo?: string) =>
+    api.post<{
+      project_id: number;
+      file_path: string | null;
+      test_code: string;
+      project_files_count: number;
+    }>(
+      `/integration-tests/${projectId}/generate-project`,
+      { additional_info: additionalInfo }
+    ),
+  
+  // 使用AI执行测试用例
+  executeWithAI: (projectId: number, testCode: string) =>
+    api.post<{
+      success: boolean;
+      logs: string;
+      summary: any;
+      ai_analysis?: string;
+    }>(
+      `/integration-tests/${projectId}/execute-ai`,
+      { file_path: "", test_code: testCode }
+    ),
+  
+  // 生成并执行集成测试（一步完成，保留兼容性）
+  generateAndExecute: (projectId: number, filePath?: string, additionalInfo?: string) =>
+    api.post<{
+      project_id: number;
+      file_path: string | null;
+      test_code: string;
+      execution_result: any;
+      success: boolean;
+      logs: string;
+      summary: any;
+      ai_analysis?: string;
+      project_files_count?: number;
+    }>(
+      `/integration-tests/${projectId}/generate-and-execute`,
+      { file_path: filePath, additional_info: additionalInfo }
     ),
 }
 

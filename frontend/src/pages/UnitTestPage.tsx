@@ -2,9 +2,18 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
+<<<<<<< HEAD
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Play, Loader2, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Save, Upload, FileText, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
 import { unitTestsApi, projectsApi } from '@/lib/api'
+=======
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ArrowLeft, Play, Loader2, AlertCircle, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Upload } from 'lucide-react'
+import { unitTestsApi, projectsApi, uploadApi } from '@/lib/api'
+import { FileTree } from '@/components/static-analysis/FileTree'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+>>>>>>> origin/tzf
 
 export default function UnitTestPage() {
   const { id } = useParams<{ id: string }>()
@@ -64,8 +73,8 @@ export default function UnitTestPage() {
     enabled: !!projectId,
   })
 
-  // 获取源文件列表
-  const { data: filesData, isLoading: filesLoading } = useQuery({
+  // 获取源文件列表（文件树）
+  const { data: filesData, isLoading: filesLoading, refetch: refetchFiles, error: filesError } = useQuery({
     queryKey: ['unit-test-files', projectId],
     queryFn: async () => {
       if (!projectId) throw new Error('无效的项目ID')
@@ -73,8 +82,10 @@ export default function UnitTestPage() {
       return response.data
     },
     enabled: !!projectId,
+    retry: 1, // 只重试一次
   })
 
+<<<<<<< HEAD
   // 获取文档要点
   const { data: docSummaryData, refetch: refetchDocSummary } = useQuery({
     queryKey: ['document-summary', projectId],
@@ -174,6 +185,51 @@ export default function UnitTestPage() {
   }, [selectedFile, projectId, fileStates, isGenerating])
 
   // 生成测试变体
+=======
+  // 当项目信息加载完成后，刷新文件列表
+  useEffect(() => {
+    if (project && projectId) {
+      // 延迟一下，确保后端已经处理完文件上传
+      const timer = setTimeout(() => {
+        refetchFiles()
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [project, projectId, refetchFiles])
+
+  // 文件上传
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!projectId) throw new Error('无效的项目ID')
+      if (!file.name.toLowerCase().endsWith('.zip')) {
+        throw new Error('请上传ZIP格式的压缩包')
+      }
+      return uploadApi.uploadProjectSource(projectId, file, true)
+    },
+    onSuccess: (data) => {
+      console.log('上传成功:', data)
+      alert('文件上传成功！正在刷新文件列表...')
+      // 延迟一下，确保后端已经处理完文件解压和数据库更新
+      setTimeout(() => {
+        refetchFiles()
+      }, 1500)
+    },
+    onError: (error: any) => {
+      const errorMsg = error.response?.data?.detail || error.message || '上传失败'
+      alert('上传失败: ' + errorMsg)
+      console.error('上传错误:', error)
+    }
+  })
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      uploadMutation.mutate(file)
+    }
+  }
+
+  // 生成测试用例（AI分析代码）
+>>>>>>> origin/tzf
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!projectId || !selectedFile) throw new Error('请选择文件')
@@ -192,6 +248,7 @@ export default function UnitTestPage() {
       if (!selectedFile) return
       setGeneratedCode(data.data.test_code)
       setTestResult(null)
+<<<<<<< HEAD
       setLogs(`✅ 测试用例生成成功，已保存到文件。你可以根据需要修改代码。`)
       setIsEditing(false) // 刚生成的代码视为未编辑（已自动保存）
       setIsGenerating(false)
@@ -408,6 +465,36 @@ export default function UnitTestPage() {
       console.error('执行失败:', error)
       const errorMsg = error.response?.data?.detail || error.response?.data?.message || error.message || '未知错误'
       alert(`执行失败: ${errorMsg}`)
+=======
+      setLogs('✅ 单元测试用例生成成功！AI已分析代码并生成测试用例。\n\n现在可以点击"开始测试"按钮执行测试。')
+    },
+    onError: (error: any) => {
+      const errorMsg = error.response?.data?.detail || error.message || '生成失败'
+      alert('生成失败: ' + errorMsg)
+      setLogs('❌ 生成失败: ' + errorMsg)
+    }
+  })
+
+  // 执行单元测试
+  const executeMutation = useMutation({
+    mutationFn: async () => {
+      if (!projectId || !selectedFile || !generatedCode) throw new Error('缺少必要参数：请先生成测试用例')
+      return unitTestsApi.execute(projectId, selectedFile, generatedCode)
+    },
+    onSuccess: (data) => {
+      setTestResult(data.data)
+      setLogs(data.data.logs || '测试执行完成')
+      if (data.data.success) {
+        alert('✅ 测试执行成功！请查看下方测试结果。')
+      } else {
+        alert('⚠️ 测试执行完成，但部分测试用例失败。请查看下方详细结果。')
+      }
+    },
+    onError: (error: any) => {
+      const errorMsg = error.response?.data?.detail || error.message || '执行失败'
+      alert('执行失败: ' + errorMsg)
+      setLogs('❌ 执行失败: ' + errorMsg + '\n\n请检查：\n1. 测试代码是否正确\n2. 源代码路径是否存在\n3. Catch2环境是否配置正确')
+>>>>>>> origin/tzf
     }
   })
 
@@ -424,6 +511,7 @@ export default function UnitTestPage() {
             <p className="text-gray-500">{project?.name || '加载中...'}</p>
           </div>
         </div>
+<<<<<<< HEAD
         
         <div className="flex items-center gap-4">
           {/* 项目级别测试统计 */}
@@ -486,35 +574,85 @@ export default function UnitTestPage() {
             </Button>
           </label>
           </div>
+=======
+        <div className="flex gap-2">
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleFileUpload}
+              accept=".zip,.tar,.gz"
+            />
+            <Button variant="outline" disabled={uploadMutation.isPending}>
+              <Upload className="mr-2 h-4 w-4" />
+              {uploadMutation.isPending ? '上传中...' : '上传源代码'}
+            </Button>
+          </label>
+>>>>>>> origin/tzf
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 左侧文件列表 */}
-        <Card className="lg:col-span-3 h-[calc(100vh-200px)] overflow-y-auto">
+        {/* 左侧文件树 */}
+        <Card className="lg:col-span-3 h-[calc(100vh-200px)] flex flex-col">
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <FileCode className="h-4 w-4" />
               源文件列表
             </CardTitle>
+            <CardDescription className="text-xs">
+              选择文件后，AI将分析代码并生成单元测试用例
+            </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="flex-1 p-0 overflow-hidden">
             {filesLoading ? (
-              <div className="p-4 text-center text-gray-500">加载中...</div>
+              <div className="p-4 text-center text-gray-500">
+                <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin text-gray-400" />
+                加载中...
+              </div>
+            ) : filesError ? (
+              <div className="p-4 text-center text-gray-500">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                <p className="text-sm text-yellow-600">加载文件列表失败</p>
+                <p className="text-xs mt-1 text-gray-500">
+                  {(filesError as any)?.response?.data?.detail || '未找到源代码文件夹，请先上传源代码'}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => refetchFiles()}
+                >
+                  重试
+                </Button>
+              </div>
+            ) : !filesData?.file_tree || filesData.file_tree.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">暂无源文件</p>
+                <p className="text-xs mt-1">请先上传源代码</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => refetchFiles()}
+                >
+                  刷新列表
+                </Button>
+              </div>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {filesData?.files?.map((file: any) => (
-                  <button
-                    key={file.path}
-                    className={`w-full text-left px-4 py-3 text-sm transition-colors hover:bg-gray-50 ${
-                      selectedFile === file.path ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' : 'text-gray-600'
-                    }`}
-                    onClick={() => setSelectedFile(file.path)}
-                  >
-                    <div className="truncate font-medium">{file.name}</div>
-                    <div className="text-xs opacity-60 mt-1">{file.path}</div>
-                  </button>
-                ))}
+              <div className="h-full overflow-hidden">
+                <FileTree
+                  tree={filesData.file_tree}
+                  selectedPath={selectedFile || undefined}
+                  onFileSelect={(path) => {
+                    setSelectedFile(path)
+                    setGeneratedCode('') // 清除之前的测试代码
+                    setTestResult(null) // 清除之前的测试结果
+                    setLogs('') // 清除之前的日志
+                  }}
+                  showTitle={false}
+                />
               </div>
             )}
           </CardContent>
@@ -612,27 +750,51 @@ export default function UnitTestPage() {
             <CardContent className="p-4 flex gap-4">
               <Button 
                 disabled={!selectedFile || generateMutation.isPending}
-                onClick={() => generateMutation.mutate()}
+                onClick={() => {
+                  if (!selectedFile) {
+                    alert('请先选择一个源文件')
+                    return
+                  }
+                  generateMutation.mutate()
+                }}
                 className="flex-1"
+                title={!selectedFile ? '请先选择一个源文件' : 'AI将分析代码并生成单元测试用例'}
               >
                 {generateMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    AI分析中...
+                  </>
                 ) : (
-                  <Beaker className="mr-2 h-4 w-4" />
+                  <>
+                    <Beaker className="mr-2 h-4 w-4" />
+                    生成测试用例
+                  </>
                 )}
-                生成测试用例
               </Button>
               <Button 
                 disabled={!generatedCode || executeMutation.isPending}
-                onClick={() => executeMutation.mutate()}
+                onClick={() => {
+                  if (!generatedCode) {
+                    alert('请先生成测试用例')
+                    return
+                  }
+                  executeMutation.mutate()
+                }}
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                title={!generatedCode ? '请先生成测试用例' : '使用Catch2编译并执行测试用例'}
               >
                 {executeMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    执行中...
+                  </>
                 ) : (
-                  <Play className="mr-2 h-4 w-4" />
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    开始测试
+                  </>
                 )}
-                开始测试
               </Button>
             </CardContent>
           </Card>
@@ -642,7 +804,7 @@ export default function UnitTestPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Code className="h-4 w-4" />
-                生成的 Catch2 测试代码
+                生成的 Catch2 单元测试代码
               </CardTitle>
               {generatedCode && (
                 <div className="flex gap-2 items-center">
@@ -697,7 +859,12 @@ export default function UnitTestPage() {
               ) : (
                 <div className="h-[300px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
                   <Beaker className="h-12 w-12 mb-2 opacity-20" />
+<<<<<<< HEAD
                   <p>请先选择一个源文件并点击"生成用例"</p>
+=======
+                  <p>请先选择一个源文件并点击"生成测试用例"</p>
+                  <p className="text-xs mt-2 opacity-60">AI将分析代码并生成单元测试用例</p>
+>>>>>>> origin/tzf
                 </div>
               )}
             </CardContent>
@@ -706,10 +873,10 @@ export default function UnitTestPage() {
           {/* 结果和日志 */}
           {testResult && (
             <div className="space-y-4">
-              <Card className={testResult.summary.failed > 0 ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
+              <Card className={testResult.summary?.failed > 0 ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    {testResult.summary.failed > 0 ? (
+                    {testResult.summary?.failed > 0 ? (
                       <XCircle className="text-red-500 h-6 w-6" />
                     ) : (
                       <CheckCircle2 className="text-green-500 h-6 w-6" />
@@ -720,20 +887,20 @@ export default function UnitTestPage() {
                 <CardContent>
                   <div className="grid grid-cols-4 gap-4 text-center">
                     <div className="p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold">{testResult.summary.total}</div>
+                      <div className="text-2xl font-bold">{testResult.summary?.total || 0}</div>
                       <div className="text-xs text-gray-500">总用例</div>
                     </div>
                     <div className="p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold text-green-600">{testResult.summary.passed}</div>
+                      <div className="text-2xl font-bold text-green-600">{testResult.summary?.passed || 0}</div>
                       <div className="text-xs text-gray-500">通过</div>
                     </div>
                     <div className="p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold text-red-600">{testResult.summary.failed}</div>
+                      <div className="text-2xl font-bold text-red-600">{testResult.summary?.failed || 0}</div>
                       <div className="text-xs text-gray-500">失败</div>
                     </div>
                     <div className="p-4 bg-white rounded-lg shadow-sm">
                       <div className="text-2xl font-bold">
-                        {testResult.summary?.assertions?.successes ?? 0} / { (testResult.summary?.assertions?.successes ?? 0) + (testResult.summary?.assertions?.failures ?? 0) }
+                        {testResult.summary?.assertions?.successes || 0} / {(testResult.summary?.assertions?.successes || 0) + (testResult.summary?.assertions?.failures || 0)}
                       </div>
                       <div className="text-xs text-gray-500">断言通过 / 总数</div>
                     </div>
@@ -865,7 +1032,7 @@ export default function UnitTestPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[300px]">
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[300px] overflow-y-auto">
                   {logs}
                 </pre>
               </CardContent>
