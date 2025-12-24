@@ -160,7 +160,6 @@ export default function UnitTestPage() {
       if (!selectedFile) return
       setGeneratedCode(data.data.test_code)
       setTestResult(null)
-<<<<<<< HEAD
       setLogs(`✅ 测试用例生成成功，已保存到文件。你可以根据需要修改代码。`)
       setIsEditing(false) // 刚生成的代码视为未编辑（已自动保存）
       setIsGenerating(false)
@@ -394,7 +393,6 @@ export default function UnitTestPage() {
             <p className="text-gray-500">{project?.name || '加载中...'}</p>
           </div>
         </div>
-<<<<<<< HEAD
         
         <div className="flex items-center gap-4">
           {/* 项目级别测试统计 */}
