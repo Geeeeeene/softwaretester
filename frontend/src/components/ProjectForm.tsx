@@ -42,13 +42,8 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
     setIsSubmitting(true)
 
     try {
-<<<<<<< HEAD
-      if (projectType === 'static' || projectType === 'unit') {
-        // 静态分析和单元测试现在统一走"一键上传 ZIP"流程
-=======
       if (projectType === 'static' || projectType === 'unit' || projectType === 'integration') {
         // 静态分析、单元测试和集成测试现在统一走"一键上传 ZIP"流程
->>>>>>> origin/tzf
         if (!uploadFile) {
           throw new Error('请上传源代码压缩包')
         }
@@ -363,11 +358,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
           )}
 
           {/* 其他类型保持原样（技术栈等） */}
-<<<<<<< HEAD
-          {projectType !== 'static' && projectType !== 'ui' && projectType !== 'unit' && (
-=======
-          {projectType !== 'static' && projectType !== 'unit' && projectType !== 'integration' && (
->>>>>>> origin/tzf
+          {projectType !== 'static' && projectType !== 'ui' && projectType !== 'unit' && projectType !== 'integration' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -397,11 +388,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             </div>
           )}
           
-<<<<<<< HEAD
-          {projectType !== 'static' && projectType !== 'ui' && projectType !== 'unit' && (
-=======
-          {projectType !== 'static' && projectType !== 'unit' && projectType !== 'integration' && (
->>>>>>> origin/tzf
+          {projectType !== 'static' && projectType !== 'ui' && projectType !== 'unit' && projectType !== 'integration' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 源代码路径
@@ -424,13 +411,8 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
                 取消
               </Button>
             )}
-<<<<<<< HEAD
-            <Button type="submit" disabled={isSubmitting || !name.trim() || ((projectType === 'static' || projectType === 'unit') && !uploadFile) || (projectType === 'ui' && !sourcePath.trim())}>
-              {isSubmitting ? '处理中...' : ((projectType === 'static' || projectType === 'unit') ? '上传并完成创建' : projectType === 'ui' ? '创建项目' : '创建项目')}
-=======
-            <Button type="submit" disabled={isSubmitting || !name.trim() || ((projectType === 'static' || projectType === 'unit' || projectType === 'integration') && !uploadFile)}>
-              {isSubmitting ? '处理中...' : ((projectType === 'static' || projectType === 'unit' || projectType === 'integration') ? '上传并完成创建' : '创建项目')}
->>>>>>> origin/tzf
+            <Button type="submit" disabled={isSubmitting || !name.trim() || ((projectType === 'static' || projectType === 'unit' || projectType === 'integration') && !uploadFile) || (projectType === 'ui' && !sourcePath.trim())}>
+              {isSubmitting ? '处理中...' : ((projectType === 'static' || projectType === 'unit' || projectType === 'integration') ? '上传并完成创建' : projectType === 'ui' ? '创建项目' : '创建项目')}
             </Button>
           </div>
         </form>

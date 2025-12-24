@@ -2,18 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-<<<<<<< HEAD
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Play, Loader2, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Save, Upload, FileText, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
-import { unitTestsApi, projectsApi } from '@/lib/api'
-=======
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Play, Loader2, AlertCircle, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Upload } from 'lucide-react'
+import { ArrowLeft, Play, Loader2, AlertCircle, FileCode, Beaker, CheckCircle2, XCircle, Code, Terminal, Save, Upload, FileText, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
 import { unitTestsApi, projectsApi, uploadApi } from '@/lib/api'
 import { FileTree } from '@/components/static-analysis/FileTree'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
->>>>>>> origin/tzf
 
 export default function UnitTestPage() {
   const { id } = useParams<{ id: string }>()
@@ -85,7 +79,6 @@ export default function UnitTestPage() {
     retry: 1, // 只重试一次
   })
 
-<<<<<<< HEAD
   // 获取文档要点
   const { data: docSummaryData, refetch: refetchDocSummary } = useQuery({
     queryKey: ['document-summary', projectId],
@@ -106,86 +99,6 @@ export default function UnitTestPage() {
     }
   }, [docSummaryData])
 
-  // 当selectedFile改变时，保存当前状态并恢复新文件状态
-  useEffect(() => {
-    if (!projectId) return
-    
-    const prevFile = prevSelectedFileRef.current
-    const currentFile = selectedFile
-    
-    // 如果文件改变了，保存之前文件的状态
-    if (prevFile && prevFile !== currentFile) {
-      setFileStates(prev => ({
-        ...prev,
-        [prevFile]: {
-          generatedCode,
-          testResult,
-          logs,
-          isEditing
-        }
-      }))
-    }
-    
-    // 更新ref（在恢复状态之前）
-    prevSelectedFileRef.current = currentFile
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFile, projectId, generatedCode, testResult, logs, isEditing])
-  
-  // 单独处理状态恢复
-  useEffect(() => {
-    if (!selectedFile || !projectId) {
-      if (!selectedFile) {
-        setGeneratedCode('')
-        setTestResult(null)
-        setLogs('')
-        setIsEditing(false)
-      }
-      return
-    }
-    
-    const savedState = fileStates[selectedFile]
-    if (savedState) {
-      // 有保存的状态，恢复它
-      setGeneratedCode(savedState.generatedCode)
-      setTestResult(savedState.testResult)
-      setLogs(savedState.logs)
-      setIsEditing(savedState.isEditing)
-    } else {
-      // 没有保存的状态，重置为空，然后尝试从文件系统加载
-      setGeneratedCode('')
-      setTestResult(null)
-      setLogs('')
-      setIsEditing(false)
-      
-      // 异步加载测试文件
-      if (!isGenerating && projectId) {
-        unitTestsApi.getTestFile(projectId, selectedFile)
-          .then(response => {
-            setGeneratedCode(response.data.test_code)
-            setIsEditing(false)
-            setLogs('✅ 已加载测试文件')
-            // 保存到状态
-            setFileStates(prevState => ({
-              ...prevState,
-              [selectedFile]: {
-                generatedCode: response.data.test_code,
-                testResult: prevState[selectedFile]?.testResult || null, // 保留之前的测试结果
-                logs: '✅ 已加载测试文件',
-                isEditing: false
-              }
-            }))
-          })
-          .catch((error: any) => {
-            if (error.response?.status !== 404) {
-              console.error('加载测试文件失败:', error)
-            }
-          })
-      }
-    }
-  }, [selectedFile, projectId, fileStates, isGenerating])
-
-  // 生成测试变体
-=======
   // 当项目信息加载完成后，刷新文件列表
   useEffect(() => {
     if (project && projectId) {
@@ -229,7 +142,6 @@ export default function UnitTestPage() {
   }
 
   // 生成测试用例（AI分析代码）
->>>>>>> origin/tzf
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!projectId || !selectedFile) throw new Error('请选择文件')
@@ -465,36 +377,7 @@ export default function UnitTestPage() {
       console.error('执行失败:', error)
       const errorMsg = error.response?.data?.detail || error.response?.data?.message || error.message || '未知错误'
       alert(`执行失败: ${errorMsg}`)
-=======
-      setLogs('✅ 单元测试用例生成成功！AI已分析代码并生成测试用例。\n\n现在可以点击"开始测试"按钮执行测试。')
-    },
-    onError: (error: any) => {
-      const errorMsg = error.response?.data?.detail || error.message || '生成失败'
-      alert('生成失败: ' + errorMsg)
-      setLogs('❌ 生成失败: ' + errorMsg)
-    }
-  })
-
-  // 执行单元测试
-  const executeMutation = useMutation({
-    mutationFn: async () => {
-      if (!projectId || !selectedFile || !generatedCode) throw new Error('缺少必要参数：请先生成测试用例')
-      return unitTestsApi.execute(projectId, selectedFile, generatedCode)
-    },
-    onSuccess: (data) => {
-      setTestResult(data.data)
-      setLogs(data.data.logs || '测试执行完成')
-      if (data.data.success) {
-        alert('✅ 测试执行成功！请查看下方测试结果。')
-      } else {
-        alert('⚠️ 测试执行完成，但部分测试用例失败。请查看下方详细结果。')
-      }
-    },
-    onError: (error: any) => {
-      const errorMsg = error.response?.data?.detail || error.message || '执行失败'
-      alert('执行失败: ' + errorMsg)
       setLogs('❌ 执行失败: ' + errorMsg + '\n\n请检查：\n1. 测试代码是否正确\n2. 源代码路径是否存在\n3. Catch2环境是否配置正确')
->>>>>>> origin/tzf
     }
   })
 
@@ -574,21 +457,21 @@ export default function UnitTestPage() {
             </Button>
           </label>
           </div>
-=======
-        <div className="flex gap-2">
-          <label className="cursor-pointer">
-            <input
-              type="file"
-              className="hidden"
-              onChange={handleFileUpload}
-              accept=".zip,.tar,.gz"
-            />
-            <Button variant="outline" disabled={uploadMutation.isPending}>
-              <Upload className="mr-2 h-4 w-4" />
-              {uploadMutation.isPending ? '上传中...' : '上传源代码'}
-            </Button>
-          </label>
->>>>>>> origin/tzf
+          
+          <div className="flex gap-2">
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
+                accept=".zip,.tar,.gz"
+              />
+              <Button variant="outline" disabled={uploadMutation.isPending}>
+                <Upload className="mr-2 h-4 w-4" />
+                {uploadMutation.isPending ? '上传中...' : '上传源代码'}
+              </Button>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -859,12 +742,8 @@ export default function UnitTestPage() {
               ) : (
                 <div className="h-[300px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed rounded-lg">
                   <Beaker className="h-12 w-12 mb-2 opacity-20" />
-<<<<<<< HEAD
-                  <p>请先选择一个源文件并点击"生成用例"</p>
-=======
                   <p>请先选择一个源文件并点击"生成测试用例"</p>
                   <p className="text-xs mt-2 opacity-60">AI将分析代码并生成单元测试用例</p>
->>>>>>> origin/tzf
                 </div>
               )}
             </CardContent>
