@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -20,6 +20,16 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
   const [testDescription, setTestDescription] = useState('')
   const [generatedTest, setGeneratedTest] = useState<UITestCaseGenerateResponse | null>(null)
   const [executionId, setExecutionId] = useState<number | null>(null)
+
+  // 使用 useCallback 定义 handleClose，确保函数引用稳定
+  const handleClose = useCallback(() => {
+    setStep('input')
+    setTestName('')
+    setTestDescription('')
+    setGeneratedTest(null)
+    setExecutionId(null)
+    onClose()
+  }, [onClose])
 
   // 保存测试用例
   const saveTestCaseMutation = useMutation({
@@ -88,7 +98,39 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
   })
 
   // 轮询测试结果（添加超时处理）
-  const [pollStartTime, setPollStartTime] = useState<number | null>(null)
+  // 使用 useRef 存储轮询开始时间，避免在 refetchInterval 中引用 state 导致 hooks 顺序问题
+  const pollStartTimeRef = useRef<number | null>(null)
+  
+  // 计算是否应该启用查询 - 使用 useMemo 确保值稳定
+  const isQueryEnabled = useMemo(() => {
+    return !!executionId && step === 'executing'
+  }, [executionId, step])
+  
+  // 使用 useCallback 稳定 refetchInterval 函数引用，避免每次渲染时重新创建
+  // 函数内部会检查查询是否启用，确保引用始终稳定
+  const refetchIntervalFn = useCallback((query: any) => {
+    // 如果查询未启用，不轮询
+    if (!isQueryEnabled) {
+      return false
+    }
+    // 如果状态是running，每2秒轮询一次
+    // 注意：初始时 query.state.data 可能为 undefined，需要继续轮询
+    const data = query.state.data
+    if (!data || data.status === 'running') {
+      // 检查超时（5分钟）
+      if (pollStartTimeRef.current && Date.now() - pollStartTimeRef.current > 5 * 60 * 1000) {
+        alert('⚠️ 测试执行超时（超过5分钟）。\n\n可能的原因：\n1. Windows Worker未运行\n2. Worker无法连接到Redis\n3. 测试执行时间过长\n\n解决方案：\n1. 检查Windows Worker是否正在运行\n2. 运行: cd backend && .\\start_worker.ps1\n3. 或运行: python -m app.worker.worker')
+        return false
+      }
+      return 2000
+    }
+    // 否则停止轮询（completed 或 failed）
+    return false
+  }, [isQueryEnabled])
+  
+  // 确保 useQuery 始终被调用，但通过 enabled 控制是否实际执行
+  // 这确保了 hooks 的执行顺序始终一致
+  // refetchInterval 始终传递同一个函数引用，确保配置稳定
   const { data: testResult, error: testResultError } = useQuery<UITestResult>({
     queryKey: ['ui-test-result', projectId, executionId],
     queryFn: async () => {
@@ -96,30 +138,16 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
       const response = await uiTestApi.getTestResult(projectId, executionId)
       return response.data
     },
-    enabled: !!executionId && step === 'executing',
-    refetchInterval: (query) => {
-      // 如果状态是running，每2秒轮询一次
-      // 注意：初始时 query.state.data 可能为 undefined，需要继续轮询
-      const data = query.state.data
-      if (!data || data.status === 'running') {
-        // 检查超时（5分钟）
-        if (pollStartTime && Date.now() - pollStartTime > 5 * 60 * 1000) {
-          alert('⚠️ 测试执行超时（超过5分钟）。\n\n可能的原因：\n1. Windows Worker未运行\n2. Worker无法连接到Redis\n3. 测试执行时间过长\n\n解决方案：\n1. 检查Windows Worker是否正在运行\n2. 运行: cd backend && .\\start_worker.ps1\n3. 或运行: python -m app.worker.worker')
-          return false
-        }
-        return 2000
-      }
-      // 否则停止轮询（completed 或 failed）
-      return false
-    }
+    enabled: isQueryEnabled,
+    refetchInterval: refetchIntervalFn
   })
 
   // 当开始执行时，记录轮询开始时间
   useEffect(() => {
     if (executionId && step === 'executing') {
-      setPollStartTime(Date.now())
+      pollStartTimeRef.current = Date.now()
     } else {
-      setPollStartTime(null)
+      pollStartTimeRef.current = null
     }
   }, [executionId, step])
 
@@ -133,15 +161,6 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
       }
     }
   }, [testResult, onTestComplete])
-
-  const handleClose = () => {
-    setStep('input')
-    setTestName('')
-    setTestDescription('')
-    setGeneratedTest(null)
-    setExecutionId(null)
-    onClose()
-  }
 
   const handleGenerate = () => {
     if (!testName.trim() || !testDescription.trim()) {

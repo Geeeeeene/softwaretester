@@ -327,8 +327,29 @@ TEST_CASE("集成测试: 类之间的交互") {{
                         test_code = remaining
                         print(f"⚠️ 警告: 未找到代码块结束标记，保留所有内容", file=sys.stderr, flush=True)
             
-<<<<<<< HEAD
             test_code = test_code.strip()
+            
+            # 移除可能的 main 函数（双重保险）
+            lines = test_code.split('\n')
+            filtered_lines = []
+            skip_main = False
+            brace_count = 0
+            for line in lines:
+                # 检测 main 函数开始
+                if 'int main(' in line or 'void main(' in line:
+                    skip_main = True
+                    brace_count = line.count('{') - line.count('}')
+                    continue
+                
+                if skip_main:
+                    brace_count += line.count('{') - line.count('}')
+                    if brace_count <= 0:
+                        skip_main = False
+                    continue
+                
+                filtered_lines.append(line)
+            
+            test_code = '\n'.join(filtered_lines)
             
             # 自动修复 Catch2 断言中的逻辑运算符问题
             # 使用更简单直接的方法：正则表达式替换
@@ -456,34 +477,8 @@ TEST_CASE("集成测试: 类之间的交互") {{
                 if '::' in last_line or '(' in last_line:
                     print(f"⚠️ 警告: 代码可能不完整，最后一行: {last_line[:50]}...", file=sys.stderr, flush=True)
             
-            print(f"✅ AI 测试生成成功！原始长度: {original_length}, 清理后长度: {len(test_code)}", file=sys.stderr, flush=True)
+            print(f"✅ AI 集成测试生成成功！原始长度: {original_length}, 清理后长度: {len(test_code)}", file=sys.stderr, flush=True)
             return test_code
-=======
-            # 移除可能的 main 函数（双重保险）
-            lines = test_code.split('\n')
-            filtered_lines = []
-            skip_main = False
-            brace_count = 0
-            for line in lines:
-                # 检测 main 函数开始
-                if 'int main(' in line or 'void main(' in line:
-                    skip_main = True
-                    brace_count = line.count('{') - line.count('}')
-                    continue
-                
-                if skip_main:
-                    brace_count += line.count('{') - line.count('}')
-                    if brace_count <= 0:
-                        skip_main = False
-                    continue
-                
-                filtered_lines.append(line)
-            
-            test_code = '\n'.join(filtered_lines)
-            
-            print(f"✅ AI 集成测试生成成功！长度: {len(test_code)}", file=sys.stderr, flush=True)
-            return test_code.strip()
->>>>>>> origin/tzf
             
         except Exception as e:
             logger.error(f"AI 生成集成测试失败: {str(e)}")

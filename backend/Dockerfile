@@ -26,14 +26,19 @@ RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
 # 安装系统依赖 + 静态分析工具（cppcheck + clazy）
 # clazy 依赖 clang，安装一起
 # 同时安装 Qt5 开发包（Clazy 分析 Qt 项目需要）
+# 添加 C++ 编译工具（g++, make, cmake）用于单元测试
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    g++ \
+    make \
+    cmake \
     postgresql-client \
     cppcheck \
     clazy \
     clang \
     qtbase5-dev \
     qtbase5-dev-tools \
+    libqt5svg5-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件

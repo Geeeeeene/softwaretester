@@ -1,6 +1,6 @@
 # HomemadeTester 快速启动指南
 
-## 方式一：Docker Compose（推荐）
+## Docker Compose 启动（推荐）
 
 ### 前提条件
 - Docker Desktop 或 Docker Engine + Docker Compose
@@ -10,7 +10,8 @@
 
 1. **克隆仓库并进入目录**
 ```bash
-cd homemadeTester
+git clone https://cnb.cool/Tralalero_555/softwaretester.git
+cd softwaretester
 ```
 
 2. **启动所有服务**
@@ -51,101 +52,23 @@ docker-compose logs -f worker
 ```bash
 docker-compose down
 
-# 同时删除数据卷
+# 同时删除数据卷（会删除所有数据）
 docker-compose down -v
 ```
 
-## 方式二：本地开发环境
-
-### 前提条件
-- Python 3.10+
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 6+
-- Neo4j 5+ (可选)
-
-### 后端设置
-
-1. **创建虚拟环境**
-```bash
-cd backend
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# Linux/Mac
-source venv/bin/activate
-```
-
-2. **安装依赖**
-```bash
-pip install -r requirements.txt
-```
-
-3. **配置环境变量**
-```bash
-# Windows
-copy .env.example .env
-
-# Linux/Mac
-cp .env.example .env
-```
-
-编辑 `.env` 文件，配置数据库连接信息。
-
-4. **启动后端**
-```bash
-# 方式1：使用uvicorn
-uvicorn app.main:app --reload --port 8000
-
-# 方式2：使用Python
-python -m app.main
-```
-
-5. **启动Worker（新终端）**
-```bash
-cd backend
-venv\Scripts\activate  # 或 source venv/bin/activate
-python -m app.worker.worker
-```
-
-### 前端设置
-
-1. **安装依赖**
-```bash
-cd frontend
-npm install
-```
-
-2. **配置环境变量**
-```bash
-# Windows
-copy .env.example .env
-
-# Linux/Mac
-cp .env.example .env
-```
-
-3. **启动开发服务器**
-```bash
-npm run dev
-```
-
-前端将运行在 http://localhost:5173
-
 ### 数据库初始化
 
-数据库表会在后端首次启动时自动创建。如需手动初始化：
-
-```bash
-cd backend
-python scripts/init_db.py
-```
+数据库表会在后端首次启动时自动创建，无需手动初始化。
 
 ## 验证安装
 
-### 1. 检查后端API
+### 1. 检查服务状态
+```bash
+docker-compose ps
+```
+所有服务应该显示为 "Up" 状态
+
+### 2. 检查后端API
 访问 http://localhost:8000/health 应该返回：
 ```json
 {
@@ -155,10 +78,10 @@ python scripts/init_db.py
 }
 ```
 
-### 2. 检查前端
+### 3. 检查前端
 访问 http://localhost:5173 应该看到主页
 
-### 3. 测试创建项目
+### 4. 测试创建项目
 1. 访问"项目管理"页面
 2. 点击"创建项目"
 3. 填写项目信息并提交
@@ -167,7 +90,7 @@ python scripts/init_db.py
 ## 常见问题
 
 ### Q1: Docker容器无法启动
-**A:** 检查端口是否被占用，特别是 5432 (PostgreSQL), 6379 (Redis), 8000 (API)
+**A:** 检查端口是否被占用，特别是 5432 (PostgreSQL), 6379 (Redis), 8000 (API), 5173 (Frontend)
 ```bash
 # Windows
 netstat -ano | findstr "8000"
@@ -176,22 +99,50 @@ netstat -ano | findstr "8000"
 lsof -i :8000
 ```
 
-### Q2: 前端无法连接后端
-**A:** 检查 `frontend/.env` 中的 `VITE_API_BASE_URL` 配置是否正确
+**解决方法：**
+- 停止占用端口的程序
+- 或修改 `docker-compose.yml` 中的端口映射
 
-### Q3: 数据库连接失败
-**A:** 确保PostgreSQL服务正在运行，检查 `backend/.env` 中的数据库连接字符串
-
-### Q4: Worker无法处理任务
-**A:** 检查Redis服务是否运行，查看Worker日志排查错误
-
-### Q5: 前端编译错误
-**A:** 删除 `node_modules` 和 `package-lock.json`，重新安装依赖：
+### Q2: Docker Desktop 未运行
+**A:** 确保 Docker Desktop 已启动并运行
 ```bash
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
+# 检查 Docker 状态
+docker info
 ```
+
+**解决方法：**
+- 打开 Docker Desktop
+- 等待 Docker 完全启动（系统托盘图标显示运行中）
+
+### Q3: 前端无法连接后端
+**A:** 检查 Docker 容器是否正常运行
+```bash
+docker-compose ps
+```
+
+**解决方法：**
+- 确保 backend 和 frontend 服务都已启动
+- 查看日志：`docker-compose logs frontend backend`
+
+### Q4: 数据库连接失败
+**A:** 确保 PostgreSQL 容器已启动并健康
+```bash
+docker-compose ps postgres
+```
+
+**解决方法：**
+- 等待 PostgreSQL 容器完全启动（健康检查通过）
+- 查看日志：`docker-compose logs postgres`
+
+### Q5: Worker无法处理任务
+**A:** 检查 Redis 和 Worker 服务是否运行
+```bash
+docker-compose ps redis worker
+```
+
+**解决方法：**
+- 确保 Redis 容器已启动
+- 查看 Worker 日志：`docker-compose logs worker`
 
 ## 下一步
 
@@ -201,6 +152,24 @@ npm install
 3. 🧪 创建第一个测试项目
 4. 📝 编写Test IR格式的测试用例
 5. ▶️ 运行测试并查看结果
+6. 📚 查看 [UI测试使用指南](UI测试使用指南.md) 了解UI测试功能
+
+## 管理命令
+
+### 重启服务
+```bash
+docker-compose restart
+```
+
+### 重建并启动
+```bash
+docker-compose up -d --build
+```
+
+### 清理所有数据（谨慎使用）
+```bash
+docker-compose down -v
+```
 
 ## 开发工具推荐
 
@@ -215,7 +184,7 @@ npm install
 如遇到问题或有建议，请：
 - 查看文档: `README.md`
 - 查看API文档: http://localhost:8000/docs
-- 检查日志输出
+- 检查日志输出: `docker-compose logs -f`
 
 祝使用愉快！🚀
 

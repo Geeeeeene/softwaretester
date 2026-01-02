@@ -338,11 +338,13 @@ ${{TIMEOUT}}            30
     Set Min Similarity    0.6    # 降低相似度阈值提高识别成功率
     
     # 3. 执行测试步骤（根据测试描述生成具体步骤）
-    # 例如：Wait Until Screen Contain    main_window.png    ${{TIMEOUT}}
+    # 例如：Wait Until Screen Contain    main_window.png    30    （注意：超时参数必须是数字，不要使用 "30s"）
     # 例如：Click    button.png    （注意：Click会自动找到图像并移动鼠标，不需要单独的Hover步骤）
     # 例如：Input Text    input_field.png    测试文本
     # 例如：Screen Should Contain    success_message.png
+    # 例如：Sleep    3s    （Sleep可以使用时间格式，例如 3s 或 3）
     # 注意：不要使用 Hover 关键字，SikuliLibrary中没有这个关键字！
+    # 注意：Wait Until Screen Contain 的超时参数必须是纯数字（秒数），例如：30，不要使用 "30s"
     
     # 4. 清理：关闭应用程序
     [Teardown]    Terminate Process    app_under_test    kill=True
@@ -357,7 +359,7 @@ ${{TIMEOUT}}            30
 7. 在 [Teardown] 中确保应用被关闭，即使测试失败也要执行
 
 【常用SikuliLibrary关键字】
-- Wait Until Screen Contain <image> <timeout>: 等待屏幕出现某个图像
+- Wait Until Screen Contain <image> <timeout>: 等待屏幕出现某个图像（timeout必须是数字，单位秒，例如：10 或 30，不要使用 "10s" 或 "30s"）
 - Click <image>: 点击图像（会自动找到图像并移动鼠标到该位置，然后点击）
 - Double Click <image>: 双击图像
 - Right Click <image>: 右键点击图像
@@ -365,11 +367,67 @@ ${{TIMEOUT}}            30
 - Screen Should Contain <image>: 断言屏幕包含某个图像
 - Screen Should Not Contain <image>: 断言屏幕不包含某个图像
 - Capture Screen: 截取屏幕（自动保存到sikuli_captured目录）
+- Sleep <time>: 等待指定时间（time可以是数字秒数，例如：Sleep    3，或者使用时间格式，例如：Sleep    3s）
+
+【重要格式说明】
+- Wait Until Screen Contain 的超时参数必须是纯数字（秒数），例如：Wait Until Screen Contain    image.png    10（不要使用 "10s"）
+- Sleep 命令可以使用数字或时间格式，例如：Sleep    3 或 Sleep    3s（两种格式都可以）
+- 关键字返回值使用 RETURN 语句，不要使用 [Return] 设置（已弃用）
 
 【重要提示】
 - SikuliLibrary 中没有 Hover 关键字！不要使用 Hover
+- SikuliLibrary 中没有 Find 关键字！不要使用 Find 来获取图像位置
 - Click 关键字会自动找到图像并移动鼠标到该位置，然后点击，所以不需要单独的移动鼠标步骤
 - 如果测试描述中提到"移动鼠标到XX位置"，直接使用 Click 即可，不需要先移动鼠标再点击
+- 如果需要点击图像的偏移位置（例如：点击画布的某个坐标），必须使用 Python 脚本配合 Windows API：
+  * 创建一个自定义关键字，使用 Evaluate 执行 Python 代码
+  * 使用 ctypes.windll.user32.SetCursorPos(x, y) 移动鼠标到目标坐标
+  * 使用 ctypes.windll.user32.mouse_event(0x0002, 0, 0, 0, 0) 按下左键
+  * 使用 ctypes.windll.user32.mouse_event(0x0004, 0, 0, 0, 0) 释放左键
+  * 或者：使用辅助 Python 脚本文件来点击坐标
+- 如果测试涉及符号面板中的图形符号：
+  * 遍历所有可见的图形符号，每个图形只创建一次
+  * 不使用滚轮，不滚动符号面板，只使用当前可见的图形符号
+  * 按照以下顺序遍历所有可见的图形符号（每个图形只创建一次）：
+    - robot_resources/symbols/card.png
+    - robot_resources/symbols/cycle_boundary.png
+    - robot_resources/symbols/data.png
+    - robot_resources/symbols/direct_access_memory.png
+    - robot_resources/symbols/disk.png
+    - robot_resources/symbols/display.png
+    - robot_resources/symbols/endpoint_symbol.png
+    - robot_resources/symbols/file.png
+    - robot_resources/symbols/internal_memory_storage.png
+    - robot_resources/symbols/judge.png
+    - robot_resources/symbols/manual_input.png
+    - robot_resources/symbols/manual_operation.png
+    - robot_resources/symbols/parallel_mode.png
+    - robot_resources/symbols/perforated_tape.png
+    - robot_resources/symbols/prepare.png
+    - robot_resources/symbols/sequential_access_memory.png
+    - robot_resources/symbols/store_data.png
+    - robot_resources/symbols/text.png
+  * 如果某个图形符号在当前屏幕不可见（需要滚动才能看到），则跳过该图形，继续下一个
+  * 对于每个可见的图形符号，先点击该图形符号，然后在画布上放置图形
+- 画布定位策略：
+  * 等待画布出现（使用 canvas_empty.png 或 canvas_with_grid.png 来定位画布）
+  * 确认画布区域可见且可用
+- Click Region 关键字实现（重要）：
+  * 必须创建一个自定义关键字 Click Region，接受图像路径和偏移量
+  * 实现方式：
+    1. 先使用 Click 关键字点击画布图像（canvas_empty.png 或 canvas_with_grid.png），确保画布可见
+    2. 使用固定坐标作为画布基准点（例如：画布左上角在 (200, 150)），计算目标坐标 = 基准坐标 + 偏移量
+    3. 使用 Python 脚本（通过 Evaluate 关键字）调用 Windows API 来点击目标坐标：
+       - 使用 ctypes.windll.user32.SetCursorPos(x, y) 移动鼠标
+       - 使用 ctypes.windll.user32.mouse_event(0x0002, 0, 0, 0, 0) 按下左键
+       - 使用 ctypes.windll.user32.mouse_event(0x0004, 0, 0, 0, 0) 释放左键
+  * 重要：不要使用 Run Process 或 Run 关键字调用外部 Python 脚本文件（如 click_coordinate.py），必须使用 Evaluate 关键字直接执行 Python 代码
+- 图形位置计算：
+  * 第一个图形从画布左上角开始（起始位置偏移（10, 10）或（20, 20），从左上角出发）
+  * 每个图形向右移动60像素，每行10个图形后换行，向下移动60像素
+  * 每次点击图形符号后，等待0.3秒再点击画布
+  * 每次在画布上点击后，等待0.2秒再继续下一个操作
+  * 如果某个图形符号不可见（点击失败或超时），则跳过该图形，继续下一个，不要因为一个图形失败而停止整个测试
 
 【图片使用要求（严格遵守）】
 1. 必须使用上述知识库中列出的图片，不能使用知识库中不存在的图片名称

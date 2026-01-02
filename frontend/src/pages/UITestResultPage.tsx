@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -25,12 +25,45 @@ export default function UITestResultPage() {
   })
 
   // 获取测试结果
-  const { data: testResult, isLoading, error, isError } = useQuery({
+  // 使用 useCallback 稳定 refetchInterval 函数引用
+  const refetchIntervalFn = useCallback((query: any) => {
+    // 获取当前查询的数据
+    const data = query.state.data
+    const status = data?.status
+    
+    // 调试信息
+    if (status) {
+      console.log(`[UITestResultPage] 轮询检查: status=${status}, shouldPoll=${status === 'running'}`)
+    }
+    
+    // 如果状态是running，每2秒轮询一次
+    if (status === 'running') {
+      return 2000
+    }
+    // 如果状态是 completed 或 failed，停止轮询
+    if (status === 'completed' || status === 'failed') {
+      console.log(`[UITestResultPage] 测试已完成，停止轮询: status=${status}`)
+      return false
+    }
+    // 如果还没有数据，继续轮询（等待状态更新）
+    if (!data) {
+      return 2000
+    }
+    // 其他情况停止轮询
+    return false
+  }, [])
+
+  const { data: testResult, isLoading, error, isError, refetch } = useQuery({
     queryKey: ['ui-test-result', projectId, execId],
     queryFn: async () => {
       if (!projectId || !execId) throw new Error('无效的参数')
       try {
         const response = await uiTestApi.getTestResult(projectId, execId)
+        console.log(`[UITestResultPage] 获取测试结果:`, {
+          executionId: execId,
+          status: response.data.status,
+          passed: response.data.passed
+        })
         return response.data
       } catch (err: any) {
         console.error('[UITestResultPage] 获取测试结果失败:', err)
@@ -40,14 +73,21 @@ export default function UITestResultPage() {
     enabled: !!projectId && !!execId,
     retry: 2,
     retryDelay: 1000,
-    refetchInterval: (data) => {
-      // 如果状态是running，每2秒轮询一次
-      if (data?.status === 'running') {
-        return 2000
-      }
-      return false
-    }
+    refetchInterval: refetchIntervalFn,
+    // 禁用缓存，确保每次都能获取最新数据
+    gcTime: 0,
+    staleTime: 0
   })
+
+  // 日志自动滚动引用 - 必须在所有条件返回之前定义
+  const logsEndRef = useRef<HTMLDivElement>(null)
+  
+  // 执行中时，日志更新后自动滚动到底部 - 必须在所有条件返回之前定义
+  useEffect(() => {
+    if (testResult?.status === 'running' && testResult?.logs && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [testResult?.logs, testResult?.status])
 
   if (!projectId || !execId) {
     return (
@@ -110,16 +150,6 @@ export default function UITestResultPage() {
   const isPassed = testResult.passed
   const isRunning = testResult.status === 'running'
   const isFailed = !testResult.passed
-  
-  // 日志自动滚动引用
-  const logsEndRef = useRef<HTMLDivElement>(null)
-  
-  // 执行中时，日志更新后自动滚动到底部
-  useEffect(() => {
-    if (isRunning && testResult.logs && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [testResult.logs, isRunning])
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -42,7 +42,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的统一测�
 
 ## 🚀 快速开始
 
-### 方式一：Docker Compose（推荐）
+### Docker Compose 启动（推荐）
 
 1. **克隆仓库**
 ```bash
@@ -60,9 +60,27 @@ docker-compose up -d
 - API文档: http://localhost:8000/docs
 - Neo4j浏览器: http://localhost:7474
 
-### 方式二：本地开发环境
+4. **查看服务状态**
+```bash
+docker-compose ps
+```
 
-详细步骤请参考 [QUICK_START.md](QUICK_START.md)
+5. **查看日志**
+```bash
+# 查看所有服务日志
+docker-compose logs -f
+
+# 查看特定服务日志
+docker-compose logs -f backend
+docker-compose logs -f frontend
+```
+
+6. **停止服务**
+```bash
+docker-compose down
+```
+
+详细启动说明请参考 [QUICK_START.md](QUICK_START.md)
 
 ## 📁 项目结构
 
@@ -137,9 +155,10 @@ Test IR 是一个统一的测试描述格式，支持多种测试类型：
 
 ## 📖 文档
 
-- [快速启动指南](QUICK_START.md) - 详细的安装和启动说明
+- [快速启动指南](QUICK_START.md) - Docker 启动详细说明
 - [项目结构说明](PROJECT_STRUCTURE.md) - 代码组织结构
 - [架构设计文档](ARCHITECTURE.md) - 系统架构和设计理念
+- [UI测试使用指南](UI测试使用指南.md) - UI测试功能使用说明
 
 ## 🔧 开发指南
 
@@ -206,10 +225,10 @@ Test IR 是一个统一的测试描述格式，支持多种测试类型：
 **A:** 检查端口是否被占用，特别是 5432 (PostgreSQL), 6379 (Redis), 8000 (API)
 
 ### Q2: 前端无法连接后端
-**A:** 检查 `frontend/.env` 中的 `VITE_API_BASE_URL` 配置是否正确
+**A:** 检查 Docker 容器是否正常运行，确保 backend 和 frontend 服务都已启动
 
 ### Q3: 数据库连接失败
-**A:** 确保 PostgreSQL 服务正在运行，检查 `backend/.env` 中的数据库连接字符串
+**A:** 确保 PostgreSQL 容器已启动并健康，检查 `docker-compose ps` 状态
 
 更多问题请参考 [QUICK_START.md](QUICK_START.md) 的常见问题部分
 

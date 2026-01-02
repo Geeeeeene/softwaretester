@@ -267,6 +267,20 @@ class RobotFrameworkExecutor(BaseExecutor):
                 for path in possible_resources_dirs:
                     print(f"   - {path} (存在: {path.exists()})")
             
+            # 复制辅助Python脚本文件（如 click_coordinate.py）
+            print(f"[执行器] 步骤1.5: 复制辅助Python脚本...")
+            python_scripts = ["click_coordinate.py"]
+            for script_name in python_scripts:
+                for resources_dir_path in possible_resources_dirs:
+                    if resources_dir_path.exists():
+                        script_path = resources_dir_path / script_name
+                        if script_path.exists():
+                            target_script = temp_path / script_name
+                            shutil.copy2(script_path, target_script)
+                            print(f"[执行器] ✅ 已复制辅助脚本: {script_name}")
+                            logs_list.append(f"已复制辅助脚本: {script_name}")
+                            break
+            
             # 2. 修改脚本中的图像路径为工作目录中的路径
             print(f"[执行器] 步骤2: 生成Robot Framework脚本...")
             robot_script = self._generate_robot_script(test_ir)
@@ -466,6 +480,20 @@ class RobotFrameworkExecutor(BaseExecutor):
                                 paths = [p for p in paths if venv_path not in p]
                                 exec_env['PATH'] = os.pathsep.join(paths)
                     
+                    # 设置编码环境变量，强制使用UTF-8（解决Windows中文乱码问题）
+                    exec_env['PYTHONIOENCODING'] = 'utf-8'
+                    exec_env['LC_ALL'] = 'C.UTF-8'
+                    exec_env['LANG'] = 'C.UTF-8'
+                    
+                    # Windows特定编码设置
+                    if sys.platform == 'win32':
+                        # 尝试设置系统代码页为UTF-8（Windows 10+）
+                        try:
+                            import subprocess as sp
+                            sp.run(['chcp', '65001'], shell=True, capture_output=True, check=False)
+                        except:
+                            pass
+                    
                     # 设置Java环境变量（SikuliLibrary需要）
                     java_home = self._find_java_home()
                     if java_home:
@@ -499,20 +527,103 @@ class RobotFrameworkExecutor(BaseExecutor):
                     print(f"[执行器] [subprocess] 执行命令: {' '.join(cmd)}")
                     print(f"[执行器] [subprocess] 工作目录（绝对路径）: {str(temp_path.resolve())}")
                     print(f"[执行器] [subprocess] 超时设置: {test_ir.get('timeout', 300)}秒")
+                    
+                    # 先以二进制模式执行，然后尝试多种编码解码（解决Windows中文乱码问题）
                     result = subprocess.run(
                         cmd,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         cwd=temp_path,
                         env=exec_env,  # 使用修改后的环境变量
-                        timeout=test_ir.get('timeout', 300),
-                        encoding='utf-8',
-                        errors='replace'
+                        timeout=test_ir.get('timeout', 300)
                     )
-                    print(f"[执行器] [subprocess] ✅ 命令执行完成，返回码: {result.returncode}")
-                    print(f"[执行器] [subprocess] stdout长度: {len(result.stdout)} 字符")
-                    print(f"[执行器] [subprocess] stderr长度: {len(result.stderr)} 字符")
-                    return result
+                    
+                    # 尝试多种编码方式解码输出（Windows中文系统常用GBK）
+                    def decode_output(data: bytes) -> str:
+                        """尝试多种编码方式解码输出，智能检测正确的编码"""
+                        if not data:
+                            return ""
+                        
+                        # 检测是否包含中文字符的辅助函数
+                        def has_chinese(text: str) -> bool:
+                            """检测文本是否包含中文字符"""
+                            import re
+                            return bool(re.search(r'[\u4e00-\u9fff]', text))
+                        
+                        # 检测文本质量（中文字符是否正常显示）
+                        def is_valid_chinese_text(text: str) -> bool:
+                            """检测解码后的文本是否是有效的中文文本"""
+                            if not has_chinese(text):
+                                return True  # 如果没有中文，认为有效
+                            # 检查是否包含明显的乱码模式
+                            # 如果包含大量不可打印字符或替换字符，可能不是正确的编码
+                            if '\ufffd' in text:
+                                return False
+                            # 检查中文字符是否连续（乱码通常是单个字符）
+                            import re
+                            chinese_chars = re.findall(r'[\u4e00-\u9fff]', text)
+                            if len(chinese_chars) > 0:
+                                # 如果中文字符很少且分散，可能是乱码
+                                chinese_ratio = len(chinese_chars) / max(len(text), 1)
+                                if chinese_ratio < 0.01:  # 中文字符占比太少
+                                    return False
+                            return True
+                        
+                        # 优先尝试 GBK（Windows 中文系统默认编码，最可能正确）
+                        encodings = ['gbk', 'gb2312', 'utf-8', 'latin1']
+                        best_result = None
+                        best_score = -1
+                        
+                        for enc in encodings:
+                            try:
+                                decoded = data.decode(enc, errors='strict')
+                                # 计算质量分数
+                                score = 0
+                                if '\ufffd' not in decoded:
+                                    score += 10  # 没有替换字符
+                                if has_chinese(decoded):
+                                    score += 5  # 包含中文
+                                if is_valid_chinese_text(decoded):
+                                    score += 10  # 中文文本有效
+                                # 如果包含常见的中文词汇，加分
+                                common_chinese = ['退出', '启动', '等待', '应用程序', '屏幕', '窗口', '测试', '执行', '通过', '失败']
+                                for word in common_chinese:
+                                    if word in decoded:
+                                        score += 2
+                                
+                                if score > best_score:
+                                    best_score = score
+                                    best_result = decoded
+                            except (UnicodeDecodeError, LookupError):
+                                continue
+                        
+                        # 如果找到了最佳结果，返回它
+                        if best_result and best_score >= 10:
+                            return best_result
+                        
+                        # 如果都失败，使用 GBK 的 replace 模式（Windows 中文系统最可能正确）
+                        try:
+                            return data.decode('gbk', errors='replace')
+                        except:
+                            return data.decode('utf-8', errors='replace')
+                    
+                    # 解码输出
+                    stdout_text = decode_output(result.stdout) if result.stdout else ""
+                    stderr_text = decode_output(result.stderr) if result.stderr else ""
+                    
+                    # 创建类似subprocess.CompletedProcess的对象
+                    class DecodedResult:
+                        def __init__(self, returncode, stdout, stderr):
+                            self.returncode = returncode
+                            self.stdout = stdout
+                            self.stderr = stderr
+                    
+                    decoded_result = DecodedResult(result.returncode, stdout_text, stderr_text)
+                    
+                    print(f"[执行器] [subprocess] ✅ 命令执行完成，返回码: {decoded_result.returncode}")
+                    print(f"[执行器] [subprocess] stdout长度: {len(decoded_result.stdout)} 字符")
+                    print(f"[执行器] [subprocess] stderr长度: {len(decoded_result.stderr)} 字符")
+                    return decoded_result
                 
                 # 在线程中运行同步函数，避免阻塞事件循环
                 # 在BackgroundTasks中，可能没有事件循环，所以需要处理这种情况

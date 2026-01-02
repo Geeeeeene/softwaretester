@@ -5,6 +5,7 @@ import shutil
 import traceback
 import subprocess
 import tempfile
+import re
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import logging
@@ -30,6 +31,40 @@ class Catch2Executor:
         return shutil.which(tool_name) or shutil.which(exe_name)
 
     def _detect_qt_path(self) -> str:
+        # Linux/Docker 环境：使用系统安装的 Qt5（通过 apt 安装的 qtbase5-dev）
+        if sys.platform != "win32":
+            # 在 Linux 上，Qt5 通常通过包管理器安装，CMake 的 find_package 会自动找到
+            # 检查是否可以通过 pkg-config 找到 Qt5
+            try:
+                result = subprocess.run(
+                    ["pkg-config", "--variable=prefix", "Qt5Core"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    qt_path = result.stdout.strip()
+                    logger.info(f"通过 pkg-config 找到 Qt5 路径: {qt_path}")
+                    return qt_path
+            except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+                pass
+            
+            # 如果 pkg-config 不可用，尝试常见路径
+            common_linux_paths = [
+                "/usr/lib/x86_64-linux-gnu/qt5",
+                "/usr/lib/qt5",
+                "/opt/qt5",
+            ]
+            for path in common_linux_paths:
+                if os.path.exists(path):
+                    logger.info(f"找到 Qt5 路径: {path}")
+                    return path
+            
+            # Linux 环境默认返回空字符串，让 CMake 自动查找
+            logger.info("未找到显式 Qt 路径，将依赖 CMake 的 find_package 自动查找")
+            return ""
+        
+        # Windows 环境：查找 Qt6
         search_dirs = ["C:/Qt", "D:/Qt", "E:/Qt"]
         for base in search_dirs:
             if not os.path.exists(base): continue
@@ -45,12 +80,33 @@ class Catch2Executor:
 
     def _find_mingw_compiler_ultimate(self) -> Dict[str, str]:
         info = {"make": "", "g++": "", "gcc": "", "bin_dir": ""}
-        for tool in ["mingw32-make", "g++", "gcc"]:
-            p = shutil.which(tool)
+        
+        # 首先尝试在系统 PATH 中查找（适用于 Linux/Docker 环境）
+        # Linux 环境：查找 make, g++, gcc
+        # Windows 环境：查找 mingw32-make, g++, gcc
+        tools_to_find = []
+        if sys.platform == "win32":
+            tools_to_find = [("mingw32-make", "make"), ("g++", "g++"), ("gcc", "gcc")]
+        else:
+            # Linux/Docker 环境
+            tools_to_find = [("make", "make"), ("g++", "g++"), ("gcc", "gcc")]
+        
+        for tool_name, key in tools_to_find:
+            p = shutil.which(tool_name)
             if p: 
-                key = "make" if "make" in tool else tool
                 info[key] = p.replace("\\", "/")
-        if not info["make"] or not info["g++"]:
+                # 如果是 make 或 g++，尝试获取 bin_dir
+                if key in ["make", "g++"] and not info["bin_dir"]:
+                    tool_path = Path(p)
+                    if tool_path.exists():
+                        info["bin_dir"] = str(tool_path.parent).replace("\\", "/")
+        
+        # 如果已经找到 make 和 g++，直接返回（适用于 Linux/Docker）
+        if info["make"] and info["g++"]:
+            return info
+        
+        # Windows 环境：如果还没找到，尝试在常见路径中搜索
+        if sys.platform == "win32":
             search_roots = ["C:/Qt", "D:/Qt", "C:/MinGW", "D:/MinGW"]
             for root in search_roots:
                 if not os.path.exists(root): continue
@@ -66,6 +122,7 @@ class Catch2Executor:
                             info["gcc"] = os.path.join(bin_path, "gcc.exe").replace("\\", "/")
                             info["bin_dir"] = bin_path.replace("\\", "/")
                             return info
+        
         return info
 
     def _run_sync_cmd(self, cmd: List[str], cwd: str) -> subprocess.CompletedProcess:
@@ -83,6 +140,13 @@ class Catch2Executor:
         # 设置编码环境变量，确保 CMake 能正确处理路径
         env['LC_ALL'] = 'C.UTF-8'
         env['LANG'] = 'C.UTF-8'
+        
+        # 在无头环境中设置 Qt 使用 offscreen 平台插件（不需要 X11 显示服务器）
+        # 这允许在没有图形界面的环境中运行 Qt 应用程序
+        if sys.platform != "win32":  # Linux/Unix 环境
+            if 'QT_QPA_PLATFORM' not in env:
+                env['QT_QPA_PLATFORM'] = 'offscreen'
+        
         if sys.platform == "win32":
             # Windows 上设置代码页为 UTF-8（Windows 10+）
             env['PYTHONIOENCODING'] = 'utf-8'
@@ -233,8 +297,6 @@ class Catch2Executor:
             shutil.copy2(self.catch2_lib_dir / "catch_amalgamated.hpp", build_dir / "catch_amalgamated.hpp")
             logs.append("✅ Catch2 库文件已复制")
             
-<<<<<<< HEAD
-=======
             catch_main_cpp = """
 #include "catch_amalgamated.hpp"
 #include <QApplication>
@@ -384,10 +446,235 @@ struct WriteDiagramPath {
                     cleaned_test_code = '\n'.join(lines)
                     logs.append("✅ 已添加必要的类型定义")
             
-            (build_dir / "test_cases.cpp").write_text(cleaned_test_code, encoding='utf-8')
+            # 修复 QLineF::isValid() 调用 - QLineF 没有 isValid() 方法
+            # 替换为 !line.isNull() 或 line.length() > 0
+            if '.isValid()' in cleaned_test_code:
+                # 使用正则表达式匹配所有 .isValid() 调用
+                # 匹配模式：任何标识符后跟 .isValid()
+                old_code = cleaned_test_code
+                pattern = r'([a-zA-Z_][a-zA-Z0-9_]*)\.isValid\(\)'
+                
+                def replace_isvalid(match):
+                    var_name = match.group(1)
+                    return f'!{var_name}.isNull()'
+                
+                # 执行替换
+                cleaned_test_code = re.sub(pattern, replace_isvalid, cleaned_test_code)
+                
+                # 验证替换是否成功
+                replaced_count = old_code.count('.isValid()') - cleaned_test_code.count('.isValid()')
+                if replaced_count > 0:
+                    logs.append(f"✅ 已修复 QLineF::isValid() 调用（替换了 {replaced_count} 处，改为 !variable.isNull()）")
+                else:
+                    # 如果正则替换失败，尝试简单的字符串替换（作为后备方案）
+                    if '.isValid()' in cleaned_test_code:
+                        # 这是一个更激进的方法：直接替换所有 .isValid() 为 .isNull()
+                        # 但这可能不够精确，所以先尝试找到变量名
+                        logs.append("⚠️  正则替换未完全生效，尝试备用方法")
+                        # 使用更简单的模式再试一次
+                        simple_pattern = r'(\w+)\.isValid\(\)'
+                        cleaned_test_code = re.sub(simple_pattern, r'!\1.isNull()', cleaned_test_code)
+                        if '.isValid()' not in cleaned_test_code:
+                            logs.append("✅ 使用备用方法修复成功")
+                        else:
+                            logs.append("❌ 无法自动修复 .isValid() 调用，请手动检查测试代码")
+            
+            # 修复未闭合的大括号
+            # 使用更智能的括号匹配，忽略字符串和注释中的括号
+            def count_braces_smart(code):
+                """智能计算括号数量，忽略字符串和注释"""
+                open_count = 0
+                close_count = 0
+                in_string = False
+                in_char = False
+                string_char = None
+                i = 0
+                while i < len(code):
+                    char = code[i]
+                    
+                    # 处理转义字符
+                    if i > 0 and code[i-1] == '\\':
+                        i += 1
+                        continue
+                    
+                    # 处理字符串
+                    if not in_string and not in_char:
+                        if char == '"':
+                            in_string = True
+                            string_char = '"'
+                        elif char == "'":
+                            in_char = True
+                            string_char = "'"
+                        elif char == '{':
+                            open_count += 1
+                        elif char == '}':
+                            close_count += 1
+                    elif in_string or in_char:
+                        if char == string_char:
+                            in_string = False
+                            in_char = False
+                            string_char = None
+                    
+                    # 处理单行注释
+                    if not in_string and not in_char and i < len(code) - 1:
+                        if code[i:i+2] == '//':
+                            # 跳过到行尾
+                            while i < len(code) and code[i] != '\n':
+                                i += 1
+                            continue
+                        elif code[i:i+2] == '/*':
+                            # 跳过多行注释
+                            i += 2
+                            while i < len(code) - 1:
+                                if code[i:i+2] == '*/':
+                                    i += 2
+                                    break
+                                i += 1
+                            continue
+                    
+                    i += 1
+                
+                return open_count, close_count
+            
+            open_braces, close_braces = count_braces_smart(cleaned_test_code)
+            
+            # 额外检查：查找可能的语法错误模式
+            # 检查是否有未完成的 DiagramItem 构造调用
+            lines = cleaned_test_code.split('\n')
+            syntax_issues = []
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                # 检查是否有 DiagramItem item; 这样的无参构造（DiagramItem 没有无参构造函数）
+                if re.search(r'\bDiagramItem\s+\w+\s*;', stripped):
+                    syntax_issues.append(f"第 {i+1} 行：检测到无参 DiagramItem 构造，DiagramItem 需要参数：DiagramItem(DiagramType, QMenu*, QGraphicsItem*)")
+                # 检查是否有未完成的构造函数调用（有开括号但没有闭括号）
+                if any(keyword in stripped for keyword in ['DiagramItem', 'DiagramItemGroup', 'Arrow', 'DiagramScene']):
+                    if '(' in stripped and ')' not in stripped and not stripped.endswith(';'):
+                        # 检查是否在同一行或后续行有闭括号
+                        # 这里只检查当前行，更复杂的检查需要多行分析
+                        pass
+            
+            if syntax_issues:
+                for issue in syntax_issues:
+                    logs.append(f"⚠️  {issue}")
+            
+            if open_braces > close_braces:
+                missing_braces = open_braces - close_braces
+                # 在添加右括号之前，检查代码末尾是否有未完成的语句
+                lines = cleaned_test_code.split('\n')
+                last_line = lines[-1].strip() if lines else ""
+                
+                # 检查最后一行是否看起来像未完成的语句
+                if last_line and not last_line.endswith((';', '}', '{', ')')):
+                    # 检查是否是未完成的构造/函数调用
+                    if any(keyword in last_line for keyword in ['DiagramItem', 'DiagramItemGroup', 'Arrow', 'DiagramScene']):
+                        # 可能是未完成的构造函数调用
+                        if '(' in last_line and ')' not in last_line:
+                            # 尝试补全括号和分号
+                            cleaned_test_code += ');'
+                            logs.append(f"⚠️  检测到未完成的构造函数调用，已尝试补全")
+                
+                # 添加缺失的右括号
+                cleaned_test_code += '\n' + '}' * missing_braces
+                logs.append(f"✅ 已修复未闭合的大括号（添加了 {missing_braces} 个右括号）")
+            elif close_braces > open_braces:
+                logs.append(f"⚠️  检测到多余的右括号（{close_braces - open_braces} 个），但继续编译")
+            
+            # 最后检查：确保代码末尾不是未完成的语句
+            # 检查最后几行，看是否有明显的语法错误
+            lines = cleaned_test_code.split('\n')
+            if lines:
+                # 检查最后5行
+                last_lines = [line.strip() for line in lines[-5:] if line.strip()]
+                for i, line in enumerate(last_lines):
+                    # 检查是否有未完成的构造调用（有开括号但没有闭括号，且不在字符串中）
+                    if '(' in line and ')' not in line and not line.endswith(';'):
+                        # 检查是否在字符串中
+                        if line.count('"') % 2 == 0 and line.count("'") % 2 == 0:
+                            # 可能有问题，但这里只记录警告，不自动修复（因为可能跨多行）
+                            if any(keyword in line for keyword in ['DiagramItem', 'DiagramItemGroup', 'Arrow', 'DiagramScene']):
+                                logs.append(f"⚠️  代码末尾附近可能有不完整的构造函数调用，请检查生成的代码")
+                                break
+            
+            # 后处理：修复常见的语法错误模式
+            fixed_code = cleaned_test_code
+            
+            # 修复错误：new DiagramItem(DiagramItem) - 类型名作为参数
+            # 匹配模式：new DiagramItem(DiagramItem) 或 DiagramItem(DiagramItem)
+            # 使用更精确的正则表达式，匹配 DiagramItem(DiagramItem) 这种模式
+            # 注意：DiagramItem 作为参数时，后面可能有空格或直接跟右括号
+            # 需要匹配两种情况：
+            # 1. new DiagramItem(DiagramItem) - 需要替换整个表达式，包括 new
+            # 2. DiagramItem(DiagramItem) - 只替换构造部分
+            
+            # 首先匹配包含 new 的完整表达式（优先匹配，避免重复）
+            pattern_with_new = r'\bnew\s+DiagramItem\s*\(\s*DiagramItem\s*\)'
+            matches_with_new = list(re.finditer(pattern_with_new, fixed_code))
+            if matches_with_new:
+                logs.append(f"🔍 检测到 {len(matches_with_new)} 处 new DiagramItem(DiagramItem) 错误模式")
+                for match in reversed(matches_with_new):
+                    matched_text = fixed_code[match.start():match.end()]
+                    replacement = 'new DiagramItem(DiagramItem::Step, nullptr, nullptr)'
+                    fixed_code = fixed_code[:match.start()] + replacement + fixed_code[match.end():]
+                    logs.append(f"⚠️  已修复错误的 DiagramItem 构造（类型名作为参数，包含new）：{matched_text} -> {replacement}")
+            
+            # 然后匹配不包含 new 的构造表达式（使用负向后顾断言避免重复匹配）
+            # 注意：需要先处理包含 new 的情况，避免重复匹配
+            pattern_without_new = r'(?<!\bnew\s)\bDiagramItem\s*\(\s*DiagramItem\s*\)'
+            matches_without_new = list(re.finditer(pattern_without_new, fixed_code))
+            if matches_without_new:
+                logs.append(f"🔍 检测到 {len(matches_without_new)} 处 DiagramItem(DiagramItem) 错误模式（不包含new）")
+                for match in reversed(matches_without_new):
+                    matched_text = fixed_code[match.start():match.end()]
+                    replacement = 'DiagramItem(DiagramItem::Step, nullptr, nullptr)'
+                    fixed_code = fixed_code[:match.start()] + replacement + fixed_code[match.end():]
+                    logs.append(f"⚠️  已修复错误的 DiagramItem 构造（类型名作为参数，不包含new）：{matched_text} -> {replacement}")
+            
+            if not matches_with_new and not matches_without_new:
+                # 如果没有匹配到，检查是否代码中确实存在这种模式（用于调试）
+                if 'DiagramItem(DiagramItem' in fixed_code:
+                    logs.append(f"⚠️  检测到 DiagramItem(DiagramItem 模式，但正则表达式未匹配，请检查")
+            
+            # 修复无参构造 DiagramItem 的错误（DiagramItem 需要参数）
+            # 匹配模式：DiagramItem variable_name; （无参构造）
+            pattern = r'\bDiagramItem\s+(\w+)\s*;'
+            matches = list(re.finditer(pattern, fixed_code))
+            if matches:
+                for match in reversed(matches):  # 从后往前替换，避免位置偏移
+                    var_name = match.group(1)
+                    # 替换为带参数的构造（使用默认值）
+                    replacement = f'DiagramItem {var_name}(DiagramItem::Step, nullptr, nullptr);'
+                    fixed_code = fixed_code[:match.start()] + replacement + fixed_code[match.end():]
+                    logs.append(f"⚠️  已修复无参 DiagramItem 构造：{var_name}（添加了必需的参数）")
+            
+            # 修复无参构造 DiagramItemGroup 的错误
+            pattern = r'\bDiagramItemGroup\s+(\w+)\s*;'
+            matches = list(re.finditer(pattern, fixed_code))
+            if matches:
+                for match in reversed(matches):
+                    var_name = match.group(1)
+                    # DiagramItemGroup 的构造函数需要 QGraphicsItem* parent
+                    replacement = f'DiagramItemGroup {var_name}(nullptr);'
+                    fixed_code = fixed_code[:match.start()] + replacement + fixed_code[match.end():]
+                    logs.append(f"⚠️  已修复无参 DiagramItemGroup 构造：{var_name}（添加了必需的参数）")
+            
+            # 修复其他类似的错误：类型名作为参数
+            # 例如：new DiagramItemGroup(DiagramItemGroup)
+            pattern = r'\b(new\s+)?DiagramItemGroup\s*\(\s*DiagramItemGroup\s*\)'
+            matches = list(re.finditer(pattern, fixed_code))
+            if matches:
+                for match in reversed(matches):
+                    has_new = match.group(1) is not None
+                    if has_new:
+                        replacement = 'new DiagramItemGroup(nullptr)'
+                    else:
+                        replacement = 'DiagramItemGroup(nullptr)'
+                    fixed_code = fixed_code[:match.start()] + replacement + fixed_code[match.end():]
+                    logs.append(f"⚠️  已修复错误的 DiagramItemGroup 构造（类型名作为参数）")
+            
+            (build_dir / "test_cases.cpp").write_text(fixed_code, encoding='utf-8')
             logs.append("✅ 测试代码已清理并写入")
             
->>>>>>> origin/tzf
             src_file_full = Path(source_file_path).resolve()
             src_dir = src_file_full.parent
             cpp_files = ["catch_main_wrapper.cpp", "catch_amalgamated.cpp", "test_cases.cpp"]
@@ -396,26 +683,15 @@ struct WriteDiagramPath {
             
             blocklist = {"main.cpp", "mygraphicsview.cpp"}  # 避免已知与测试无关且会触发编译错误的文件
 
-<<<<<<< HEAD
+            # 检查是否需要修改 mainwindow.h 以支持测试
+            mainwindow_h_modified = False
+            mainwindow_h_path = None
+            
             # 第一遍：收集所有文件
             for item in src_dir.iterdir():
                 if item.is_file():
                     ext = item.suffix.lower()
                     if ext in {'.h', '.hpp', '.hh', '.hxx', '.ui', '.qrc', '.png', '.jpg', '.ico', '.jpeg', '.svg'}:
-                        shutil.copy2(item, build_dir / item.name)
-                        if ext == '.ui': 
-                            ui_files.append(item.name)
-                        elif ext == '.qrc':
-                            qrc_files.append(item.name)
-=======
-            # 检查是否需要修改 mainwindow.h 以支持测试
-            mainwindow_h_modified = False
-            mainwindow_h_path = None
-            
-            for item in src_dir.iterdir():
-                if item.is_file():
-                    ext = item.suffix.lower()
-                    if ext in {'.h', '.hpp', '.hh', '.hxx', '.ui', '.qrc', '.png', '.jpg', '.ico'}:
                         if item.name.lower() in {'mainwindow.h', 'mainwindow.hpp'}:
                             # 修改 mainwindow.h 以支持测试访问私有成员
                             mainwindow_h_path = build_dir / item.name
@@ -443,7 +719,6 @@ struct WriteDiagramPath {
                                 
                                 # 替换 private: 为条件编译，在测试模式下使用 public:
                                 # 使用正则表达式匹配 private: 关键字
-                                import re
                                 # 匹配 private: 后面可能跟注释的情况，但要避免匹配 protected: 和 public:
                                 # 只匹配独立的 private: 行
                                 pattern = r'^(\s*)private\s*:(\s*(?://.*)?)$'
@@ -467,13 +742,83 @@ struct WriteDiagramPath {
                                 shutil.copy2(item, mainwindow_h_path)
                         else:
                             shutil.copy2(item, build_dir / item.name)
-                        if ext == '.ui': ui_files.append(item.name)
->>>>>>> origin/tzf
+                        if ext == '.ui': 
+                            ui_files.append(item.name)
+                        elif ext == '.qrc':
+                            qrc_files.append(item.name)
                     elif ext in {'.cpp', '.cc', '.cxx', '.c'}:
                         if item.name.lower() in blocklist:
                             continue
                         if item.name.lower() != "main.cpp":
-                            shutil.copy2(item, build_dir / item.name)
+                            # 复制文件并修复常见问题
+                            dest_file = build_dir / item.name
+                            try:
+                                content = item.read_text(encoding='utf-8', errors='ignore')
+                                modified = False
+                                
+                                # 修复 INFINITY 未声明问题
+                                # 选项1: 使用 Q_INFINITY (需要 QtCore/qmath.h)
+                                # 选项2: 使用 std::numeric_limits<double>::infinity() (需要 <limits>)
+                                # 这里使用 Q_INFINITY，因为这是 Qt 项目
+                                if 'INFINITY' in content and 'Q_INFINITY' not in content:
+                                    # 检查是否已经包含了必要的头文件
+                                    has_qmath = '#include <QtCore/qmath.h>' in content or '#include <QtCore/QtMath>' in content
+                                    has_limits = '#include <limits>' in content
+                                    
+                                    if not has_qmath:
+                                        # 在文件开头添加必要的头文件
+                                        lines = content.split('\n')
+                                        insert_pos = 0
+                                        # 找到最后一个 #include 的位置
+                                        for i, line in enumerate(lines):
+                                            if line.strip().startswith('#include'):
+                                                insert_pos = i + 1
+                                        
+                                        # 插入 Qt 数学头文件
+                                        lines.insert(insert_pos, '#include <QtCore/qmath.h>  // 修复 INFINITY -> Q_INFINITY')
+                                        content = '\n'.join(lines)
+                                        modified = True
+                                    
+                                    # 替换 INFINITY 为 Q_INFINITY
+                                    # 使用单词边界确保只替换独立的 INFINITY，而不是变量名的一部分
+                                    old_content = content
+                                    # 匹配独立的 INFINITY（不在字符串、注释中）
+                                    # 简单方法：匹配单词边界的 INFINITY
+                                    content = re.sub(r'\bINFINITY\b', 'Q_INFINITY', content)
+                                    if old_content != content:
+                                        modified = True
+                                        count = old_content.count('INFINITY') - content.count('INFINITY')
+                                        logs.append(f"   ✅ 已修复 {item.name} 中的 INFINITY -> Q_INFINITY ({count} 处)")
+                                
+                                # 修复 qDebug() 未声明问题（需要包含 QDebug 头文件）
+                                if 'qDebug()' in content or 'qDebug(' in content:
+                                    # 检查是否已经包含了必要的头文件
+                                    has_qdebug = '#include <QDebug>' in content or '#include <QtCore/QDebug>' in content or '#include "QDebug"' in content
+                                    
+                                    if not has_qdebug:
+                                        # 在文件开头添加必要的头文件
+                                        lines = content.split('\n')
+                                        insert_pos = 0
+                                        # 找到最后一个 #include 的位置
+                                        for i, line in enumerate(lines):
+                                            if line.strip().startswith('#include'):
+                                                insert_pos = i + 1
+                                        
+                                        # 插入 QDebug 头文件
+                                        lines.insert(insert_pos, '#include <QDebug>  // 修复 qDebug() 未声明问题')
+                                        content = '\n'.join(lines)
+                                        modified = True
+                                        logs.append(f"   ✅ 已为 {item.name} 添加 QDebug 头文件")
+                                
+                                if modified:
+                                    dest_file.write_text(content, encoding='utf-8')
+                                else:
+                                    shutil.copy2(item, dest_file)
+                            except Exception as e:
+                                # 如果修复失败，直接复制原文件
+                                logs.append(f"   ⚠️  修复 {item.name} 时出错: {e}，使用原文件")
+                                shutil.copy2(item, dest_file)
+                            
                             cpp_files.append(item.name)
             
             # 第二遍：处理 .qrc 文件中引用的资源文件（递归复制资源目录）
@@ -499,7 +844,6 @@ struct WriteDiagramPath {
                         try:
                             qrc_content = qrc_path.read_text(encoding='utf-8')
                             # 简单的 XML 解析，找出 <file> 标签中的路径
-                            import re
                             file_pattern = r'<file[^>]*>([^<]+)</file>'
                             resource_files = re.findall(file_pattern, qrc_content)
                             if resource_files:
@@ -532,7 +876,6 @@ struct WriteDiagramPath {
                                         logs.append(f"   ⚠️ 共 {missing_count} 个资源文件不存在")
                         except Exception as e:
                             logs.append(f"   ⚠️ 解析 {qrc_file} 失败: {str(e)}")
-                            import traceback
                             logs.append(f"   ⚠️ 错误详情: {traceback.format_exc()}")
             
             # 生成资源初始化代码
@@ -553,10 +896,21 @@ struct WriteDiagramPath {
                 logs.append(f"💡 提示：Qt6 的 CMAKE_AUTORCC 会自动处理资源文件")
             
             catch_main_cpp = f"""
+// 定义 CATCH_AMALGAMATED_CUSTOM_MAIN 以禁用 catch_amalgamated.cpp 中的 main 函数
+// 这样我们就可以提供自己的 main 函数来初始化 QApplication
+#define CATCH_AMALGAMATED_CUSTOM_MAIN
 #include "catch_amalgamated.hpp"
 #include <QApplication>
+#include <cstdlib>
 {qrc_includes}
 int main( int argc, char* argv[] ) {{
+  // 在无头环境中使用 offscreen 平台插件（不需要 X11 显示服务器）
+  // 这允许在没有图形界面的环境中运行 Qt 应用程序
+  if (!std::getenv("QT_QPA_PLATFORM")) {{
+    // 使用 C 风格的 setenv（POSIX 标准）
+    setenv("QT_QPA_PLATFORM", "offscreen", 0);
+  }}
+  
   QApplication a(argc, argv); // 确保有 GUI 环境上下文
   // 注意：在 Qt6 中使用 CMAKE_AUTORCC 时，资源会自动注册，无需手动调用 Q_INIT_RESOURCE
   // 如果资源加载失败，请检查：
@@ -568,7 +922,8 @@ int main( int argc, char* argv[] ) {{
 }}
 """
             (build_dir / "catch_main_wrapper.cpp").write_text(catch_main_cpp, encoding='utf-8')
-            (build_dir / "test_cases.cpp").write_text(test_code, encoding='utf-8')
+            # 注意：test_cases.cpp 已经在上面写入修复后的 cleaned_test_code，这里不需要再次写入
+            # (build_dir / "test_cases.cpp").write_text(test_code, encoding='utf-8')  # 已删除：会覆盖修复后的代码
             
             cmake_exe = shutil.which("cmake") or "cmake"
             logs.append(f"🔧 CMake: {cmake_exe}")
@@ -582,13 +937,10 @@ int main( int argc, char* argv[] ) {{
             
             cpp_sources_str = "\n    ".join([f'"{f}"' for f in cpp_files])
             ui_sources_str = "\n    ".join([f'"{f}"' for f in ui_files])
-<<<<<<< HEAD
             qrc_sources_str = "\n    ".join([f'"{f}"' for f in qrc_files])
-=======
             
             logs.append(f"📝 源文件数量: {len(cpp_files)}")
             logs.append(f"📝 UI文件数量: {len(ui_files)}")
->>>>>>> origin/tzf
 
             # 检查是否启用覆盖率统计（如果工具可用）
             coverage_flags = ""
@@ -633,7 +985,13 @@ if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "-Wl,--subsystem,console {coverage_flags}")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport)
+# 根据平台选择 Qt 版本
+if(WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport)
+else()
+    # Linux 环境使用 Qt5（通过 apt 安装的 qtbase5-dev）
+    find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport)
+endif()
 
 include_directories(".")
 include_directories("${{CMAKE_CURRENT_BINARY_DIR}}")
@@ -644,7 +1002,16 @@ add_executable(test_runner
     {qrc_sources_str}
 )
 
-target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport)
+# 为 catch_amalgamated.cpp 添加编译定义，禁用其内置的 main 函数
+# 这样我们就可以在 catch_main_wrapper.cpp 中提供自己的 main 函数
+set_source_files_properties(catch_amalgamated.cpp PROPERTIES COMPILE_DEFINITIONS "CATCH_AMALGAMATED_CUSTOM_MAIN")
+
+# 根据平台链接相应的 Qt 库
+if(WIN32)
+    target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport)
+else()
+    target_link_libraries(test_runner PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Svg Qt5::PrintSupport)
+endif()
 """
             (build_dir / "CMakeLists.txt").write_text(cmake_content, encoding='utf-8')
             logs.append("✅ CMakeLists.txt 已生成")
@@ -663,16 +1030,24 @@ target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
             gcc_path = normalize_path(self.compiler_info['gcc'] or self.compiler_info['g++'])
             gpp_path = normalize_path(self.compiler_info['g++'])
             
+            # 根据平台选择 CMake 生成器
+            if sys.platform == "win32":
+                cmake_generator = "MinGW Makefiles"
+            else:
+                # Linux/Docker 环境使用 Unix Makefiles
+                cmake_generator = "Unix Makefiles"
+            
             logs.append("⚙️  开始 CMake 配置...")
             logs.append(f"   使用原始路径（不使用短路径）")
-            logs.append(f"   Qt路径: {qt_prefix_path}")
+            logs.append(f"   CMake 生成器: {cmake_generator}")
+            logs.append(f"   Qt路径: {qt_prefix_path if qt_prefix_path else '(自动检测)'}")
             logs.append(f"   Make: {make_path}")
             logs.append(f"   C编译器: {gcc_path}")
             logs.append(f"   C++编译器: {gpp_path}")
             
-            # 验证路径是否存在
+            # 验证路径是否存在（Qt 路径在 Linux 上可能为空，这是正常的）
             all_paths_valid = True
-            for name, path in [("Qt路径", qt_prefix_path), ("Make", make_path), 
+            for name, path in [("Make", make_path), 
                               ("C编译器", gcc_path), ("C++编译器", gpp_path)]:
                 if path:
                     exists = os.path.exists(path) or os.path.exists(path.replace("/", "\\"))
@@ -682,7 +1057,23 @@ target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
                     else:
                         logs.append(f"   ✅ {name} 路径有效")
             
-            if not all_paths_valid:
+            # Qt 路径验证（Linux 上可能为空，这是正常的）
+            if qt_prefix_path:
+                exists = os.path.exists(qt_prefix_path) or os.path.exists(qt_prefix_path.replace("/", "\\"))
+                if not exists:
+                    logs.append(f"   ❌ Qt路径 路径不存在: {qt_prefix_path}")
+                    if sys.platform == "win32":
+                        all_paths_valid = False
+                    else:
+                        # Linux 上 Qt 路径为空或不存在是正常的，CMake 会自动查找
+                        logs.append("   ℹ️  Linux 环境将依赖 CMake 的 find_package 自动查找 Qt5")
+                else:
+                    logs.append(f"   ✅ Qt路径 路径有效")
+            else:
+                if sys.platform != "win32":
+                    logs.append("   ℹ️  Qt路径为空，将依赖 CMake 的 find_package 自动查找 Qt5")
+            
+            if not all_paths_valid and sys.platform == "win32":
                 logs.append("   ⚠️  部分路径无效，但将继续尝试配置")
             
             # 构建 CMake 配置命令
@@ -698,13 +1089,17 @@ target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
                 return path
             
             config_cmd = [
-                cmake_exe, "-G", "MinGW Makefiles",
-                f"-DCMAKE_PREFIX_PATH={escape_cmake_path(qt_prefix_path)}",
+                cmake_exe, "-G", cmake_generator,
                 f"-DCMAKE_MAKE_PROGRAM={escape_cmake_path(make_path)}",
                 f"-DCMAKE_C_COMPILER={escape_cmake_path(gcc_path)}",
                 f"-DCMAKE_CXX_COMPILER={escape_cmake_path(gpp_path)}",
-                "."
             ]
+            
+            # 只在 Windows 上或 Qt 路径存在时添加 CMAKE_PREFIX_PATH
+            if qt_prefix_path and (sys.platform == "win32" or os.path.exists(qt_prefix_path)):
+                config_cmd.append(f"-DCMAKE_PREFIX_PATH={escape_cmake_path(qt_prefix_path)}")
+            
+            config_cmd.append(".")
             
             # 清理可能存在的旧 CMake 缓存（避免 AutoGen 问题）
             cmake_cache = build_dir / "CMakeCache.txt"
@@ -891,12 +1286,23 @@ target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
 
             # 3. 运行
             logs.append("🚀 运行中...")
-            exe_path = build_dir / "test_runner.exe"
+            # 根据平台选择可执行文件名
+            exe_name = "test_runner.exe" if sys.platform == "win32" else "test_runner"
+            exe_path = build_dir / exe_name
             
             if not exe_path.exists():
                 logs.append(f"❌ 可执行文件不存在: {exe_path}")
                 logs.append("   编译可能失败，但未正确报告错误")
-                return {"success": False, "logs": "\n".join(logs), "summary": {"total": 0, "passed": 0, "failed": 0}}
+                # 尝试查找其他可能的可执行文件名
+                possible_names = ["test_runner", "test_runner.exe", "./test_runner"]
+                for name in possible_names:
+                    alt_path = build_dir / name
+                    if alt_path.exists():
+                        logs.append(f"   💡 找到可执行文件: {alt_path}")
+                        exe_path = alt_path
+                        break
+                else:
+                    return {"success": False, "logs": "\n".join(logs), "summary": {"total": 0, "passed": 0, "failed": 0}}
             
             run_res = await asyncio.to_thread(self._run_sync_cmd, [str(exe_path), "--reporter", "xml"], str(build_dir))
 
@@ -932,7 +1338,6 @@ target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
             
             summary = self._parse_catch2_results(run_res.stdout)
             
-<<<<<<< HEAD
             # 收集覆盖率数据（如果工具可用且已启用覆盖率编译）
             coverage_data = None
             if self.gcov_path and coverage_flags:
@@ -952,15 +1357,12 @@ target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
                     if not self.lcov_path:
                         logs.append("💡 提示: 安装 lcov 可能有助于解决问题")
             
-            result = {
-=======
             # 如果解析结果为空，说明可能没有测试用例
             if summary["total"] == 0 and not run_res.stdout:
                 logs.append("⚠️ 未检测到任何测试用例")
                 logs.append("   请检查生成的测试代码是否包含 TEST_CASE 定义")
             
-            return {
->>>>>>> origin/tzf
+            result = {
                 "success": True, 
                 "logs": "\n".join(logs) + "\n\n--- 终端输出 ---\n" + (run_res.stdout or "") + (run_res.stderr or ""),
                 "summary": summary
@@ -1191,7 +1593,6 @@ target_link_libraries(test_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
             }
         except Exception:
             # 回退到最简解析
-            import re
             m = re.search(r'failures="(\d+)" successes="(\d+)"', xml_content or "")
             if m:
                 f, s = int(m.group(1)), int(m.group(2))

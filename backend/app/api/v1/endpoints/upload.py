@@ -302,8 +302,8 @@ def upload_static_zip(
 def upload_unit_zip(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    name: str | None = Form(None),
-    description: str | None = Form(None),
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     """【完全照搬 static-zip】上传压缩包，创建单元测试项目"""

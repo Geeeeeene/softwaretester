@@ -70,11 +70,22 @@ export default function UITestPage() {
       
       if (response.data.execution_id) {
         alert('测试已开始执行')
-        refetchExecutions()
+        // 使用 setTimeout 延迟刷新，避免在状态更新过程中出错
+        setTimeout(() => {
+          try {
+            refetchExecutions().catch((err) => {
+              console.error('刷新执行记录失败:', err)
+              // 不显示错误，因为测试已经成功提交
+            })
+          } catch (err) {
+            console.error('刷新执行记录时出错:', err)
+          }
+        }, 100)
       }
     } catch (error: any) {
       console.error('执行测试失败:', error)
-      alert(`执行失败: ${error.response?.data?.detail || error.message || '未知错误'}`)
+      const errorMessage = error.response?.data?.detail || error.message || '未知错误'
+      alert(`执行失败: ${errorMessage}`)
     }
   }
 
@@ -105,10 +116,21 @@ export default function UITestPage() {
     try {
       await uiTestApi.deleteExecution(projectId!, executionId)
       alert('执行记录已删除')
-      refetchExecutions()
+      // 使用 setTimeout 延迟刷新，避免在状态更新过程中出错
+      setTimeout(() => {
+        try {
+          refetchExecutions().catch((err) => {
+            console.error('刷新执行记录失败:', err)
+            // 不显示错误，因为删除已经成功
+          })
+        } catch (err) {
+          console.error('刷新执行记录时出错:', err)
+        }
+      }, 100)
     } catch (error: any) {
       console.error('删除执行记录失败:', error)
-      alert(`删除失败: ${error.response?.data?.detail || error.message || '未知错误'}`)
+      const errorMessage = error.response?.data?.detail || error.message || '未知错误'
+      alert(`删除失败: ${errorMessage}`)
     }
   }
 
@@ -356,117 +378,194 @@ export default function UITestPage() {
               ) : executionsData?.items && executionsData.items.length > 0 ? (
                 <div className="space-y-3">
                   {executionsData.items.map((execution, index) => {
-                    const isPassed = execution.status === 'completed' && execution.failed_tests === 0
-                    const isRunning = execution.status === 'running'
-                    const isFailed = execution.status === 'failed' || (execution.status === 'completed' && execution.failed_tests > 0)
-                    
-                    // 尝试从test_results获取测试用例信息
-                    let testCase = null
-                    if (execution.test_results && execution.test_results.length > 0) {
-                      testCase = testCasesData?.items?.find(tc => tc.id === execution.test_results?.[0]?.test_case_id)
-                    }
-                    
-                    // 如果找不到，尝试通过test_ir中的name匹配（如果test_ir存在）
-                    if (!testCase && execution.result?.test_ir?.name) {
-                      testCase = testCasesData?.items?.find(tc => tc.name === execution.result.test_ir.name)
-                    }
-                    
-                    const testCaseName = testCase?.name || '未知用例'
-                    
-                    // 计算该用例的执行次数（统计该用例的所有执行记录，按时间排序）
-                    let executionCount = index + 1
-                    if (testCase) {
-                      // 找到该用例的所有执行记录，按时间排序
-                      const sameTestCaseExecutions = executionsData.items
-                        .filter(e => {
-                          // 通过test_results匹配
-                          if (e.test_results?.some(tr => tr.test_case_id === testCase.id)) {
-                            return true
-                          }
-                          // 通过test_ir中的name匹配
-                          if (e.result?.test_ir?.name === testCase.name) {
-                            return true
-                          }
-                          return false
-                        })
-                        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    try {
+                      // 安全地获取执行状态
+                      const status = execution?.status || 'unknown'
+                      const failedTests = typeof execution?.failed_tests === 'number' ? execution.failed_tests : 0
+                      const passedTests = typeof execution?.passed_tests === 'number' ? execution.passed_tests : 0
                       
-                      // 找到当前执行记录在该用例执行记录中的位置
-                      const currentIndex = sameTestCaseExecutions.findIndex(e => e.id === execution.id)
-                      executionCount = currentIndex >= 0 ? currentIndex + 1 : sameTestCaseExecutions.length + 1
-                    }
+                      const isPassed = status === 'completed' && failedTests === 0
+                      const isRunning = status === 'running'
+                      const isFailed = status === 'failed' || (status === 'completed' && failedTests > 0)
+                      
+                      // 尝试从test_results获取测试用例信息
+                      let testCase = null
+                      try {
+                        if (execution.test_results && Array.isArray(execution.test_results) && execution.test_results.length > 0) {
+                          const testCaseId = execution.test_results[0]?.test_case_id
+                          if (testCaseId) {
+                            testCase = testCasesData?.items?.find(tc => tc.id === testCaseId)
+                          }
+                        }
+                        
+                        // 如果找不到，尝试通过test_ir中的name匹配（如果test_ir存在）
+                        if (!testCase && execution.result?.test_ir?.name) {
+                          testCase = testCasesData?.items?.find(tc => tc.name === execution.result.test_ir.name)
+                        }
+                      } catch (err) {
+                        console.error('获取测试用例信息时出错:', err)
+                      }
+                      
+                      const testCaseName = testCase?.name || '未知用例'
+                      
+                      // 计算该用例的执行次数（统计该用例的所有执行记录，按时间排序）
+                      let executionCount = index + 1
+                      try {
+                        if (testCase && executionsData.items) {
+                          // 找到该用例的所有执行记录，按时间排序
+                          const sameTestCaseExecutions = executionsData.items
+                            .filter(e => {
+                              try {
+                                // 通过test_results匹配
+                                if (e.test_results?.some(tr => tr.test_case_id === testCase.id)) {
+                                  return true
+                                }
+                                // 通过test_ir中的name匹配
+                                if (e.result?.test_ir?.name === testCase.name) {
+                                  return true
+                                }
+                              } catch (err) {
+                                return false
+                              }
+                              return false
+                            })
+                            .sort((a, b) => {
+                              try {
+                                const timeA = a.created_at ? new Date(a.created_at).getTime() : 0
+                                const timeB = b.created_at ? new Date(b.created_at).getTime() : 0
+                                return timeA - timeB
+                              } catch (err) {
+                                return 0
+                              }
+                            })
+                          
+                          // 找到当前执行记录在该用例执行记录中的位置
+                          const currentIndex = sameTestCaseExecutions.findIndex(e => e.id === execution.id)
+                          executionCount = currentIndex >= 0 ? currentIndex + 1 : sameTestCaseExecutions.length + 1
+                        }
+                      } catch (err) {
+                        console.error('计算执行次数时出错:', err)
+                      }
 
-                    return (
-                      <div
-                        key={execution.id}
-                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {isRunning && <Clock className="h-5 w-5 text-blue-500" />}
-                              {isPassed && <CheckCircle className="h-5 w-5 text-green-500" />}
-                              {isFailed && <XCircle className="h-5 w-5 text-red-500" />}
-                              <span className="font-medium text-gray-900">
-                                序号：{index + 1}
-                              </span>
-                              <span className="font-medium text-gray-900">
-                                用例名称：{testCaseName}
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                第 {executionCount} 次执行
-                              </span>
-                              <span className={`text-sm px-2 py-1 rounded ${
-                                isRunning ? 'bg-blue-100 text-blue-700' :
-                                isPassed ? 'bg-green-100 text-green-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>
-                                {isRunning ? '执行中' : isPassed ? '通过' : '失败'}
-                              </span>
-                            </div>
-                            <div className="mt-2 text-sm text-gray-600 space-y-1">
-                              <div>
-                                执行时间：{new Date(execution.created_at).toLocaleString('zh-CN')}
+                      // 安全地格式化日期
+                      let formattedDate = '未知时间'
+                      try {
+                        if (execution.created_at) {
+                          const date = new Date(execution.created_at)
+                          if (!isNaN(date.getTime())) {
+                            formattedDate = date.toLocaleString('zh-CN')
+                          }
+                        }
+                      } catch (err) {
+                        console.error('格式化日期时出错:', err)
+                      }
+
+                      // 安全地格式化时长
+                      let formattedDuration = null
+                      try {
+                        if (execution.duration_seconds != null && typeof execution.duration_seconds === 'number') {
+                          formattedDuration = execution.duration_seconds.toFixed(2)
+                        }
+                      } catch (err) {
+                        console.error('格式化时长时出错:', err)
+                      }
+
+                      return (
+                        <div
+                          key={execution.id || index}
+                          className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {isRunning && <Clock className="h-5 w-5 text-blue-500" />}
+                                {isPassed && <CheckCircle className="h-5 w-5 text-green-500" />}
+                                {isFailed && <XCircle className="h-5 w-5 text-red-500" />}
+                                <span className="font-medium text-gray-900">
+                                  序号：{index + 1}
+                                </span>
+                                <span className="font-medium text-gray-900">
+                                  用例名称：{testCaseName}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  第 {executionCount} 次执行
+                                </span>
+                                <span className={`text-sm px-2 py-1 rounded ${
+                                  isRunning ? 'bg-blue-100 text-blue-700' :
+                                  isPassed ? 'bg-green-100 text-green-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {isRunning ? '执行中' : isPassed ? '通过' : '失败'}
+                                </span>
                               </div>
-                              {execution.duration_seconds && (
+                              <div className="mt-2 text-sm text-gray-600 space-y-1">
                                 <div>
-                                  执行时长：{execution.duration_seconds.toFixed(2)} 秒
+                                  执行时间：{formattedDate}
                                 </div>
-                              )}
-                              <div>
-                                测试结果：通过 {execution.passed_tests}，失败 {execution.failed_tests}
+                                {formattedDuration && (
+                                  <div>
+                                    执行时长：{formattedDuration} 秒
+                                  </div>
+                                )}
+                                <div>
+                                  测试结果：通过 {passedTests}，失败 {failedTests}
+                                </div>
+                                {execution.error_message && (
+                                  <div className="text-red-600 mt-1">
+                                    错误：{execution.error_message}
+                                  </div>
+                                )}
                               </div>
-                              {execution.error_message && (
-                                <div className="text-red-600 mt-1">
-                                  错误：{execution.error_message}
-                                </div>
-                              )}
                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                // 可以实现查看详情功能
-                                navigate(`/projects/${projectId}/ui-test/results/${execution.id}`)
-                              }}
-                            >
-                              查看详情
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteExecution(execution.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              删除
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  try {
+                                    navigate(`/projects/${projectId}/ui-test/results/${execution.id}`)
+                                  } catch (err) {
+                                    console.error('导航时出错:', err)
+                                    alert('导航失败，请刷新页面后重试')
+                                  }
+                                }}
+                              >
+                                查看详情
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  try {
+                                    handleDeleteExecution(execution.id)
+                                  } catch (err) {
+                                    console.error('删除执行记录时出错:', err)
+                                    alert('删除失败，请刷新页面后重试')
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                删除
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
+                      )
+                    } catch (error) {
+                      console.error('渲染执行记录时出错:', error, execution)
+                      // 返回一个错误占位符，而不是让整个页面崩溃
+                      return (
+                        <div
+                          key={execution.id || index}
+                          className="border border-red-200 rounded-lg p-4 bg-red-50"
+                        >
+                          <div className="text-sm text-red-600">
+                            ⚠️ 渲染执行记录时出错（ID: {execution.id || '未知'}）
+                          </div>
+                        </div>
+                      )
+                    }
                   })}
                 </div>
               ) : (

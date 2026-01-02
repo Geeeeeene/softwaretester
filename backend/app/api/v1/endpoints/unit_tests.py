@@ -48,7 +48,6 @@ class UpdateTestFileRequest(BaseModel):
 def log(msg: str):
     print(f"DEBUG_LOG: {msg}", file=sys.stderr, flush=True)
 
-<<<<<<< HEAD
 def get_document_summary_path(project_source_path: str) -> Path:
     """获取文档要点存储路径"""
     source_path = Path(project_source_path)
@@ -103,19 +102,8 @@ def get_test_file_path(project_source_path: str, source_file_path: str) -> Path:
     
     return result_path
 
-@router.get("/{project_id}/files")
-async def list_source_files(project_id: int, db: Session = Depends(get_db)):
-    log(f"收到文件列表请求: ID={project_id}")
-    
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        log(f"❌ 项目 {project_id} 在数据库中不存在")
-        raise HTTPException(status_code=404, detail="项目不存在")
-    
-=======
 def _get_source_path(project_id: int, project: Project) -> Optional[Path]:
     """获取项目源码路径"""
->>>>>>> origin/tzf
     log(f"📂 数据库路径记录: {project.source_path}")
     
     source_path = None
