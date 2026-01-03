@@ -116,7 +116,7 @@ export default function UITestCaseDetailPage() {
     },
     onSuccess: (response) => {
       // 跳转到执行结果页面或刷新执行列表
-      navigate(`/projects/${projectId}/ui-test/results/${response.data.execution_id}`)
+      navigate(`/projects/${projectId}/system-test/results/${response.data.execution_id}`)
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.detail || error.message || '未知错误'
@@ -162,7 +162,7 @@ export default function UITestCaseDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-500 mb-4">加载测试用例失败</p>
-          <Button onClick={() => navigate(`/projects/${projectId}/ui-test`)}>
+          <Button onClick={() => navigate(`/projects/${projectId}/system-test`)}>
             返回
           </Button>
         </div>
@@ -176,7 +176,7 @@ export default function UITestCaseDetailPage() {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(`/projects/${projectId}/ui-test`)}>
+            <Button variant="ghost" onClick={() => navigate(`/projects/${projectId}/system-test`)}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               返回
             </Button>

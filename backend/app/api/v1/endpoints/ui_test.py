@@ -1,4 +1,4 @@
-"""UI测试API端点"""
+"""系统测试API端点"""
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
@@ -21,13 +21,13 @@ router = APIRouter()
 
 
 class UITestCaseGenerateRequest(BaseModel):
-    """AI生成UI测试用例请求"""
+    """AI生成系统测试用例请求"""
     name: str
     description: str
 
 
 class UITestCaseGenerateResponse(BaseModel):
-    """AI生成UI测试用例响应"""
+    """AI生成系统测试用例响应"""
     name: str
     description: str
     robot_script: str
@@ -35,21 +35,21 @@ class UITestCaseGenerateResponse(BaseModel):
 
 
 class UITestExecuteRequest(BaseModel):
-    """执行UI测试请求"""
+    """执行系统测试请求"""
     name: str
     description: str
     robot_script: str
 
 
 class UITestExecuteResponse(BaseModel):
-    """执行UI测试响应"""
+    """执行系统测试响应"""
     execution_id: int
     status: str
     message: str
 
 
 class UITestResult(BaseModel):
-    """UI测试结果"""
+    """系统测试结果"""
     execution_id: int
     status: str
     passed: bool
@@ -61,14 +61,14 @@ class UITestResult(BaseModel):
     completed_at: Optional[str] = None
 
 
-@router.post("/projects/{project_id}/ui-test/generate", response_model=UITestCaseGenerateResponse)
+@router.post("/projects/{project_id}/system-test/generate", response_model=UITestCaseGenerateResponse)
 async def generate_ui_test_case(
     project_id: int,
     request: UITestCaseGenerateRequest,
     db: Session = Depends(get_db)
 ):
     """
-    使用AI生成UI测试用例（Robot Framework脚本）
+    使用AI生成系统测试用例（Robot Framework脚本）
     """
     # 验证项目存在
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -76,7 +76,7 @@ async def generate_ui_test_case(
         raise HTTPException(status_code=404, detail="项目不存在")
     
     if project.project_type != "ui":
-        raise HTTPException(status_code=400, detail="该项目不是UI测试项目")
+        raise HTTPException(status_code=400, detail="该项目不是系统测试项目")
     
     try:
         # 使用AI生成器生成Robot Framework脚本
@@ -123,14 +123,14 @@ async def generate_ui_test_case(
         )
 
 
-@router.post("/projects/{project_id}/ui-test/execute", response_model=UITestExecuteResponse)
+@router.post("/projects/{project_id}/system-test/execute", response_model=UITestExecuteResponse)
 async def execute_ui_test(
     project_id: int,
     request: UITestExecuteRequest,
     db: Session = Depends(get_db)
 ):
     """
-    执行UI测试（Robot Framework脚本）
+    执行系统测试（Robot Framework脚本）
     """
     # 验证项目存在
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -138,7 +138,7 @@ async def execute_ui_test(
         raise HTTPException(status_code=404, detail="项目不存在")
     
     if project.project_type != "ui":
-        raise HTTPException(status_code=400, detail="该项目不是UI测试项目")
+        raise HTTPException(status_code=400, detail="该项目不是系统测试项目")
     
     try:
         # 保存或更新测试用例（如果不存在则创建，存在则更新）
@@ -215,7 +215,7 @@ async def execute_ui_test(
                 test_description=request.description,
                 robot_script=request.robot_script
             )
-            print(f"✅ UI测试任务已提交到worker队列: job_id={job_id}, execution_id={execution.id}")
+            print(f"✅ 系统测试任务已提交到worker队列: job_id={job_id}, execution_id={execution.id}")
         except Exception as e:
             # 如果worker队列不可用，回退到直接执行（同步方式，不推荐）
             print(f"⚠️  Worker队列不可用，直接执行: {str(e)}")
@@ -261,24 +261,24 @@ async def execute_ui_test(
         return UITestExecuteResponse(
             execution_id=execution.id,
             status="running",
-            message="UI测试已开始执行"
+            message="系统测试已开始执行"
         )
         
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"启动UI测试失败: {str(e)}"
+            detail=f"启动系统测试失败: {str(e)}"
         )
 
 
-@router.get("/projects/{project_id}/ui-test/results/{execution_id}", response_model=UITestResult)
+@router.get("/projects/{project_id}/system-test/results/{execution_id}", response_model=UITestResult)
 async def get_ui_test_result(
     project_id: int,
     execution_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    获取UI测试结果
+    获取系统测试结果
     """
     # 验证项目存在
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -320,7 +320,7 @@ async def get_ui_test_result(
     )
 
 
-@router.get("/projects/{project_id}/ui-test/report/{execution_id}")
+@router.get("/projects/{project_id}/system-test/report/{execution_id}")
 async def get_ui_test_report(
     project_id: int,
     execution_id: int,
@@ -328,7 +328,7 @@ async def get_ui_test_report(
     db: Session = Depends(get_db)
 ):
     """
-    获取UI测试报告文件内容
+    获取系统测试报告文件内容
     """
     # 验证项目存在
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -404,7 +404,7 @@ async def get_ui_test_report(
         raise HTTPException(status_code=500, detail=f"读取报告文件失败: {str(e)}")
 
 
-@router.get("/projects/{project_id}/ui-test/executions")
+@router.get("/projects/{project_id}/system-test/executions")
 async def list_ui_test_executions(
     project_id: int,
     skip: int = 0,
@@ -412,7 +412,7 @@ async def list_ui_test_executions(
     db: Session = Depends(get_db)
 ):
     """
-    获取项目的UI测试执行历史
+    获取项目的系统测试执行历史
     """
     # 验证项目存在
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -453,14 +453,14 @@ async def list_ui_test_executions(
     }
 
 
-@router.delete("/projects/{project_id}/ui-test/executions/{execution_id}", status_code=204)
+@router.delete("/projects/{project_id}/system-test/executions/{execution_id}", status_code=204)
 async def delete_ui_test_execution(
     project_id: int,
     execution_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    删除UI测试执行记录
+    删除系统测试执行记录
     """
     # 验证项目存在
     project = db.query(Project).filter(Project.id == project_id).first()

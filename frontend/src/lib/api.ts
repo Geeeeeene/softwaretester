@@ -649,33 +649,33 @@ export interface UITestExecutionListResponse {
 }
 
 export const uiTestApi = {
-  // 使用AI生成UI测试用例（设置更长的超时时间，因为AI生成需要较长时间）
+  // 使用AI生成系统测试用例（设置更长的超时时间，因为AI生成需要较长时间）
   generateTestCase: (projectId: number, request: UITestCaseGenerateRequest) =>
-    api.post<UITestCaseGenerateResponse>(`/projects/${projectId}/ui-test/generate`, request, {
+    api.post<UITestCaseGenerateResponse>(`/projects/${projectId}/system-test/generate`, request, {
       timeout: 300000, // 5分钟超时（AI生成可能需要较长时间）
     }),
   
-  // 执行UI测试
+  // 执行系统测试
   executeTest: (projectId: number, request: UITestExecuteRequest) =>
-    api.post<UITestExecuteResponse>(`/projects/${projectId}/ui-test/execute`, request),
+    api.post<UITestExecuteResponse>(`/projects/${projectId}/system-test/execute`, request),
   
-  // 获取UI测试结果
+  // 获取系统测试结果
   getTestResult: (projectId: number, executionId: number) =>
-    api.get<UITestResult>(`/projects/${projectId}/ui-test/results/${executionId}`),
+    api.get<UITestResult>(`/projects/${projectId}/system-test/results/${executionId}`),
   
-  // 获取UI测试执行历史
+  // 获取系统测试执行历史
   listExecutions: (projectId: number, skip: number = 0, limit: number = 20) =>
-    api.get<UITestExecutionListResponse>(`/projects/${projectId}/ui-test/executions`, {
+    api.get<UITestExecutionListResponse>(`/projects/${projectId}/system-test/executions`, {
       params: { skip, limit }
     }),
   
-  // 删除UI测试执行记录
+  // 删除系统测试执行记录
   deleteExecution: (projectId: number, executionId: number) =>
-    api.delete(`/projects/${projectId}/ui-test/executions/${executionId}`),
+    api.delete(`/projects/${projectId}/system-test/executions/${executionId}`),
   
-  // 获取UI测试报告文件内容
+  // 获取系统测试报告文件内容
   getReport: (projectId: number, executionId: number, reportType: 'log' | 'report' | 'output' = 'log') =>
-    api.get<{ content: string; type: string; path: string }>(`/projects/${projectId}/ui-test/report/${executionId}`, {
+    api.get<{ content: string; type: string; path: string }>(`/projects/${projectId}/system-test/report/${executionId}`, {
       params: { report_type: reportType }
     }),
 }

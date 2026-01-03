@@ -406,7 +406,7 @@ def run_utbot_test(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """使用UTBotCpp对项目进行单元测试并生成报告（包含gcov+lcov和Dr.Memory）"""
+    """对项目进行单元测试并生成报告（包含gcov+lcov和Dr.Memory）"""
     from app.db.models.test_execution import TestExecution
     from app.worker.tasks import run_utbot_project_test
     
@@ -436,7 +436,7 @@ def run_utbot_test(
     background_tasks.add_task(run_utbot_project_test, execution.id)
     
     return {
-        "message": "单元测试任务已提交（UTBotCpp + gcov+lcov + Dr.Memory）",
+        "message": "单元测试任务已提交（gcov+lcov + Dr.Memory）",
         "execution_id": execution.id,
         "status": "pending",
         "project_id": project_id
@@ -511,7 +511,7 @@ async def run_local_utbot_test(
         )
         
         return {
-            "message": "单元测试任务已提交（UTBotCpp + gcov+lcov + Dr.Memory）",
+            "message": "单元测试任务已提交（gcov+lcov + Dr.Memory）",
             "execution_id": execution.id,
             "status": "pending",
             "temp_path": temp_dir

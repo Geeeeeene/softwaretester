@@ -325,7 +325,7 @@ export default function UITestPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => navigate(`/projects/${projectId}/ui-test/cases/${testCase.id}`)}
+                            onClick={() => navigate(`/projects/${projectId}/system-test/cases/${testCase.id}`)}
                           >
                             <Eye className="mr-2 h-4 w-4" />
                             详情
@@ -523,7 +523,7 @@ export default function UITestPage() {
                                 size="sm"
                                 onClick={() => {
                                   try {
-                                    navigate(`/projects/${projectId}/ui-test/results/${execution.id}`)
+                                    navigate(`/projects/${projectId}/system-test/results/${execution.id}`)
                                   } catch (err) {
                                     console.error('导航时出错:', err)
                                     alert('导航失败，请刷新页面后重试')

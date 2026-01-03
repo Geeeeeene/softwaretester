@@ -127,7 +127,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
         }
         
         // 跳转到系统测试页面
-        navigate(`/projects/${res.data.id}/ui-test`)
+        navigate(`/projects/${res.data.id}/system-test`)
       } else {
         // 其他项目类型保持普通创建流程
         const project: ProjectCreate = {

@@ -44,5 +44,5 @@ api_router.include_router(
 
 api_router.include_router(
     ui_test.router,
-    tags=["ui-test"]
+    tags=["system-test"]
 )

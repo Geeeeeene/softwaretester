@@ -405,7 +405,7 @@ export default function ProjectDetailPage() {
         break
       case 'ui':
         options.push(
-          { icon: TestTube, label: '系统测试管理', action: () => navigate(`/projects/${id}/ui-test`), color: 'purple' }
+          { icon: TestTube, label: '系统测试管理', action: () => navigate(`/projects/${id}/system-test`), color: 'purple' }
         )
         break
       case 'integration':

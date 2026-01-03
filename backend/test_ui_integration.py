@@ -1,6 +1,6 @@
 """
-UI测试集成测试脚本
-测试完整的UI测试流程：创建项目 -> 生成测试用例 -> 执行测试 -> 查看结果
+系统测试集成测试脚本
+测试完整的系统测试流程：创建项目 -> 生成测试用例 -> 执行测试 -> 查看结果
 """
 import requests
 import time
@@ -10,17 +10,17 @@ import json
 BASE_URL = "http://localhost:8000/api/v1"
 
 def test_ui_test_workflow():
-    """测试完整的UI测试工作流"""
+    """测试完整的系统测试工作流"""
     
     print("=" * 60)
-    print("UI测试集成测试")
+    print("系统测试集成测试")
     print("=" * 60)
     
-    # 1. 创建UI测试项目
-    print("\n步骤1: 创建UI测试项目")
+    # 1. 创建系统测试项目
+    print("\n步骤1: 创建系统测试项目")
     project_data = {
         "name": "测试UI项目",
-        "description": "这是一个用于测试UI测试功能的项目",
+        "description": "这是一个用于测试系统测试功能的项目",
         "project_type": "ui",
         "source_path": "C:\\Users\\lenovo\\Desktop\\FreeCharts\\diagramscene.exe"
     }
@@ -36,8 +36,8 @@ def test_ui_test_workflow():
     print(f"  项目名称: {project['name']}")
     print(f"  项目类型: {project['project_type']}")
     
-    # 2. 生成UI测试用例
-    print("\n步骤2: 使用AI生成UI测试用例")
+    # 2. 生成系统测试用例
+    print("\n步骤2: 使用AI生成系统测试用例")
     generate_request = {
         "name": "应用启动测试",
         "description": """测试应用程序能否正常启动并显示主窗口。
@@ -49,7 +49,7 @@ def test_ui_test_workflow():
     }
     
     response = requests.post(
-        f"{BASE_URL}/projects/{project_id}/ui-test/generate",
+        f"{BASE_URL}/projects/{project_id}/system-test/generate",
         json=generate_request
     )
     
@@ -65,8 +65,8 @@ def test_ui_test_workflow():
     print(test_case['robot_script'])
     print("-" * 60)
     
-    # 3. 执行UI测试
-    print("\n步骤3: 执行UI测试")
+    # 3. 执行系统测试
+    print("\n步骤3: 执行系统测试")
     execute_request = {
         "name": test_case['name'],
         "description": test_case['description'],
@@ -74,7 +74,7 @@ def test_ui_test_workflow():
     }
     
     response = requests.post(
-        f"{BASE_URL}/projects/{project_id}/ui-test/execute",
+        f"{BASE_URL}/projects/{project_id}/system-test/execute",
         json=execute_request
     )
     
@@ -97,7 +97,7 @@ def test_ui_test_workflow():
         wait_time += 5
         
         response = requests.get(
-            f"{BASE_URL}/projects/{project_id}/ui-test/results/{execution_id}"
+            f"{BASE_URL}/projects/{project_id}/system-test/results/{execution_id}"
         )
         
         if response.status_code != 200:
@@ -143,7 +143,7 @@ def test_ui_test_workflow():
     
     # 5. 获取执行历史
     print("\n步骤5: 获取执行历史")
-    response = requests.get(f"{BASE_URL}/projects/{project_id}/ui-test/executions")
+    response = requests.get(f"{BASE_URL}/projects/{project_id}/system-test/executions")
     
     if response.status_code != 200:
         print(f"❌ 获取执行历史失败: {response.text}")

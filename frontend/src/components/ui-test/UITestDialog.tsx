@@ -46,7 +46,7 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
     },
     onSuccess: (response) => {
       // 跳转到详情页面，并自动进入编辑模式
-      navigate(`/projects/${projectId}/ui-test/cases/${response.data.id}?edit=true`)
+      navigate(`/projects/${projectId}/system-test/cases/${response.data.id}?edit=true`)
       handleClose()
       if (onTestComplete) {
         onTestComplete()
