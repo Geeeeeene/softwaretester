@@ -90,10 +90,10 @@ AI 分析（Claude Sonnet 4.5）
 
 #### 2.2.2 技术实现
 
-**AI 生成器** (`backend/app/ui_test/ai_generator.py`)：
+**AI 生成器** (`backend/app/system_tests/ai_generator.py`)：
 
 ```python
-class UITestAIGenerator:
+class SystemTestAIGenerator:
     """系统测试AI生成器"""
     
     def generate_robot_script(
@@ -201,7 +201,7 @@ ${TIMEOUT}     30
 **核心思路**：
 1. 分析源代码结构（函数签名、依赖关系）
 2. AI 理解代码逻辑并生成 Catch2 测试用例
-3. 使用 UTBot 或 Catch2 执行测试
+3. 使用 Catch2 执行测试
 4. 收集覆盖率数据
 
 ### 3.2 智能化实现
@@ -263,7 +263,7 @@ class TestGenerationService:
 - **测试覆盖**：正常、边界、异常场景
 
 **执行器** (`backend/app/executors/unit_executor.py`)：
-- 支持 UTBot（自动生成）和 Catch2（AI生成）
+- 支持 Catch2（AI生成）
 - 集成 gcov/lcov 收集覆盖率
 - 支持并行执行多个测试用例
 

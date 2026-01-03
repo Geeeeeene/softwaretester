@@ -40,7 +40,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
 ┌─────────┐    ┌──────────────┐
 │ Database│    │ Task Queue   │
 │(Postgres│    │  (Redis+RQ)  │
-│  Neo4j) │    └──────┬───────┘
+│    )    │    └──────┬───────┘
 └─────────┘           │
                       ▼
             ┌──────────────────┐
@@ -49,14 +49,13 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
             │  - 并发控制       │
             └────────┬─────────┘
                      │
-         ┌───────────┴───────────┐
-         ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐
-│ Executor Layer  │    │  Graph Store     │
-│ - System Executor    │  │  - CFG           │
-│ - Unit Executor │    │  - Call Graph    │
-│ - Static Executor│   │  - State Machine │
-└─────────────────┘    └──────────────────┘
+                     ▼
+         ┌─────────────────────┐
+         │   Executor Layer    │
+         │ - System Executor   │
+         │ - Unit Executor     │
+         │ - Static Executor   │
+         └─────────────────────┘
          │
          ▼
 ┌─────────────────────┐
@@ -80,7 +79,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
 
 **技术栈**：
 - **框架**: FastAPI 0.104+
-- **数据库**: PostgreSQL 15（关系数据）, Neo4j 5（图数据）
+- **数据库**: PostgreSQL 15（关系数据）
 - **队列**: Redis 7 + RQ（异步任务）
 - **ORM**: SQLAlchemy 2.0
 - **验证**: Pydantic 2.5
@@ -96,9 +95,9 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
 2. **执行器适配层** (`app/executors/`)
    - 策略模式 + 工厂模式
    - 统一的执行器接口（BaseExecutor）
-   - 支持多种测试工具（Robot Framework、UTBot、Catch2、Cppcheck 等）
+   - 支持多种测试工具（Robot Framework、Catch2、Cppcheck 等）
 
-3. **AI 服务层** (`app/services/`, `app/ui_test/`)
+3. **AI 服务层** (`app/services/`, `app/system_tests/`)
    - 系统测试 AI 生成器（Robot Framework 脚本生成）
    - 单元测试 AI 生成器（Catch2 测试生成）
    - 集成测试 AI 生成器（测试代码生成和模拟执行）
@@ -129,11 +128,6 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
 - 项目、测试用例、执行记录等关系数据
 - Test IR 以 JSONB 格式存储，支持灵活查询
 
-**Neo4j**：
-- 控制流图（CFG）
-- 函数调用图
-- 状态机模型
-
 **文件系统**：
 - 测试执行日志
 - 截图和覆盖率报告
@@ -163,7 +157,6 @@ docker-compose up -d
 这将启动以下服务：
 - PostgreSQL (端口 5432)
 - Redis (端口 6379)
-- Neo4j (端口 7474, 7687)
 - Backend API (端口 8000)
 - Worker进程（Docker 容器内）
 - Frontend (端口 5173)
@@ -176,7 +169,6 @@ docker-compose ps
 4. **访问应用**
 - 前端: http://localhost:5173
 - API文档: http://localhost:8000/docs
-- Neo4j浏览器: http://localhost:7474
 
 5. **查看日志**
 ```bash
