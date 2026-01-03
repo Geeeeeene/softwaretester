@@ -272,7 +272,7 @@ export const executionsApi = {
       execution_id: number
       status: string
       project_id: number
-    }>(`/projects/${projectId}/test/utbot`),
+    }>(`/projects/${projectId}/test/unit`),
   
   // 执行本地项目的单元测试（支持localStorage项目）
   runLocalUnitTest: (projectData: {
@@ -290,7 +290,7 @@ export const executionsApi = {
       execution_id: number
       status: string
       temp_path?: string
-    }>('/projects/local/test/utbot', projectData),
+    }>('/projects/local/test/unit', projectData),
 }
 
 // ============ 工具状态API ============
@@ -304,7 +304,6 @@ export interface ToolStatus {
 }
 
 export interface ToolsStatusResponse {
-  utbot: ToolStatus
   gcov: ToolStatus
   lcov: ToolStatus
   drmemory: ToolStatus
@@ -595,33 +594,33 @@ export const uploadApi = {
   },
 }
 
-// ============ UI测试API ============
+// ============ 系统测试API ============
 
-export interface UITestCaseGenerateRequest {
+export interface SystemTestCaseGenerateRequest {
   name: string
   description: string
 }
 
-export interface UITestCaseGenerateResponse {
+export interface SystemTestCaseGenerateResponse {
   name: string
   description: string
   robot_script: string
   test_ir: Record<string, any>
 }
 
-export interface UITestExecuteRequest {
+export interface SystemTestExecuteRequest {
   name: string
   description: string
   robot_script: string
 }
 
-export interface UITestExecuteResponse {
+export interface SystemTestExecuteResponse {
   execution_id: number
   status: string
   message: string
 }
 
-export interface UITestResult {
+export interface SystemTestResult {
   execution_id: number
   status: string
   passed: boolean
@@ -637,7 +636,7 @@ export interface UITestResult {
   completed_at?: string
 }
 
-export interface UITestExecutionListResponse {
+export interface SystemTestExecutionListResponse {
   total: number
   items: TestExecution[]
   statistics: {
@@ -648,24 +647,24 @@ export interface UITestExecutionListResponse {
   }
 }
 
-export const uiTestApi = {
+export const systemTestApi = {
   // 使用AI生成系统测试用例（设置更长的超时时间，因为AI生成需要较长时间）
-  generateTestCase: (projectId: number, request: UITestCaseGenerateRequest) =>
-    api.post<UITestCaseGenerateResponse>(`/projects/${projectId}/system-test/generate`, request, {
+  generateTestCase: (projectId: number, request: SystemTestCaseGenerateRequest) =>
+    api.post<SystemTestCaseGenerateResponse>(`/projects/${projectId}/system-test/generate`, request, {
       timeout: 300000, // 5分钟超时（AI生成可能需要较长时间）
     }),
   
   // 执行系统测试
-  executeTest: (projectId: number, request: UITestExecuteRequest) =>
-    api.post<UITestExecuteResponse>(`/projects/${projectId}/system-test/execute`, request),
+  executeTest: (projectId: number, request: SystemTestExecuteRequest) =>
+    api.post<SystemTestExecuteResponse>(`/projects/${projectId}/system-test/execute`, request),
   
   // 获取系统测试结果
   getTestResult: (projectId: number, executionId: number) =>
-    api.get<UITestResult>(`/projects/${projectId}/system-test/results/${executionId}`),
+    api.get<SystemTestResult>(`/projects/${projectId}/system-test/results/${executionId}`),
   
   // 获取系统测试执行历史
   listExecutions: (projectId: number, skip: number = 0, limit: number = 20) =>
-    api.get<UITestExecutionListResponse>(`/projects/${projectId}/system-test/executions`, {
+    api.get<SystemTestExecutionListResponse>(`/projects/${projectId}/system-test/executions`, {
       params: { skip, limit }
     }),
   
@@ -679,3 +678,12 @@ export const uiTestApi = {
       params: { report_type: reportType }
     }),
 }
+
+// 向后兼容：保留旧名称的导出
+export const uiTestApi = systemTestApi
+export type UITestCaseGenerateRequest = SystemTestCaseGenerateRequest
+export type UITestCaseGenerateResponse = SystemTestCaseGenerateResponse
+export type UITestExecuteRequest = SystemTestExecuteRequest
+export type UITestExecuteResponse = SystemTestExecuteResponse
+export type UITestResult = SystemTestResult
+export type UITestExecutionListResponse = SystemTestExecutionListResponse

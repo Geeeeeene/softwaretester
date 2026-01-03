@@ -61,7 +61,7 @@ class UITestResult(BaseModel):
     completed_at: Optional[str] = None
 
 
-@router.post("/projects/{project_id}/system-test/generate", response_model=UITestCaseGenerateResponse)
+@router.post("/projects/{project_id}/system-test/generate", response_model=UITestCaseGenerateResponse, summary="生成系统测试用例")
 async def generate_ui_test_case(
     project_id: int,
     request: UITestCaseGenerateRequest,
@@ -123,7 +123,7 @@ async def generate_ui_test_case(
         )
 
 
-@router.post("/projects/{project_id}/system-test/execute", response_model=UITestExecuteResponse)
+@router.post("/projects/{project_id}/system-test/execute", response_model=UITestExecuteResponse, summary="执行系统测试")
 async def execute_ui_test(
     project_id: int,
     request: UITestExecuteRequest,
@@ -271,7 +271,7 @@ async def execute_ui_test(
         )
 
 
-@router.get("/projects/{project_id}/system-test/results/{execution_id}", response_model=UITestResult)
+@router.get("/projects/{project_id}/system-test/results/{execution_id}", response_model=UITestResult, summary="获取系统测试结果")
 async def get_ui_test_result(
     project_id: int,
     execution_id: int,
@@ -320,7 +320,7 @@ async def get_ui_test_result(
     )
 
 
-@router.get("/projects/{project_id}/system-test/report/{execution_id}")
+@router.get("/projects/{project_id}/system-test/report/{execution_id}", summary="获取系统测试报告")
 async def get_ui_test_report(
     project_id: int,
     execution_id: int,
@@ -404,7 +404,7 @@ async def get_ui_test_report(
         raise HTTPException(status_code=500, detail=f"读取报告文件失败: {str(e)}")
 
 
-@router.get("/projects/{project_id}/system-test/executions")
+@router.get("/projects/{project_id}/system-test/executions", summary="获取系统测试执行历史")
 async def list_ui_test_executions(
     project_id: int,
     skip: int = 0,
@@ -453,7 +453,7 @@ async def list_ui_test_executions(
     }
 
 
-@router.delete("/projects/{project_id}/system-test/executions/{execution_id}", status_code=204)
+@router.delete("/projects/{project_id}/system-test/executions/{execution_id}", status_code=204, summary="删除系统测试执行记录")
 async def delete_ui_test_execution(
     project_id: int,
     execution_id: int,

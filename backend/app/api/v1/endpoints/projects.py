@@ -400,8 +400,8 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     return None
 
 
-@router.post("/{project_id}/test/utbot", response_model=dict, status_code=201)
-def run_utbot_test(
+@router.post("/{project_id}/test/unit", response_model=dict, status_code=201)
+def run_unit_test(
     project_id: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
@@ -443,8 +443,8 @@ def run_utbot_test(
     }
 
 
-@router.post("/local/test/utbot", response_model=dict, status_code=201)
-async def run_local_utbot_test(
+@router.post("/local/test/unit", response_model=dict, status_code=201)
+async def run_local_unit_test(
     request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
