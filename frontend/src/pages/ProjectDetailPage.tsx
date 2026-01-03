@@ -405,7 +405,7 @@ export default function ProjectDetailPage() {
         break
       case 'ui':
         options.push(
-          { icon: TestTube, label: '功能测试管理', action: () => navigate(`/projects/${id}/ui-test`), color: 'purple' }
+          { icon: TestTube, label: '系统测试管理', action: () => navigate(`/projects/${id}/ui-test`), color: 'purple' }
         )
         break
       case 'integration':
@@ -917,7 +917,7 @@ export default function ProjectDetailPage() {
               >
                 <option value="unit">单元测试</option>
                 <option value="integration">集成测试</option>
-                <option value="ui">功能测试</option>
+                <option value="ui">系统测试</option>
                 <option value="static">静态分析</option>
               </select>
             </div>

@@ -38,7 +38,7 @@ export default function UITestPage() {
     refetchInterval: 5000, // 每5秒刷新
   })
 
-  // 获取功能测试用例列表
+  // 获取系统测试用例列表
   const { data: testCasesData, isLoading: testCasesLoading, refetch: refetchTestCases } = useQuery({
     queryKey: ['ui-test-cases', projectId],
     queryFn: async () => {
@@ -172,9 +172,9 @@ export default function UITestPage() {
               返回
             </Button>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{project.name} - 功能测试</h1>
+              <h1 className="text-xl font-bold text-gray-900">{project.name} - 系统测试</h1>
               <p className="text-sm text-gray-600 mt-1">
-                基于Robot Framework + SikuliLibrary的功能自动化测试
+                基于Robot Framework + SikuliLibrary的系统自动化测试
               </p>
             </div>
           </div>
@@ -188,7 +188,7 @@ export default function UITestPage() {
           <Card>
             <CardHeader>
               <CardTitle>测试分析</CardTitle>
-              <CardDescription>创建和执行功能测试</CardDescription>
+              <CardDescription>创建和执行系统测试</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <Button
@@ -196,7 +196,7 @@ export default function UITestPage() {
                 onClick={() => setShowTestDialog(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                功能测试（使用AI生成测试用例）
+                系统测试（使用AI生成测试用例）
               </Button>
               <Button
                 variant="outline"
@@ -231,7 +231,7 @@ export default function UITestPage() {
               )}
               <div>
                 <div className="text-sm font-medium text-gray-700">项目类型</div>
-                <div className="text-sm text-gray-900">功能测试</div>
+                <div className="text-sm text-gray-900">系统测试</div>
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-700">创建时间</div>
@@ -356,7 +356,7 @@ export default function UITestPage() {
                 <div className="text-center py-8">
                   <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                   <p className="text-gray-500">暂无测试用例</p>
-                  <p className="text-sm text-gray-400 mt-1">点击"功能测试"按钮创建第一个测试用例</p>
+                  <p className="text-sm text-gray-400 mt-1">点击"系统测试"按钮创建第一个测试用例</p>
                 </div>
               )}
             </CardContent>
@@ -368,7 +368,7 @@ export default function UITestPage() {
           <Card>
             <CardHeader>
               <CardTitle>测试执行历史</CardTitle>
-              <CardDescription>查看所有功能测试执行记录</CardDescription>
+              <CardDescription>查看所有系统测试执行记录</CardDescription>
             </CardHeader>
             <CardContent>
               {executionsLoading ? (
@@ -571,7 +571,7 @@ export default function UITestPage() {
               ) : (
                 <div className="text-center py-8">
                   <p className="text-gray-500">暂无测试执行记录</p>
-                  <p className="text-sm text-gray-400 mt-1">点击"功能测试"按钮创建第一个测试用例</p>
+                  <p className="text-sm text-gray-400 mt-1">点击"系统测试"按钮创建第一个测试用例</p>
                 </div>
               )}
             </CardContent>

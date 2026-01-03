@@ -58,7 +58,7 @@ export default function ProjectsPage() {
   // 项目类型分类
   const projectTypes = [
     { value: undefined, label: '全部项目' },
-    { value: 'ui', label: '功能测试项目' },
+    { value: 'ui', label: '系统测试项目' },
     { value: 'unit', label: '单元测试项目' },
     { value: 'integration', label: '集成测试项目' },
     { value: 'static', label: '静态分析项目' },

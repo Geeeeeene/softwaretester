@@ -185,7 +185,7 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>功能测试（使用AI生成测试用例）</DialogTitle>
+          <DialogTitle>系统测试（使用AI生成测试用例）</DialogTitle>
           <DialogDescription>
             {step === 'input' && '填写测试用例信息，AI将自动生成Robot Framework脚本'}
             {step === 'generated' && '查看生成的测试脚本，点击执行按钮开始测试'}
@@ -207,7 +207,7 @@ export function UITestDialog({ open, onClose, projectId, onTestComplete }: UITes
                   value={testName}
                   onChange={(e) => setTestName(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="例如：登录功能测试"
+                  placeholder="例如：登录系统测试"
                 />
               </div>
 

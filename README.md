@@ -11,7 +11,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
 
 ### 1. 统一测试接口（Test IR）
 
-通过 **Test IR（测试中间表示）** 抽象层，将不同测试类型（功能、单元、集成、静态分析）统一为 JSON/YAML 格式的描述，实现：
+通过 **Test IR（测试中间表示）** 抽象层，将不同测试类型（系统、单元、集成、静态分析）统一为 JSON/YAML 格式的描述，实现：
 
 - **工具无关性**：测试用例与具体执行工具解耦
 - **可移植性**：测试用例可在不同工具间迁移
@@ -69,7 +69,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
 
 ### 3. AI 驱动的测试智能化
 
-- **功能测试**：根据自然语言描述，AI 自动生成 Robot Framework + SikuliLibrary 测试脚本
+- **系统测试**：根据自然语言描述，AI 自动生成 Robot Framework + SikuliLibrary 测试脚本
 - **单元测试**：基于源代码分析，AI 自动生成 Catch2 测试用例
 - **集成测试**：AI 生成测试代码并支持模拟执行
 - **静态分析**：AI 辅助深度代码分析和问题定位
@@ -99,7 +99,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
    - 支持多种测试工具（Robot Framework、UTBot、Catch2、Cppcheck 等）
 
 3. **AI 服务层** (`app/services/`, `app/ui_test/`)
-   - 功能测试 AI 生成器（Robot Framework 脚本生成）
+   - 系统测试 AI 生成器（Robot Framework 脚本生成）
    - 单元测试 AI 生成器（Catch2 测试生成）
    - 集成测试 AI 生成器（测试代码生成和模拟执行）
 
@@ -145,7 +145,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
 
 - Docker Desktop 或 Docker Engine + Docker Compose
 - 至少 4GB 可用内存
-- （功能测试需要）Windows 系统 + Python 3.10+ + Java JDK
+- （系统测试需要）Windows 系统 + Python 3.10+ + Java JDK
 
 ### Docker Compose 启动
 
@@ -197,9 +197,9 @@ docker-compose down
 docker-compose down -v
 ```
 
-### Windows Worker 启动（功能测试必需）
+### Windows Worker 启动（系统测试必需）
 
-功能测试需要在 Windows 主机上执行，因为需要访问 Windows 应用程序和运行 Robot Framework。
+系统测试需要在 Windows 主机上执行，因为需要访问 Windows 应用程序和运行 Robot Framework。
 
 #### 为什么需要 Windows Worker？
 
@@ -259,7 +259,7 @@ python -m app.worker.worker
 #### 验证 Worker 是否正常工作
 
 1. **检查 Worker 日志**：启动后应该看到 "Listening on windows_ui..."
-2. **执行一个测试**：在前端创建功能测试并执行，Worker 控制台应该显示任务处理信息
+2. **执行一个测试**：在前端创建系统测试并执行，Worker 控制台应该显示任务处理信息
 3. **检查队列状态**：确保 Worker 正在监听 `windows_ui` 队列
 
 #### Worker 常见问题
