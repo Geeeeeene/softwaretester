@@ -53,7 +53,7 @@ HomemadeTester 是一个基于 **Test IR（测试中间表示）** 的智能统�
          ▼                       ▼
 ┌─────────────────┐    ┌──────────────────┐
 │ Executor Layer  │    │  Graph Store     │
-│ - Functional Executor│  │  - CFG           │
+│ - System Executor    │  │  - CFG           │
 │ - Unit Executor │    │  - Call Graph    │
 │ - Static Executor│   │  - State Machine │
 └─────────────────┘    └──────────────────┘
