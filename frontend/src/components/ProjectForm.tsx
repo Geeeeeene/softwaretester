@@ -26,7 +26,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
   const queryClient = useQueryClient()
 
   const projectTypes = [
-    { value: 'ui', label: 'UI测试', description: '用于 UI 自动化测试' },
+    { value: 'ui', label: '功能测试', description: '用于功能自动化测试' },
     { value: 'unit', label: '单元测试', description: '用于单元测试生成和执行' },
     { value: 'integration', label: '集成测试', description: '用于集成测试' },
     { value: 'static', label: '静态分析', description: '上传源码包进行代码分析' },
@@ -93,9 +93,9 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
         if (onSuccess) onSuccess()
         navigate(`/projects/${project_id}`)
       } else if (projectType === 'ui') {
-        // UI测试项目流程
+        // 功能测试项目流程
         if (!sourcePath.trim()) {
-          throw new Error('UI测试项目需要指定应用程序路径')
+          throw new Error('功能测试项目需要指定应用程序路径')
         }
         
         const project: ProjectCreate = {
@@ -126,7 +126,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
           onSuccess(projectType)
         }
         
-        // 跳转到UI测试页面
+        // 跳转到功能测试页面
         navigate(`/projects/${res.data.id}/ui-test`)
       } else {
         // 其他项目类型保持普通创建流程
@@ -334,7 +334,7 @@ export default function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
           {/* UI测试配置 */}
           {projectType === 'ui' && (
             <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-medium text-gray-900">UI测试配置</h3>
+              <h3 className="text-sm font-medium text-gray-900">功能测试配置</h3>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

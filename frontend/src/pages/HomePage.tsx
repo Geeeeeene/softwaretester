@@ -48,7 +48,7 @@ export default function HomePage() {
           欢迎使用 HomemadeTester
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          基于Test IR的统一测试平台，支持UI测试、单元测试、集成测试和静态分析
+          基于Test IR的统一测试平台，支持功能测试、单元测试、集成测试和静态分析
         </p>
         <div className="flex justify-center gap-4 pt-4">
           <Link to="/projects">
