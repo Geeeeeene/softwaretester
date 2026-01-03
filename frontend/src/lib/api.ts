@@ -265,7 +265,7 @@ export const executionsApi = {
   create: (data: ExecutionCreate) =>
     api.post<TestExecution>('/executions', data),
   
-  // 执行单元测试（UTBot + gcov + lcov + Dr.Memory）
+  // 执行单元测试（gcov + lcov + Dr.Memory）
   runUnitTest: (projectId: number) =>
     api.post<{
       message: string

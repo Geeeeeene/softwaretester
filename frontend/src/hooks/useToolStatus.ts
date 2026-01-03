@@ -49,7 +49,6 @@ export function useToolStatus() {
     }
 
     const requiredTools: Array<{ name: keyof ToolsStatusResponse; displayName: string }> = [
-      { name: 'utbot', displayName: 'UTBotCpp' },
       { name: 'gcov', displayName: 'gcov' },
       { name: 'lcov', displayName: 'lcov' },
       { name: 'drmemory', displayName: 'Dr. Memory' },

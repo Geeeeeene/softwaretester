@@ -78,16 +78,6 @@ export function ToolErrorDialog({ open, onOpenChange, missingTools, onRetry }: T
             重新检查
           </Button>
           <Button
-            variant="outline"
-            onClick={() => {
-              window.open('https://github.com/UnitTestBot/UTBotCpp', '_blank')
-            }}
-            className="w-full sm:w-auto"
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            查看安装指南
-          </Button>
-          <Button
             onClick={() => onOpenChange(false)}
             className="w-full sm:w-auto"
           >

@@ -236,7 +236,7 @@ export default function ProjectDetailPage() {
     setTestCaseForm({ name: '', description: '', test_type: 'unit' })
   }
 
-  // 执行单元测试（UTBot + gcov + lcov + Dr.Memory）- 本地模拟执行
+  // 执行单元测试（gcov + lcov + Dr.Memory）- 本地模拟执行
   const handleExecuteTest = async () => {
     if (!project || !id) {
       alert('项目信息不完整')
@@ -256,7 +256,7 @@ export default function ProjectDetailPage() {
       setExecutionResult(null)
       
       // 模拟执行流程（不调用后端）
-      setExecutionLogs(prev => prev + '📝 使用 UTBotCpp 生成单元测试...\n')
+      setExecutionLogs(prev => prev + '📝 生成单元测试代码...\n')
       await new Promise(resolve => setTimeout(resolve, 2000))
       setExecutionLogs(prev => prev + '  ✅ 发现 15 个C++源文件\n')
       setExecutionLogs(prev => prev + '  ✅ 为 12 个文件生成测试代码\n')
@@ -971,7 +971,7 @@ export default function ProjectDetailPage() {
           <DialogHeader>
             <DialogTitle>执行单元测试分析</DialogTitle>
             <DialogDescription>
-              使用 UTBotCpp、gcov+lcov、Dr.Memory 进行完整的单元测试分析
+              使用 gcov+lcov、Dr.Memory 进行完整的单元测试分析
             </DialogDescription>
           </DialogHeader>
           
@@ -983,7 +983,7 @@ export default function ProjectDetailPage() {
                   <strong>将执行以下分析：</strong>
                 </p>
                 <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
-                  <li><strong>UTBotCpp</strong> - 自动生成单元测试代码</li>
+                  <li><strong>AI生成</strong> - 自动生成单元测试代码</li>
                   <li><strong>gcov + lcov</strong> - 收集代码覆盖率数据并生成报告</li>
                   <li><strong>Dr. Memory</strong> - 检测内存泄漏、未初始化访问等问题</li>
                 </ul>
